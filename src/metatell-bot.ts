@@ -136,44 +136,79 @@ export class MetatellBot extends MetatellClient {
       avatarId: this.config.profile.avatarId,
     })
 
-    // NAFメッセージ形式（network-schemas.jsのremote-avatarテンプレートに基づく）
-    // componentsは配列形式で送信する必要がある
-    const nafData = {
+    const timestamp = Date.now()
+    const networkId = sessionId // Use sessionId as networkId for consistency
+
+    // First send the main NAF message (dataType: 'u')
+    const nafMessage = {
       dataType: 'u',
       data: {
-        networkId: sessionId,
+        networkId: networkId,
         owner: sessionId,
         creator: sessionId,
-        lastOwnerTime: Date.now(),
+        lastOwnerTime: timestamp,
         template: '#remote-avatar',
         persistent: false,
         isFirstSync: true,
-        components: [
-          'position',
-          { x: 0, y: 0, z: 0 },
-          'rotation', 
-          { x: 0, y: 0, z: 0, w: 1 },
-          'scale',
-          { x: 1, y: 1, z: 1 },
-          'player-info',
-          {
-            avatarId: this.config.profile.avatarId,
-            avatarSrc: '',
-            displayName: this.config.profile.displayName
+        forceRender: false,
+        megaphone: false,
+        temporaryMegaphone: false,
+        parent: null,
+        components: {
+          '0': { isVector3: true, x: 0, y: 0.2, z: 0 }, // position
+          '1': { x: 0, y: 0, z: 0 }, // rotation  
+          '2': { x: 1, y: 1, z: 1 }, // scale
+          '3': { // player-info
+            avatarSrc: `https://storage.metatell.app:443/api/v1/avatars/${this.config.profile.avatarId}/avatar.gltf?v=${timestamp}`,
+            avatarType: 'skinnable',
+            muted: false,
+            isSharingAvatarCamera: false
           },
-          'networked-avatar',
-          {
-            left_hand_pose: 0,
-            right_hand_pose: 0
-          }
-        ]
+          '4': { x: 0, y: 0, z: 0, w: 1 }, // head quaternion
+          '5': { x: 0, y: 0, z: 0, w: 1 }, // left hand quaternion
+          '6': { x: 0, y: 0, z: 0, w: 1 }, // right hand quaternion
+          '7': { x: 0, y: 0, z: 0 }, // head position
+          '8': { x: 0, y: 0, z: 0 }, // left hand position
+          '9': false, // pinned
+          '10': { x: 0, y: 0, z: 0 }, // right hand position
+          '11': { x: 1, y: 1, z: 1 }, // scale
+          '12': false, // visible
+          '13': null, // media-loader
+          '14': { x: 0, y: 0, z: 0 } // networked-avatar
+        }
       }
     }
+    this.sendNAF(nafMessage)
 
-    // NAFメッセージを送信
-    this.sendNAF(nafData)
+    // Then send NAFR messages (dataType: 'um') for updates
+    const nafrData = {
+      dataType: 'um',
+      data: {
+        d: [{
+          networkId: networkId,
+          owner: sessionId,
+          creator: sessionId,
+          lastOwnerTime: timestamp,
+          template: '#remote-avatar',
+          persistent: false,
+          parent: null,
+          components: {
+            '0': { isVector3: true, x: 0, y: 0.2, z: 0 },
+            '1': { x: 0, y: 0, z: 0 },
+            '3': {
+              avatarSrc: `https://storage.metatell.app:443/api/v1/avatars/${this.config.profile.avatarId}/avatar.gltf?v=${timestamp}`,
+              avatarType: 'skinnable',
+              muted: false,
+              isSharingAvatarCamera: false
+            },
+            '14': { x: 0, y: 0, z: 0 }
+          }
+        }]
+      }
+    }
+    this.sendNAFR(nafrData)
 
-    console.log(`✅ Avatar NAF message sent with ID: ${this.config.profile.avatarId}`)
+    console.log(`✅ Avatar NAF/NAFR messages sent with ID: ${this.config.profile.avatarId}`)
   }
 
   // アバターを移動する
