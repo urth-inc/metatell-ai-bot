@@ -21,6 +21,7 @@ export class MetatellBot extends MetatellClient {
   private responseHandlers: Map<RegExp, (message: string) => string> = new Map()
   private lastMessageTime = 0
   private messageInterval = 60000 // 60秒
+  private avatarNetworkId: string | null = null
 
   constructor(config: MetatellConfig) {
     super(config)
@@ -131,16 +132,48 @@ export class MetatellBot extends MetatellClient {
     }
 
     // プロファイルを更新してアバターIDを送信
-    // これによりサーバー側でアバターが認識される
     this.updateProfile({
       avatarId: this.config.profile.avatarId,
     })
 
-    // 注意: WebSocketボットではブラウザのテンプレートは使用できない
-    // NAFでアバターデータを送信しても、実際の3Dモデルの表示は
-    // 他のクライアント（ブラウザ）側で処理される必要がある
-    console.log(`✅ Avatar profile updated with ID: ${this.config.profile.avatarId}`)
-    console.log('Note: Avatar visual representation requires browser-based clients')
+    // NAFメッセージ形式（network-schemas.jsのremote-avatarテンプレートに基づく）
+    // componentsは配列形式で送信する必要がある
+    const nafData = {
+      dataType: 'u',
+      data: {
+        networkId: sessionId,
+        owner: sessionId,
+        creator: sessionId,
+        lastOwnerTime: Date.now(),
+        template: '#remote-avatar',
+        persistent: false,
+        isFirstSync: true,
+        components: [
+          'position',
+          { x: 0, y: 0, z: 0 },
+          'rotation', 
+          { x: 0, y: 0, z: 0, w: 1 },
+          'scale',
+          { x: 1, y: 1, z: 1 },
+          'player-info',
+          {
+            avatarId: this.config.profile.avatarId,
+            avatarSrc: '',
+            displayName: this.config.profile.displayName
+          },
+          'networked-avatar',
+          {
+            left_hand_pose: 0,
+            right_hand_pose: 0
+          }
+        ]
+      }
+    }
+
+    // NAFメッセージを送信
+    this.sendNAF(nafData)
+
+    console.log(`✅ Avatar NAF message sent with ID: ${this.config.profile.avatarId}`)
   }
 
   // アバターを移動する
@@ -151,9 +184,23 @@ export class MetatellBot extends MetatellClient {
       return
     }
 
-    this.updateObject(`player-${sessionId}`, {
-      position: { x, y, z },
-    })
+    // 位置更新用のNAFメッセージ（配列形式）
+    const nafData = {
+      dataType: 'u',
+      data: {
+        networkId: sessionId,
+        owner: sessionId,
+        lastOwnerTime: Date.now(),
+        components: [
+          'position',
+          { x, y, z }
+        ]
+      }
+    }
+
+    // isFirstSyncがないので、nafrイベントとして送信される
+    this.sendNAFR(nafData)
+    console.log(`Avatar moved to position (${x}, ${y}, ${z})`)
   }
 }
 

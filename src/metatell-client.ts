@@ -52,11 +52,26 @@ export interface NAFData {
     networkId?: string
     owner?: string
     creator?: string
+    lastOwnerTime?: number
     template?: string
     persistent?: boolean
     isFirstSync?: boolean
-    components?: Record<string, unknown>
-    [key: string]: string | number | boolean | Record<string, unknown> | undefined
+    parent?: null | string
+    forceRender?: boolean
+    megaphone?: boolean
+    temporaryMegaphone?: boolean
+    components?: Record<string, unknown> | unknown[]
+    d?: Array<{
+      networkId: string
+      owner: string
+      creator: string
+      lastOwnerTime: number
+      template: string
+      persistent: boolean
+      parent: null | string
+      components: Record<string, unknown>
+    }>
+    [key: string]: string | number | boolean | Record<string, unknown> | unknown[] | null | undefined
   }
 }
 
@@ -294,6 +309,7 @@ export class MetatellClient {
     }
 
     this.hubChannel.push('naf', data)
+    console.log('Sent NAF message:', JSON.stringify(data, null, 2))
   }
 
   sendNAFR(data: NAFData): void {
@@ -302,6 +318,7 @@ export class MetatellClient {
     }
 
     this.hubChannel.push('nafr', { naf: JSON.stringify(data) })
+    console.log('Sent NAFR message:', JSON.stringify(data, null, 2))
   }
 
   spawnObject(networkId: string, template: string, components: Record<string, unknown>): void {
