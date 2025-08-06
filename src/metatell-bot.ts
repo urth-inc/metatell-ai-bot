@@ -121,6 +121,54 @@ export class MetatellBot extends MetatellClient {
 
     this.sendMessageWithRateLimit(message)
   }
+
+  // アバターをスポーンする
+  spawnAvatar(): void {
+    const sessionId = this.getSessionId()
+    if (!sessionId) {
+      console.error('Cannot spawn avatar: Session ID not available')
+      return
+    }
+
+    // プロファイルを更新してアバターIDを送信
+    this.updateProfile({
+      avatarId: this.config.profile.avatarId,
+    })
+
+    // NAFを使用してアバターオブジェクトをスポーン
+    const avatarNetworkId = `player-${sessionId}`
+    
+    // アバターテンプレートを使用してオブジェクトをスポーン
+    // Metatellでは通常 #remote-avatar または #avatar-rig テンプレートを使用
+    this.spawnObject(avatarNetworkId, '#remote-avatar', {
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0, w: 1 },
+      scale: { x: 1, y: 1, z: 1 },
+      'media-loader': {
+        src: this.config.profile.avatarId,
+        fitToBox: true,
+        resolve: true,
+      },
+      'networked-avatar': {
+        avatarId: this.config.profile.avatarId,
+      },
+    })
+
+    console.log(`✅ Avatar spawned with ID: ${this.config.profile.avatarId} at position (0, 0, 0)`)
+  }
+
+  // アバターを移動する
+  moveToPosition(x: number, y: number, z: number): void {
+    const sessionId = this.getSessionId()
+    if (!sessionId) {
+      console.error('Cannot move avatar: Session ID not available')
+      return
+    }
+
+    this.updateObject(`player-${sessionId}`, {
+      position: { x, y, z },
+    })
+  }
 }
 
 // コマンドラインから実行
@@ -131,6 +179,7 @@ async function runBot() {
     process.env.METATELL_URL ||
     'https://metatell.app/DfueGup/palatable-hospitable-outing'
   const botName = process.env.BOT_NAME || 'AI Assistant'
+  const avatarId = process.env.AVATAR_ID || 'hsBHyUu2'
   const authToken = process.env.METATELL_AUTH_TOKEN
 
   let hubId: string
@@ -151,6 +200,7 @@ async function runBot() {
   console.log(`🏠 Hub ID: ${hubId}`)
   console.log(`🌐 Socket URL: ${socketUrl}`)
   console.log(`🤖 Bot Name: ${botName}`)
+  console.log(`👤 Avatar ID: ${avatarId}`)
 
   const bot = new MetatellBot({
     socketUrl,
@@ -158,7 +208,7 @@ async function runBot() {
     authToken,
     profile: {
       displayName: botName,
-      avatarId: 'ai-bot',
+      avatarId,
     },
     debug: true,
   })
@@ -181,6 +231,9 @@ async function runBot() {
     // ルームに入室
     await bot.enterRoom()
     console.log('✅ Entered room')
+
+    // アバターをスポーン
+    bot.spawnAvatar()
 
     // 入室メッセージ
     bot.sendMessage(`🤖 ${botName} is now online! Type "help" to see what I can do.`)
