@@ -305,7 +305,8 @@ export class MetatellClient {
 
   sendNAF(data: NAFData): void {
     if (!this.hubChannel) {
-      throw new Error('Not connected to hub')
+      console.error('Cannot send NAF: Not connected to hub')
+      return
     }
 
     this.hubChannel.push('naf', data)
@@ -314,7 +315,8 @@ export class MetatellClient {
 
   sendNAFR(data: NAFData): void {
     if (!this.hubChannel) {
-      throw new Error('Not connected to hub')
+      console.error('Cannot send NAFR: Not connected to hub')
+      return
     }
 
     this.hubChannel.push('nafr', { naf: JSON.stringify(data) })
