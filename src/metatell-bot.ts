@@ -131,30 +131,16 @@ export class MetatellBot extends MetatellClient {
     }
 
     // プロファイルを更新してアバターIDを送信
+    // これによりサーバー側でアバターが認識される
     this.updateProfile({
       avatarId: this.config.profile.avatarId,
     })
 
-    // NAFを使用してアバターオブジェクトをスポーン
-    const avatarNetworkId = `player-${sessionId}`
-    
-    // アバターテンプレートを使用してオブジェクトをスポーン
-    // Metatellでは通常 #remote-avatar または #avatar-rig テンプレートを使用
-    this.spawnObject(avatarNetworkId, '#remote-avatar', {
-      position: { x: 0, y: 0, z: 0 },
-      rotation: { x: 0, y: 0, z: 0, w: 1 },
-      scale: { x: 1, y: 1, z: 1 },
-      'media-loader': {
-        src: this.config.profile.avatarId,
-        fitToBox: true,
-        resolve: true,
-      },
-      'networked-avatar': {
-        avatarId: this.config.profile.avatarId,
-      },
-    })
-
-    console.log(`✅ Avatar spawned with ID: ${this.config.profile.avatarId} at position (0, 0, 0)`)
+    // 注意: WebSocketボットではブラウザのテンプレートは使用できない
+    // NAFでアバターデータを送信しても、実際の3Dモデルの表示は
+    // 他のクライアント（ブラウザ）側で処理される必要がある
+    console.log(`✅ Avatar profile updated with ID: ${this.config.profile.avatarId}`)
+    console.log('Note: Avatar visual representation requires browser-based clients')
   }
 
   // アバターを移動する
