@@ -7,9 +7,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "start": "npm run build && node dist/example.js",
-    "bot": "npm run build && node dist/metatell-bot.js",
-    "bot:room": "npm run build && node dist/metatell-bot.js https://metatell.app/DfueGup/palatable-hospitable-outing",
+    "start": "npm run build && node dist/main.js",
+    "bot": "npm run build && node dist/main.js",
+    "bot:room": "npm run build && node dist/main.js https://metatell.app/DfueGup/palatable-hospitable-outing",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build",
     "lint": "biome lint .",
