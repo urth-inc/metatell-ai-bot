@@ -1,6 +1,6 @@
-import { IPresenceManager, PresenceUser } from '../interfaces/IPresenceManager'
-import { IConnectionManager } from '../interfaces/IConnectionManager'
-import { IEventBus, SystemEvents } from '../interfaces/IEventBus'
+import type { IPresenceManager, PresenceUser } from '../interfaces/IPresenceManager'
+import type { IConnectionManager } from '../interfaces/IConnectionManager'
+import { type IEventBus, SystemEvents } from '../interfaces/IEventBus'
 import { Presence } from 'phoenix'
 
 export class PresenceManager implements IPresenceManager {
@@ -18,7 +18,7 @@ export class PresenceManager implements IPresenceManager {
   private setupPresence(): void {
     this.eventBus.on(SystemEvents.ROOM_JOINED, () => {
       const channel = this.connectionManager.getHubChannel()
-      if (!channel) return
+      if (!channel) { return }
 
       this.presence = new Presence(channel)
 
@@ -26,15 +26,16 @@ export class PresenceManager implements IPresenceManager {
       this.presence.onSync(() => {
         const newUsers = new Map<string, PresenceUser>()
 
-        this.presence!.list((id: string, data: any) => {
+        this.presence?.list((id: string, data: unknown) => {
+          const metaData = data as { metas?: Array<{ profile?: { displayName?: string; avatarId?: string }; permissions?: Record<string, unknown>; roles?: Record<string, unknown> }> }
           const user: PresenceUser = {
             id,
             profile: {
-              displayName: data.metas?.[0]?.profile?.displayName,
-              avatarId: data.metas?.[0]?.profile?.avatarId
+              displayName: metaData.metas?.[0]?.profile?.displayName,
+              avatarId: metaData.metas?.[0]?.profile?.avatarId
             },
-            permissions: data.metas?.[0]?.permissions || {},
-            roles: data.metas?.[0]?.roles || {}
+            permissions: (metaData.metas?.[0]?.permissions || {}) as Record<string, boolean>,
+            roles: (metaData.metas?.[0]?.roles || {}) as Record<string, boolean>
           }
           newUsers.set(id, user)
         })
@@ -44,36 +45,36 @@ export class PresenceManager implements IPresenceManager {
         const leaves: PresenceUser[] = []
 
         // Check for new users (joins)
-        newUsers.forEach((user, id) => {
+        for (const [id, user] of newUsers) {
           if (!this.users.has(id)) {
             joins.push(user)
           }
-        })
+        }
 
         // Check for removed users (leaves)
-        this.users.forEach((user, id) => {
+        for (const [id, user] of this.users) {
           if (!newUsers.has(id)) {
             leaves.push(user)
           }
-        })
+        }
 
         // Update internal state
         this.users = newUsers
 
         // Emit events
-        joins.forEach(user => {
+        for (const user of joins) {
           this.handleUserJoin(user)
           this.eventBus.emit(SystemEvents.USER_JOINED, user)
-        })
+        }
 
-        leaves.forEach(user => {
+        for (const user of leaves) {
           this.handleUserLeave(user)
           this.eventBus.emit(SystemEvents.USER_LEFT, user)
-        })
+        }
       })
 
       // Handle presence diff
-      channel.on('presence_diff', (diff: any) => {
+      channel.on('presence_diff', (diff: unknown) => {
         console.log('Presence diff:', diff)
       })
     })
@@ -82,26 +83,26 @@ export class PresenceManager implements IPresenceManager {
   private handleUserJoin(user: PresenceUser): void {
     const handlers = this.handlers.get('join')
     if (handlers) {
-      handlers.forEach(handler => {
+      for (const handler of handlers) {
         try {
           handler(user)
         } catch (error) {
           console.error('Error in presence join handler:', error)
         }
-      })
+      }
     }
   }
 
   private handleUserLeave(user: PresenceUser): void {
     const handlers = this.handlers.get('leave')
     if (handlers) {
-      handlers.forEach(handler => {
+      for (const handler of handlers) {
         try {
           handler(user)
         } catch (error) {
           console.error('Error in presence leave handler:', error)
         }
-      })
+      }
     }
   }
 
@@ -121,7 +122,7 @@ export class PresenceManager implements IPresenceManager {
     if (!this.handlers.has(event)) {
       this.handlers.set(event, new Set())
     }
-    this.handlers.get(event)!.add(handler)
+    this.handlers.get(event)?.add(handler)
   }
 
   off(event: 'join' | 'leave', handler: (user: PresenceUser) => void): void {

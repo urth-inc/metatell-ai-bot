@@ -1,4 +1,4 @@
-import {
+import type {
   IConfigurationProvider,
   BotConfiguration,
   BotProfile,
@@ -7,7 +7,7 @@ import {
 
 export class ConfigurationProvider implements IConfigurationProvider {
   private config: BotConfiguration
-  private customSettings = new Map<string, any>()
+  private customSettings = new Map<string, unknown>()
 
   constructor(initialConfig: BotConfiguration) {
     this.config = {
@@ -20,7 +20,7 @@ export class ConfigurationProvider implements IConfigurationProvider {
     }
   }
 
-  get<T = any>(key: string): T | undefined {
+  get<T = unknown>(key: string): T | undefined {
     // Check custom settings first
     if (this.customSettings.has(key)) {
       return this.customSettings.get(key) as T
@@ -28,11 +28,11 @@ export class ConfigurationProvider implements IConfigurationProvider {
 
     // Check nested config properties
     const keys = key.split('.')
-    let value: any = this.config
+    let value: unknown = this.config
     
     for (const k of keys) {
       if (value && typeof value === 'object' && k in value) {
-        value = value[k]
+        value = (value as Record<string, unknown>)[k]
       } else {
         return undefined
       }
@@ -41,7 +41,7 @@ export class ConfigurationProvider implements IConfigurationProvider {
     return value as T
   }
 
-  set<T = any>(key: string, value: T): void {
+  set<T = unknown>(key: string, value: T): void {
     this.customSettings.set(key, value)
   }
 
@@ -58,8 +58,11 @@ export class ConfigurationProvider implements IConfigurationProvider {
 
   updateContext(context: Partial<BotContext>): void {
     this.config.context = {
-      ...this.config.context!,
+      mobile: false,
+      embed: false,
+      hmd: false,
+      ...this.config.context || {},
       ...context
-    }
+    } as BotContext
   }
 }

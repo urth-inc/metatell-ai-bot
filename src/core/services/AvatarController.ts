@@ -1,12 +1,12 @@
-import { 
+import type { 
   IAvatarController, 
   AvatarState, 
   Position, 
   Rotation 
 } from '../interfaces/IAvatarController'
-import { IMessageService } from '../interfaces/IMessageService'
-import { IConfigurationProvider } from '../interfaces/IConfigurationProvider'
-import { IEventBus, SystemEvents } from '../interfaces/IEventBus'
+import type { IMessageService } from '../interfaces/IMessageService'
+import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider'
+import { type IEventBus, SystemEvents } from '../interfaces/IEventBus'
 
 export class AvatarController implements IAvatarController {
   private state: AvatarState | null = null
@@ -18,8 +18,8 @@ export class AvatarController implements IAvatarController {
     private eventBus: IEventBus
   ) {
     // Listen for room joined to get session ID
-    this.eventBus.on(SystemEvents.ROOM_JOINED, (data: any) => {
-      this.sessionId = data.session_id
+    this.eventBus.on(SystemEvents.ROOM_JOINED, (data: unknown) => {
+      this.sessionId = (data as { session_id: string }).session_id
     })
   }
 
@@ -183,7 +183,7 @@ export class AvatarController implements IAvatarController {
 
     this.state = { ...this.state, ...state }
 
-    const components: any = {}
+    const components: Record<string, unknown> = {}
     
     if (state.position) {
       components['0'] = { isVector3: true, ...state.position }

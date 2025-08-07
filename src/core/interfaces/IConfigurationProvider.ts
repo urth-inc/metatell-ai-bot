@@ -18,8 +18,8 @@ export interface BotConfiguration {
 }
 
 export interface IConfigurationProvider {
-  get<T = any>(key: string): T | undefined
-  set<T = any>(key: string, value: T): void
+  get<T = unknown>(key: string): T | undefined
+  set<T = unknown>(key: string, value: T): void
   getConfiguration(): BotConfiguration
   updateProfile(profile: Partial<BotProfile>): void
   updateContext(context: Partial<BotContext>): void

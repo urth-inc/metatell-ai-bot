@@ -1,9 +1,9 @@
-import { 
+import type { 
   IAuthenticationService, 
   AuthToken, 
   AuthCredentials 
 } from '../interfaces/IAuthenticationService'
-import { IConfigurationProvider } from '../interfaces/IConfigurationProvider'
+import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider'
 
 export class AuthenticationService implements IAuthenticationService {
   private token: AuthToken | null = null
@@ -11,7 +11,7 @@ export class AuthenticationService implements IAuthenticationService {
   constructor(private configProvider: IConfigurationProvider) {}
 
   async authenticate(credentials: AuthCredentials): Promise<AuthToken> {
-    const config = this.configProvider.getConfiguration()
+    const _config = this.configProvider.getConfiguration()
     
     // If token is provided directly
     if (credentials.token) {
@@ -25,7 +25,7 @@ export class AuthenticationService implements IAuthenticationService {
     // For now, generate a mock token since the auth endpoint is not fully implemented
     // In production, this should make a real API call
     this.token = {
-      token: 'mock-token-' + Date.now(),
+      token: `mock-token-${Date.now()}`,
       expiresAt: Date.now() + 24 * 60 * 60 * 1000
     }
     
@@ -39,7 +39,7 @@ export class AuthenticationService implements IAuthenticationService {
 
   getToken(): AuthToken | null {
     // Check if token is expired
-    if (this.token && this.token.expiresAt && this.token.expiresAt < Date.now()) {
+    if (this.token?.expiresAt && this.token.expiresAt < Date.now()) {
       this.token = null
     }
     return this.token

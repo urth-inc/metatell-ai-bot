@@ -2,7 +2,7 @@
 
 import './websocket-polyfill'
 import { ServiceFactory } from './core/ServiceFactory'
-import { BotConfiguration } from './core/interfaces/IConfigurationProvider'
+import type { BotConfiguration } from './core/interfaces/IConfigurationProvider'
 
 /**
  * Extract hub ID from Metatell URL
@@ -25,7 +25,7 @@ async function main() {
     'https://metatell.app/DfueGup/palatable-hospitable-outing'
   const botName = process.env.BOT_NAME || 'AI Assistant'
   const avatarId = process.env.AVATAR_ID || 'hsBHyUu2'
-  const authToken = process.env.METATELL_AUTH_TOKEN
+  const _authToken = process.env.METATELL_AUTH_TOKEN
 
   let hubId: string
   let socketUrl: string
@@ -111,7 +111,7 @@ async function main() {
         // Simple math evaluation (be careful with eval in production!)
         const result = Function(`"use strict"; return (${calcMatch[1]})`)()
         return `Result: ${result}`
-      } catch (error) {
+      } catch (_error) {
         return 'Invalid math expression'
       }
     }

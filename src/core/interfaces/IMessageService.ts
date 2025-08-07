@@ -7,7 +7,7 @@ export interface Message {
 
 export interface NAFMessage {
   dataType: string
-  data: any
+  data: unknown
   from_session_id?: string
 }
 
@@ -17,6 +17,6 @@ export interface IMessageService {
   sendNAFR(data: NAFMessage): Promise<void>
   beginTyping(): Promise<void>
   endTyping(): Promise<void>
-  on(event: 'message' | 'naf' | 'nafr', handler: (data: any) => void): void
-  off(event: 'message' | 'naf' | 'nafr', handler: (data: any) => void): void
+  on(event: 'message' | 'naf' | 'nafr', handler: (data: unknown) => void): void
+  off(event: 'message' | 'naf' | 'nafr', handler: (data: unknown) => void): void
 }

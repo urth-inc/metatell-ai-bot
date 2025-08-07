@@ -21,7 +21,6 @@ export class MetatellBot extends MetatellClient {
   private responseHandlers: Map<RegExp, (message: string) => string> = new Map()
   private lastMessageTime = 0
   private messageInterval = 60000 // 60秒
-  private avatarNetworkId: string | null = null
 
   constructor(config: MetatellConfig) {
     super(config)

@@ -1,12 +1,11 @@
-import { Socket, Channel } from 'phoenix'
-import { IConnectionManager, ConnectionConfig } from '../interfaces/IConnectionManager'
-import { IEventBus, SystemEvents } from '../interfaces/IEventBus'
-import { IConfigurationProvider } from '../interfaces/IConfigurationProvider'
+import { Socket, type Channel } from 'phoenix'
+import type { IConnectionManager, ConnectionConfig } from '../interfaces/IConnectionManager'
+import { type IEventBus, SystemEvents } from '../interfaces/IEventBus'
+import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider'
 
 export class WebSocketConnectionManager implements IConnectionManager {
   private socket: Socket | null = null
   private hubChannel: Channel | null = null
-  private config: ConnectionConfig | null = null
   private sessionId: string | null = null
 
   constructor(
@@ -15,7 +14,6 @@ export class WebSocketConnectionManager implements IConnectionManager {
   ) {}
 
   async connect(config: ConnectionConfig): Promise<void> {
-    this.config = config
 
     try {
       // Create Phoenix socket (no authentication here, just connect)
@@ -85,24 +83,28 @@ export class WebSocketConnectionManager implements IConnectionManager {
         params: channelParams
       })
 
-      this.hubChannel = this.socket!.channel(`hub:${hubId}`, channelParams)
+      this.hubChannel = this.socket?.channel(`hub:${hubId}`, channelParams) || null
 
-      this.hubChannel
-        .join()
-        .receive('ok', (response: any) => {
-          console.log('Joined hub channel:', response)
-          this.sessionId = response.session_id
-          this.eventBus.emit(SystemEvents.ROOM_JOINED, response)
-          resolve()
-        })
-        .receive('error', (error: any) => {
-          console.error('Failed to join hub:', error)
-          reject(new Error(`Failed to join hub: ${JSON.stringify(error)}`))
-        })
-        .receive('timeout', () => {
-          console.error('Hub join timeout')
-          reject(new Error('Hub join timeout'))
-        })
+      if (this.hubChannel) {
+        this.hubChannel
+          .join()
+          .receive('ok', (response: unknown) => {
+            console.log('Joined hub channel:', response)
+            this.sessionId = (response as { session_id: string }).session_id
+            this.eventBus.emit(SystemEvents.ROOM_JOINED, response)
+            resolve()
+          })
+          .receive('error', (error: unknown) => {
+            console.error('Failed to join hub:', error)
+            reject(new Error(`Failed to join hub: ${JSON.stringify(error)}`))
+          })
+          .receive('timeout', () => {
+            console.error('Hub join timeout')
+            reject(new Error('Hub join timeout'))
+          })
+      } else {
+        reject(new Error('Failed to create hub channel'))
+      }
     })
   }
 
@@ -144,7 +146,7 @@ export class WebSocketConnectionManager implements IConnectionManager {
     }
   }
 
-  on(event: string, callback: (...args: any[]) => void): void {
+  on(event: string, callback: (...args: unknown[]) => void): void {
     this.hubChannel?.on(event, callback)
   }
 

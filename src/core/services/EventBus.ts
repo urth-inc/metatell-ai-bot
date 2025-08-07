@@ -1,29 +1,29 @@
-import { IEventBus, EventHandler } from '../interfaces/IEventBus'
+import type { IEventBus, EventHandler } from '../interfaces/IEventBus'
 
 export class EventBus implements IEventBus {
   private events = new Map<string, Set<EventHandler>>()
 
-  on<T = any>(event: string, handler: EventHandler<T>): void {
+  on<T = unknown>(event: string, handler: EventHandler<T>): void {
     if (!this.events.has(event)) {
       this.events.set(event, new Set())
     }
-    this.events.get(event)!.add(handler)
+    this.events.get(event)?.add(handler as EventHandler)
   }
 
-  off<T = any>(event: string, handler: EventHandler<T>): void {
+  off<T = unknown>(event: string, handler: EventHandler<T>): void {
     const handlers = this.events.get(event)
     if (handlers) {
-      handlers.delete(handler)
+      handlers.delete(handler as EventHandler)
       if (handlers.size === 0) {
         this.events.delete(event)
       }
     }
   }
 
-  emit<T = any>(event: string, data?: T): void {
+  emit<T = unknown>(event: string, data?: T): void {
     const handlers = this.events.get(event)
     if (handlers) {
-      handlers.forEach(handler => {
+      for (const handler of handlers) {
         try {
           const result = handler(data)
           if (result instanceof Promise) {
@@ -34,11 +34,11 @@ export class EventBus implements IEventBus {
         } catch (error) {
           console.error(`Error in event handler for "${event}":`, error)
         }
-      })
+      }
     }
   }
 
-  once<T = any>(event: string, handler: EventHandler<T>): void {
+  once<T = unknown>(event: string, handler: EventHandler<T>): void {
     const wrappedHandler: EventHandler<T> = (data) => {
       this.off(event, wrappedHandler)
       return handler(data)

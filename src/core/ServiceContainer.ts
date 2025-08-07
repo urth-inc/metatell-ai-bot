@@ -1,9 +1,9 @@
 type ServiceFactory<T> = (container: ServiceContainer) => T
-type ServiceInstance = any
+type ServiceInstance = unknown
 
 export class ServiceContainer {
   private services = new Map<string, ServiceInstance>()
-  private factories = new Map<string, ServiceFactory<any>>()
+  private factories = new Map<string, ServiceFactory<unknown>>()
   private singletons = new Map<string, boolean>()
 
   register<T>(
@@ -47,14 +47,14 @@ export class ServiceContainer {
   }
 
   // Helper method for binding interfaces to implementations
-  bind<T>(interfaceName: string, implementation: new (...args: any[]) => T): void {
+  bind<T>(interfaceName: string, implementation: new (...args: unknown[]) => T): void {
     this.register(interfaceName, () => new implementation())
   }
 
   // Helper method for binding with dependencies
   bindWithDependencies<T>(
     interfaceName: string,
-    implementation: new (...args: any[]) => T,
+    implementation: new (...args: unknown[]) => T,
     dependencies: string[]
   ): void {
     this.register(interfaceName, (container) => {

@@ -1,10 +1,10 @@
-import { IMessageService, Message, NAFMessage } from '../interfaces/IMessageService'
-import { IConnectionManager } from '../interfaces/IConnectionManager'
-import { IEventBus, SystemEvents } from '../interfaces/IEventBus'
-import { IRateLimiter } from '../interfaces/IRateLimiter'
+import type { IMessageService, NAFMessage } from '../interfaces/IMessageService'
+import type { IConnectionManager } from '../interfaces/IConnectionManager'
+import { type IEventBus, SystemEvents } from '../interfaces/IEventBus'
+import type { IRateLimiter } from '../interfaces/IRateLimiter'
 
 export class MessageService implements IMessageService {
-  private messageHandlers = new Map<string, Set<(data: any) => void>>()
+  private messageHandlers = new Map<string, Set<(data: unknown) => void>>()
 
   constructor(
     private connectionManager: IConnectionManager,
@@ -18,38 +18,38 @@ export class MessageService implements IMessageService {
     // Listen for connection events to setup channel listeners
     this.eventBus.on(SystemEvents.ROOM_JOINED, () => {
       const channel = this.connectionManager.getHubChannel()
-      if (!channel) return
+      if (!channel) { return }
 
       // Setup message listener
-      channel.on('message', (payload: any) => {
+      channel.on('message', (payload: unknown) => {
         this.handleIncomingMessage('message', payload)
         this.eventBus.emit(SystemEvents.MESSAGE_RECEIVED, payload)
       })
 
       // Setup NAF listener
-      channel.on('naf', (payload: any) => {
+      channel.on('naf', (payload: unknown) => {
         this.handleIncomingMessage('naf', payload)
         this.eventBus.emit(SystemEvents.NAF_RECEIVED, payload)
       })
 
       // Setup NAFR listener
-      channel.on('nafr', (payload: any) => {
+      channel.on('nafr', (payload: unknown) => {
         this.handleIncomingMessage('nafr', payload)
         this.eventBus.emit(SystemEvents.NAFR_RECEIVED, payload)
       })
     })
   }
 
-  private handleIncomingMessage(type: string, data: any): void {
+  private handleIncomingMessage(type: string, data: unknown): void {
     const handlers = this.messageHandlers.get(type)
     if (handlers) {
-      handlers.forEach(handler => {
+      for (const handler of handlers) {
         try {
           handler(data)
         } catch (error) {
           console.error(`Error in message handler for "${type}":`, error)
         }
-      })
+      }
     }
   }
 
@@ -112,14 +112,14 @@ export class MessageService implements IMessageService {
     channel.push('events:typing', { typing: false })
   }
 
-  on(event: 'message' | 'naf' | 'nafr', handler: (data: any) => void): void {
+  on(event: 'message' | 'naf' | 'nafr', handler: (data: unknown) => void): void {
     if (!this.messageHandlers.has(event)) {
       this.messageHandlers.set(event, new Set())
     }
-    this.messageHandlers.get(event)!.add(handler)
+    this.messageHandlers.get(event)?.add(handler)
   }
 
-  off(event: 'message' | 'naf' | 'nafr', handler: (data: any) => void): void {
+  off(event: 'message' | 'naf' | 'nafr', handler: (data: unknown) => void): void {
     const handlers = this.messageHandlers.get(event)
     if (handlers) {
       handlers.delete(handler)

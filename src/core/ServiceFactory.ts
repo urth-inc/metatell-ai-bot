@@ -9,14 +9,14 @@ import { AvatarController } from './services/AvatarController'
 import { PresenceManager } from './services/PresenceManager'
 import { MetatellBot } from '../bots/MetatellBot'
 
-import { IEventBus } from './interfaces/IEventBus'
-import { IConfigurationProvider, BotConfiguration } from './interfaces/IConfigurationProvider'
-import { IRateLimiter } from './interfaces/IRateLimiter'
-import { IAuthenticationService } from './interfaces/IAuthenticationService'
-import { IConnectionManager } from './interfaces/IConnectionManager'
-import { IMessageService } from './interfaces/IMessageService'
-import { IAvatarController } from './interfaces/IAvatarController'
-import { IPresenceManager } from './interfaces/IPresenceManager'
+import type { IEventBus } from './interfaces/IEventBus'
+import type { IConfigurationProvider, BotConfiguration } from './interfaces/IConfigurationProvider'
+import type { IRateLimiter } from './interfaces/IRateLimiter'
+import type { IAuthenticationService } from './interfaces/IAuthenticationService'
+import type { IConnectionManager } from './interfaces/IConnectionManager'
+import type { IMessageService } from './interfaces/IMessageService'
+import type { IAvatarController } from './interfaces/IAvatarController'
+import type { IPresenceManager } from './interfaces/IPresenceManager'
 
 export class ServiceFactory {
   private container: ServiceContainer
@@ -110,8 +110,7 @@ export class ServiceFactory {
         container.get<IMessageService>('IMessageService'),
         container.get<IAvatarController>('IAvatarController'),
         container.get<IPresenceManager>('IPresenceManager'),
-        container.get<IConfigurationProvider>('IConfigurationProvider'),
-        container.get<IEventBus>('IEventBus')
+        container.get<IConfigurationProvider>('IConfigurationProvider')
       ),
       { singleton: true }
     )

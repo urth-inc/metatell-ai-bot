@@ -1,4 +1,4 @@
-import { IRateLimiter, RateLimitConfig } from '../interfaces/IRateLimiter'
+import type { IRateLimiter, RateLimitConfig } from '../interfaces/IRateLimiter'
 
 interface RateLimitBucket {
   count: number
@@ -47,7 +47,7 @@ export class RateLimiter implements IRateLimiter {
 
   getTimeUntilReset(key: string = 'default'): number {
     const bucket = this.buckets.get(key)
-    if (!bucket) return 0
+    if (!bucket) { return 0 }
 
     const now = Date.now()
     const timeRemaining = bucket.resetTime - now

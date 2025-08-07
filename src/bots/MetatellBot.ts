@@ -1,9 +1,8 @@
-import { IMessageService } from '../core/interfaces/IMessageService'
-import { IAvatarController } from '../core/interfaces/IAvatarController'
-import { IPresenceManager, PresenceUser } from '../core/interfaces/IPresenceManager'
-import { IConfigurationProvider } from '../core/interfaces/IConfigurationProvider'
-import { IEventBus, SystemEvents } from '../core/interfaces/IEventBus'
-import { IConnectionManager } from '../core/interfaces/IConnectionManager'
+import type { IMessageService } from '../core/interfaces/IMessageService'
+import type { IAvatarController } from '../core/interfaces/IAvatarController'
+import type { IPresenceManager, PresenceUser } from '../core/interfaces/IPresenceManager'
+import type { IConfigurationProvider } from '../core/interfaces/IConfigurationProvider'
+import type { IConnectionManager } from '../core/interfaces/IConnectionManager'
 
 export type MessageHandler = (message: string, sessionId: string) => string | null
 
@@ -17,7 +16,6 @@ export class MetatellBot {
     private avatarController: IAvatarController,
     private presenceManager: IPresenceManager,
     private configProvider: IConfigurationProvider,
-    private eventBus: IEventBus
   ) {
     this.setupEventHandlers()
     this.setupDefaultHandlers()
@@ -25,7 +23,7 @@ export class MetatellBot {
 
   private setupEventHandlers(): void {
     // Handle incoming messages
-    this.messageService.on('message', (payload: any) => {
+    this.messageService.on('message', (payload: unknown) => {
       this.handleIncomingMessage(payload)
     })
 
@@ -94,11 +92,11 @@ export class MetatellBot {
     })
   }
 
-  private handleIncomingMessage(payload: any): void {
-    const { body, session_id } = payload
+  private handleIncomingMessage(payload: unknown): void {
+    const { body, session_id } = payload as { body: string; session_id: string }
     
     // Don't respond to own messages
-    const config = this.configProvider.getConfiguration()
+    const _config = this.configProvider.getConfiguration()
     if (session_id === this.connectionManager.getSessionId()) {
       return
     }
@@ -217,14 +215,6 @@ export class MetatellBot {
     } catch (error) {
       console.error('Error stopping bot:', error)
     }
-  }
-
-  private extractHubIdFromUrl(url: string): string {
-    const match = url.match(/\/([a-zA-Z0-9_-]+)(?:\?|$)/)
-    if (!match) {
-      throw new Error(`Cannot extract hub ID from URL: ${url}`)
-    }
-    return match[1]
   }
 
   private async enterRoom(): Promise<void> {

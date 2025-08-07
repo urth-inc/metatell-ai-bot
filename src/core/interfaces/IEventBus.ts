@@ -1,10 +1,10 @@
-export type EventHandler<T = any> = (data: T) => void | Promise<void>
+export type EventHandler<T = unknown> = (data: T) => void | Promise<void>
 
 export interface IEventBus {
-  on<T = any>(event: string, handler: EventHandler<T>): void
-  off<T = any>(event: string, handler: EventHandler<T>): void
-  emit<T = any>(event: string, data?: T): void
-  once<T = any>(event: string, handler: EventHandler<T>): void
+  on<T = unknown>(event: string, handler: EventHandler<T>): void
+  off<T = unknown>(event: string, handler: EventHandler<T>): void
+  emit<T = unknown>(event: string, data?: T): void
+  once<T = unknown>(event: string, handler: EventHandler<T>): void
   removeAllListeners(event?: string): void
 }
 

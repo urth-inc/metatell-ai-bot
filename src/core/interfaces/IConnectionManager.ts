@@ -1,4 +1,4 @@
-import { Socket, Channel } from 'phoenix'
+import type { Socket, Channel } from 'phoenix'
 
 export interface ConnectionConfig {
   authUrl: string
@@ -17,5 +17,5 @@ export interface IConnectionManager {
   getHubChannel(): Channel | null
   getSessionId(): string | null
   waitForConnection(timeout?: number): Promise<void>
-  on(event: string, callback: (...args: any[]) => void): void
+  on(event: string, callback: (...args: unknown[]) => void): void
 }
