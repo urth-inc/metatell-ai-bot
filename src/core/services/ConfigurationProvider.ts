@@ -2,7 +2,7 @@ import type {
   IConfigurationProvider,
   BotConfiguration,
   BotProfile,
-  BotContext
+  BotContext,
 } from '../interfaces/IConfigurationProvider'
 
 export class ConfigurationProvider implements IConfigurationProvider {
@@ -15,8 +15,8 @@ export class ConfigurationProvider implements IConfigurationProvider {
       context: initialConfig.context || {
         mobile: false,
         embed: false,
-        hmd: false
-      }
+        hmd: false,
+      },
     }
   }
 
@@ -29,7 +29,7 @@ export class ConfigurationProvider implements IConfigurationProvider {
     // Check nested config properties
     const keys = key.split('.')
     let value: unknown = this.config
-    
+
     for (const k of keys) {
       if (value && typeof value === 'object' && k in value) {
         value = (value as Record<string, unknown>)[k]
@@ -37,7 +37,7 @@ export class ConfigurationProvider implements IConfigurationProvider {
         return undefined
       }
     }
-    
+
     return value as T
   }
 
@@ -52,7 +52,7 @@ export class ConfigurationProvider implements IConfigurationProvider {
   updateProfile(profile: Partial<BotProfile>): void {
     this.config.profile = {
       ...this.config.profile,
-      ...profile
+      ...profile,
     }
   }
 
@@ -61,8 +61,8 @@ export class ConfigurationProvider implements IConfigurationProvider {
       mobile: false,
       embed: false,
       hmd: false,
-      ...this.config.context || {},
-      ...context
+      ...(this.config.context || {}),
+      ...context,
     } as BotContext
   }
 }

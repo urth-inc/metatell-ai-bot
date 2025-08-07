@@ -1,7 +1,7 @@
-import type { 
-  IAuthenticationService, 
-  AuthToken, 
-  AuthCredentials 
+import type {
+  IAuthenticationService,
+  AuthToken,
+  AuthCredentials,
 } from '../interfaces/IAuthenticationService'
 import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider'
 
@@ -12,12 +12,12 @@ export class AuthenticationService implements IAuthenticationService {
 
   async authenticate(credentials: AuthCredentials): Promise<AuthToken> {
     const _config = this.configProvider.getConfiguration()
-    
+
     // If token is provided directly
     if (credentials.token) {
       this.token = {
         token: credentials.token,
-        expiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
       }
       return this.token
     }
@@ -26,9 +26,9 @@ export class AuthenticationService implements IAuthenticationService {
     // In production, this should make a real API call
     this.token = {
       token: `mock-token-${Date.now()}`,
-      expiresAt: Date.now() + 24 * 60 * 60 * 1000
+      expiresAt: Date.now() + 24 * 60 * 60 * 1000,
     }
-    
+
     return this.token
   }
 

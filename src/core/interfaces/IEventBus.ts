@@ -13,22 +13,22 @@ export enum SystemEvents {
   CONNECTION_ESTABLISHED = 'connection:established',
   CONNECTION_LOST = 'connection:lost',
   CONNECTION_ERROR = 'connection:error',
-  
+
   // Room events
   ROOM_JOINED = 'room:joined',
   ROOM_LEFT = 'room:left',
   USER_JOINED = 'user:joined',
   USER_LEFT = 'user:left',
-  
+
   // Message events
   MESSAGE_RECEIVED = 'message:received',
   MESSAGE_SENT = 'message:sent',
-  
+
   // Avatar events
   AVATAR_SPAWNED = 'avatar:spawned',
   AVATAR_MOVED = 'avatar:moved',
   AVATAR_UPDATED = 'avatar:updated',
-  
+
   // NAF events
   NAF_RECEIVED = 'naf:received',
   NAFR_RECEIVED = 'nafr:received',

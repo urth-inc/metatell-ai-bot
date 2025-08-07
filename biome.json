@@ -66,7 +66,6 @@
         "useTemplate": "warn"
       },
       "suspicious": {
-
         "noAsyncPromiseExecutor": "error",
         "noCatchAssign": "error",
         "noClassAssign": "error",

@@ -9,14 +9,17 @@
     "dev": "tsc --watch",
     "start": "npm run build && node dist/main.js",
     "bot": "npm run build && node dist/main.js",
-    "bot:room": "npm run build && node dist/main.js https://metatell.app/DfueGup/palatable-hospitable-outing",
+    "bot:room": "npm run build && node dist/main.js https://metatell.app/LWF5w8n/",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "format": "biome format --write .",
     "check": "biome check .",
-    "check:fix": "biome check --write ."
+    "check:fix": "biome check --write .",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
   },
   "keywords": [
     "metatell",
@@ -37,6 +40,10 @@
     "@types/node": "^20.10.0",
     "@types/phoenix": "^1.6.4",
     "@types/ws": "^8.5.10",
-    "typescript": "^5.3.2"
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
+    "happy-dom": "^18.0.1",
+    "typescript": "^5.3.2",
+    "vitest": "^3.2.4"
   }
 }

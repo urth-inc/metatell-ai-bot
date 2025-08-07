@@ -8,7 +8,7 @@ if (typeof global !== 'undefined') {
   const globalWithWs = global as unknown as {
     WebSocket?: typeof WebSocketImpl
   }
-  
+
   if (!globalWithWs.WebSocket) {
     // wsのWebSocketをグローバルに設定
     globalWithWs.WebSocket = WebSocketImpl

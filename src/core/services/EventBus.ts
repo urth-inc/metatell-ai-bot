@@ -27,7 +27,7 @@ export class EventBus implements IEventBus {
         try {
           const result = handler(data)
           if (result instanceof Promise) {
-            result.catch(error => {
+            result.catch((error) => {
               console.error(`Error in event handler for "${event}":`, error)
             })
           }

@@ -59,7 +59,7 @@ async function main() {
   // URL: https://metatell.app/DfueGup/palatable-hospitable-outing
   // hubId は "DfueGup" の部分
   const avatarId = process.env.AVATAR_ID || 'hsBHyUu2'
-  
+
   const bot = new MetatellAIBot({
     socketUrl: 'wss://metatell.app:4443', // metatell.appのWebSocketエンドポイント
     hubId: 'DfueGup', // URLから抽出したHub ID

@@ -21,7 +21,7 @@ export class RateLimiter implements IRateLimiter {
       // Create new bucket or reset expired one
       this.buckets.set(key, {
         count: 1,
-        resetTime: now + this.config.windowMs
+        resetTime: now + this.config.windowMs,
       })
       return true
     }
@@ -37,7 +37,7 @@ export class RateLimiter implements IRateLimiter {
   async wait(key: string = 'default'): Promise<void> {
     const timeToWait = this.getTimeUntilReset(key)
     if (timeToWait > 0) {
-      await new Promise(resolve => setTimeout(resolve, timeToWait))
+      await new Promise((resolve) => setTimeout(resolve, timeToWait))
     }
   }
 
@@ -47,7 +47,9 @@ export class RateLimiter implements IRateLimiter {
 
   getTimeUntilReset(key: string = 'default'): number {
     const bucket = this.buckets.get(key)
-    if (!bucket) { return 0 }
+    if (!bucket) {
+      return 0
+    }
 
     const now = Date.now()
     const timeRemaining = bucket.resetTime - now

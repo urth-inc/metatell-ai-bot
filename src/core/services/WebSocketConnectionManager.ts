@@ -10,11 +10,10 @@ export class WebSocketConnectionManager implements IConnectionManager {
 
   constructor(
     private eventBus: IEventBus,
-    private configProvider: IConfigurationProvider
+    private configProvider: IConfigurationProvider,
   ) {}
 
   async connect(config: ConnectionConfig): Promise<void> {
-
     try {
       // Create Phoenix socket (no authentication here, just connect)
       const socketUrl = new URL(config.authUrl)
@@ -24,13 +23,13 @@ export class WebSocketConnectionManager implements IConnectionManager {
       this.socket = new Socket(socketUrl.toString(), {
         params: {
           session_token: null,
-          perms_token: null
+          perms_token: null,
         },
         reconnectAfterMs: (tries) => {
           const delay = [1000, 2000, 5000, 10000][tries - 1] || 10000
           console.log(`Reconnecting in ${delay}ms... (attempt ${tries})`)
           return delay
-        }
+        },
       })
 
       // Set up socket event handlers
@@ -58,7 +57,6 @@ export class WebSocketConnectionManager implements IConnectionManager {
       // Join hub channel
       console.log('About to join hub:', config.hubId)
       await this.joinHub(config.hubId)
-
     } catch (error) {
       console.error('Connection failed:', error)
       throw error
@@ -75,12 +73,12 @@ export class WebSocketConnectionManager implements IConnectionManager {
       const config = this.configProvider.getConfiguration()
       const channelParams = {
         profile: config.profile,
-        context: config.context || {}
+        context: config.context || {},
       }
 
       console.log('Attempting to join hub with:', {
         channel: `hub:${hubId}`,
-        params: channelParams
+        params: channelParams,
       })
 
       this.hubChannel = this.socket?.channel(`hub:${hubId}`, channelParams) || null
@@ -113,7 +111,7 @@ export class WebSocketConnectionManager implements IConnectionManager {
       this.hubChannel.leave()
       this.hubChannel = null
     }
-    
+
     if (this.socket) {
       this.socket.disconnect()
       this.socket = null
@@ -137,12 +135,12 @@ export class WebSocketConnectionManager implements IConnectionManager {
 
   async waitForConnection(timeout: number = 30000): Promise<void> {
     const startTime = Date.now()
-    
+
     while (!this.isConnected()) {
       if (Date.now() - startTime > timeout) {
         throw new Error('Connection timeout')
       }
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise((resolve) => setTimeout(resolve, 100))
     }
   }
 

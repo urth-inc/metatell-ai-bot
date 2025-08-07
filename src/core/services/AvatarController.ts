@@ -1,8 +1,8 @@
-import type { 
-  IAvatarController, 
-  AvatarState, 
-  Position, 
-  Rotation 
+import type {
+  IAvatarController,
+  AvatarState,
+  Position,
+  Rotation,
 } from '../interfaces/IAvatarController'
 import type { IMessageService } from '../interfaces/IMessageService'
 import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider'
@@ -15,7 +15,7 @@ export class AvatarController implements IAvatarController {
   constructor(
     private messageService: IMessageService,
     private configProvider: IConfigurationProvider,
-    private eventBus: IEventBus
+    private eventBus: IEventBus,
   ) {
     // Listen for room joined to get session ID
     this.eventBus.on(SystemEvents.ROOM_JOINED, (data: unknown) => {
@@ -40,7 +40,7 @@ export class AvatarController implements IAvatarController {
       rotation: { x: 0, y: 0, z: 0, w: 1 },
       avatarId,
       avatarSrc: `https://storage.metatell.app:443/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`,
-      displayName: config.profile.displayName
+      displayName: config.profile.displayName,
     }
 
     // Send initial NAF message (dataType: 'u')
@@ -60,13 +60,14 @@ export class AvatarController implements IAvatarController {
         parent: null,
         components: {
           '0': { isVector3: true, ...spawnPosition }, // position
-          '1': { x: 0, y: 0, z: 0 }, // rotation  
+          '1': { x: 0, y: 0, z: 0 }, // rotation
           '2': { x: 1, y: 1, z: 1 }, // scale
-          '3': { // player-info
+          '3': {
+            // player-info
             avatarSrc: this.state.avatarSrc,
             avatarType: 'skinnable',
             muted: false,
-            isSharingAvatarCamera: false
+            isSharingAvatarCamera: false,
           },
           '4': { x: 0, y: 0, z: 0, w: 1 }, // head quaternion
           '5': { x: 0, y: 0, z: 0, w: 1 }, // left hand quaternion
@@ -78,9 +79,9 @@ export class AvatarController implements IAvatarController {
           '11': { x: 1, y: 1, z: 1 }, // scale
           '12': false, // visible
           '13': null, // media-loader
-          '14': { x: 0, y: 0, z: 0 } // networked-avatar
-        }
-      }
+          '14': { x: 0, y: 0, z: 0 }, // networked-avatar
+        },
+      },
     }
     await this.messageService.sendNAF(nafMessage)
 
@@ -88,27 +89,29 @@ export class AvatarController implements IAvatarController {
     const nafrData = {
       dataType: 'um',
       data: {
-        d: [{
-          networkId,
-          owner: this.sessionId,
-          creator: this.sessionId,
-          lastOwnerTime: timestamp,
-          template: '#remote-avatar',
-          persistent: false,
-          parent: null,
-          components: {
-            '0': { isVector3: true, ...spawnPosition },
-            '1': { x: 0, y: 0, z: 0 },
-            '3': {
-              avatarSrc: this.state.avatarSrc,
-              avatarType: 'skinnable',
-              muted: false,
-              isSharingAvatarCamera: false
+        d: [
+          {
+            networkId,
+            owner: this.sessionId,
+            creator: this.sessionId,
+            lastOwnerTime: timestamp,
+            template: '#remote-avatar',
+            persistent: false,
+            parent: null,
+            components: {
+              '0': { isVector3: true, ...spawnPosition },
+              '1': { x: 0, y: 0, z: 0 },
+              '3': {
+                avatarSrc: this.state.avatarSrc,
+                avatarType: 'skinnable',
+                muted: false,
+                isSharingAvatarCamera: false,
+              },
+              '14': { x: 0, y: 0, z: 0 },
             },
-            '14': { x: 0, y: 0, z: 0 }
-          }
-        }]
-      }
+          },
+        ],
+      },
     }
     await this.messageService.sendNAFR(nafrData)
 
@@ -127,19 +130,21 @@ export class AvatarController implements IAvatarController {
     const nafData = {
       dataType: 'um',
       data: {
-        d: [{
-          networkId: this.state.networkId,
-          owner: this.sessionId,
-          creator: this.sessionId,
-          lastOwnerTime: Date.now(),
-          template: '#remote-avatar',
-          persistent: false,
-          parent: null,
-          components: {
-            '0': { isVector3: true, ...position }
-          }
-        }]
-      }
+        d: [
+          {
+            networkId: this.state.networkId,
+            owner: this.sessionId,
+            creator: this.sessionId,
+            lastOwnerTime: Date.now(),
+            template: '#remote-avatar',
+            persistent: false,
+            parent: null,
+            components: {
+              '0': { isVector3: true, ...position },
+            },
+          },
+        ],
+      },
     }
 
     await this.messageService.sendNAFR(nafData)
@@ -157,19 +162,21 @@ export class AvatarController implements IAvatarController {
     const nafData = {
       dataType: 'um',
       data: {
-        d: [{
-          networkId: this.state.networkId,
-          owner: this.sessionId,
-          creator: this.sessionId,
-          lastOwnerTime: Date.now(),
-          template: '#remote-avatar',
-          persistent: false,
-          parent: null,
-          components: {
-            '1': { x: rotation.x, y: rotation.y, z: rotation.z }
-          }
-        }]
-      }
+        d: [
+          {
+            networkId: this.state.networkId,
+            owner: this.sessionId,
+            creator: this.sessionId,
+            lastOwnerTime: Date.now(),
+            template: '#remote-avatar',
+            persistent: false,
+            parent: null,
+            components: {
+              '1': { x: rotation.x, y: rotation.y, z: rotation.z },
+            },
+          },
+        ],
+      },
     }
 
     await this.messageService.sendNAFR(nafData)
@@ -184,16 +191,16 @@ export class AvatarController implements IAvatarController {
     this.state = { ...this.state, ...state }
 
     const components: Record<string, unknown> = {}
-    
+
     if (state.position) {
       components['0'] = { isVector3: true, ...state.position }
     }
-    
+
     if (state.rotation) {
-      components['1'] = { 
-        x: state.rotation.x, 
-        y: state.rotation.y, 
-        z: state.rotation.z 
+      components['1'] = {
+        x: state.rotation.x,
+        y: state.rotation.y,
+        z: state.rotation.z,
       }
     }
 
@@ -202,24 +209,26 @@ export class AvatarController implements IAvatarController {
         avatarSrc: this.state.avatarSrc,
         avatarType: 'skinnable',
         muted: false,
-        isSharingAvatarCamera: false
+        isSharingAvatarCamera: false,
       }
     }
 
     const nafData = {
       dataType: 'um',
       data: {
-        d: [{
-          networkId: this.state.networkId,
-          owner: this.sessionId,
-          creator: this.sessionId,
-          lastOwnerTime: Date.now(),
-          template: '#remote-avatar',
-          persistent: false,
-          parent: null,
-          components
-        }]
-      }
+        d: [
+          {
+            networkId: this.state.networkId,
+            owner: this.sessionId,
+            creator: this.sessionId,
+            lastOwnerTime: Date.now(),
+            template: '#remote-avatar',
+            persistent: false,
+            parent: null,
+            components,
+          },
+        ],
+      },
     }
 
     await this.messageService.sendNAFR(nafData)

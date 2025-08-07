@@ -79,12 +79,14 @@ export class MetatellBot {
 
     // Move command
     this.addMessageHandler((message) => {
-      const moveMatch = message.match(/^move\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)$/i)
+      const moveMatch = message.match(
+        /^move\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)$/i,
+      )
       if (moveMatch) {
         const x = parseFloat(moveMatch[1])
         const y = parseFloat(moveMatch[2])
         const z = parseFloat(moveMatch[3])
-        
+
         this.avatarController.move({ x, y, z }).catch(console.error)
         return `Moving to position (${x}, ${y}, ${z})`
       }
@@ -94,7 +96,7 @@ export class MetatellBot {
 
   private handleIncomingMessage(payload: unknown): void {
     const { body, session_id } = payload as { body: string; session_id: string }
-    
+
     // Don't respond to own messages
     const _config = this.configProvider.getConfiguration()
     if (session_id === this.connectionManager.getSessionId()) {
@@ -120,12 +122,13 @@ export class MetatellBot {
   private handleUserJoin(user: PresenceUser): void {
     const config = this.configProvider.getConfiguration()
     const displayName = user.profile.displayName || 'Unknown'
-    
+
     console.log(`User joined: ${displayName}`)
-    
+
     // Welcome new users
     if (displayName !== config.profile.displayName) {
-      this.messageService.sendMessage(`Welcome to the room, ${displayName}! 👋`)
+      this.messageService
+        .sendMessage(`Welcome to the room, ${displayName}! 👋`)
         .catch(console.error)
     }
   }
@@ -137,10 +140,8 @@ export class MetatellBot {
 
   private getRoomInfo(): string {
     const users = this.presenceManager.getUsers()
-    const userList = users
-      .map(u => u.profile.displayName || 'Unknown')
-      .join(', ')
-    
+    const userList = users.map((u) => u.profile.displayName || 'Unknown').join(', ')
+
     return `📊 Room Information:
 • Users online: ${users.length}
 • Connected users: ${userList}
@@ -166,11 +167,11 @@ export class MetatellBot {
 
     try {
       const config = this.configProvider.getConfiguration()
-      
+
       // Connect to server
       await this.connectionManager.connect({
         authUrl: config.authUrl,
-        hubId: config.hubId
+        hubId: config.hubId,
       })
 
       // Enter room
@@ -181,12 +182,11 @@ export class MetatellBot {
 
       // Send welcome message
       await this.messageService.sendMessage(
-        `🤖 ${config.profile.displayName} is now online! Type "help" to see what I can do.`
+        `🤖 ${config.profile.displayName} is now online! Type "help" to see what I can do.`,
       )
 
       this.isRunning = true
       console.log('✅ Bot started successfully')
-
     } catch (error) {
       console.error('Failed to start bot:', error)
       throw error
@@ -202,16 +202,15 @@ export class MetatellBot {
     try {
       // Send goodbye message
       await this.messageService.sendMessage('Goodbye everyone! See you next time! 👋')
-      
+
       // Destroy avatar
       await this.avatarController.destroy()
-      
+
       // Disconnect
       await this.connectionManager.disconnect()
-      
+
       this.isRunning = false
       console.log('Bot stopped successfully')
-
     } catch (error) {
       console.error('Error stopping bot:', error)
     }
@@ -225,10 +224,10 @@ export class MetatellBot {
 
     // Send entering event
     channel.push('events:entering', {})
-    
+
     // Wait a bit
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
     // Send entered event
     const enteredPayload = {
       initialOccupantCount: 0,
@@ -239,7 +238,7 @@ export class MetatellBot {
       entryDisplayType: 'Bot',
       userAgent: 'MetatellBot/1.0',
     }
-    
+
     channel.push('events:entered', enteredPayload)
     console.log('✅ Entered room')
   }

@@ -28,11 +28,7 @@ export class ServiceFactory {
 
   private registerServices(): void {
     // Register EventBus (singleton)
-    this.container.register<IEventBus>(
-      'IEventBus',
-      () => new EventBus(),
-      { singleton: true }
-    )
+    this.container.register<IEventBus>('IEventBus', () => new EventBus(), { singleton: true })
 
     // Register ConfigurationProvider (singleton)
     this.container.register<IConfigurationProvider>(
@@ -41,78 +37,82 @@ export class ServiceFactory {
         // This will be initialized with actual config
         return container.get<IConfigurationProvider>('IConfigurationProvider')
       },
-      { singleton: true }
+      { singleton: true },
     )
 
     // Register RateLimiter
     this.container.register<IRateLimiter>(
       'IRateLimiter',
       () => new RateLimiter({ maxRequests: 1, windowMs: 15000 }),
-      { singleton: true }
+      { singleton: true },
     )
 
     // Register AuthenticationService
     this.container.register<IAuthenticationService>(
       'IAuthenticationService',
-      (container) => new AuthenticationService(
-        container.get<IConfigurationProvider>('IConfigurationProvider')
-      ),
-      { singleton: true }
+      (container) =>
+        new AuthenticationService(container.get<IConfigurationProvider>('IConfigurationProvider')),
+      { singleton: true },
     )
 
     // Register WebSocketConnectionManager
     this.container.register<IConnectionManager>(
       'IConnectionManager',
-      (container) => new WebSocketConnectionManager(
-        container.get<IEventBus>('IEventBus'),
-        container.get<IConfigurationProvider>('IConfigurationProvider')
-      ),
-      { singleton: true }
+      (container) =>
+        new WebSocketConnectionManager(
+          container.get<IEventBus>('IEventBus'),
+          container.get<IConfigurationProvider>('IConfigurationProvider'),
+        ),
+      { singleton: true },
     )
 
     // Register MessageService
     this.container.register<IMessageService>(
       'IMessageService',
-      (container) => new MessageService(
-        container.get<IConnectionManager>('IConnectionManager'),
-        container.get<IEventBus>('IEventBus'),
-        container.get<IRateLimiter>('IRateLimiter')
-      ),
-      { singleton: true }
+      (container) =>
+        new MessageService(
+          container.get<IConnectionManager>('IConnectionManager'),
+          container.get<IEventBus>('IEventBus'),
+          container.get<IRateLimiter>('IRateLimiter'),
+        ),
+      { singleton: true },
     )
 
     // Register AvatarController
     this.container.register<IAvatarController>(
       'IAvatarController',
-      (container) => new AvatarController(
-        container.get<IMessageService>('IMessageService'),
-        container.get<IConfigurationProvider>('IConfigurationProvider'),
-        container.get<IEventBus>('IEventBus')
-      ),
-      { singleton: true }
+      (container) =>
+        new AvatarController(
+          container.get<IMessageService>('IMessageService'),
+          container.get<IConfigurationProvider>('IConfigurationProvider'),
+          container.get<IEventBus>('IEventBus'),
+        ),
+      { singleton: true },
     )
 
     // Register PresenceManager
     this.container.register<IPresenceManager>(
       'IPresenceManager',
-      (container) => new PresenceManager(
-        container.get<IConnectionManager>('IConnectionManager'),
-        container.get<IEventBus>('IEventBus')
-      ),
-      { singleton: true }
+      (container) =>
+        new PresenceManager(
+          container.get<IConnectionManager>('IConnectionManager'),
+          container.get<IEventBus>('IEventBus'),
+        ),
+      { singleton: true },
     )
 
     // Register MetatellBot
     this.container.register<MetatellBot>(
       'MetatellBot',
-      (container) => new MetatellBot(
-        container.get<IConnectionManager>('IConnectionManager'),
-        container.get<IMessageService>('IMessageService'),
-        container.get<IAvatarController>('IAvatarController'),
-        container.get<IPresenceManager>('IPresenceManager'),
-        container.get<IConfigurationProvider>('IConfigurationProvider')
-      ),
-      { singleton: true }
+      (container) =>
+        new MetatellBot(
+          container.get<IConnectionManager>('IConnectionManager'),
+          container.get<IMessageService>('IMessageService'),
+          container.get<IAvatarController>('IAvatarController'),
+          container.get<IPresenceManager>('IPresenceManager'),
+          container.get<IConfigurationProvider>('IConfigurationProvider'),
+        ),
+      { singleton: true },
     )
   }
 
@@ -122,7 +122,7 @@ export class ServiceFactory {
     this.container.register<IConfigurationProvider>(
       'IConfigurationProvider',
       () => configProvider,
-      { singleton: true }
+      { singleton: true },
     )
 
     // Return bot instance

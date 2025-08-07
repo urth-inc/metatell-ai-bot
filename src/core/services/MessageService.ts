@@ -9,7 +9,7 @@ export class MessageService implements IMessageService {
   constructor(
     private connectionManager: IConnectionManager,
     private eventBus: IEventBus,
-    private rateLimiter: IRateLimiter
+    private rateLimiter: IRateLimiter,
   ) {
     this.setupChannelListeners()
   }
@@ -18,7 +18,9 @@ export class MessageService implements IMessageService {
     // Listen for connection events to setup channel listeners
     this.eventBus.on(SystemEvents.ROOM_JOINED, () => {
       const channel = this.connectionManager.getHubChannel()
-      if (!channel) { return }
+      if (!channel) {
+        return
+      }
 
       // Setup message listener
       channel.on('message', (payload: unknown) => {

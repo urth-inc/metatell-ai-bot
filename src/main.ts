@@ -53,13 +53,13 @@ async function main() {
     hubId: hubId,
     profile: {
       displayName: botName,
-      avatarId
+      avatarId,
     },
     context: {
       mobile: false,
       embed: false,
-      hmd: false
-    }
+      hmd: false,
+    },
   }
 
   // Create bot using factory
@@ -139,7 +139,6 @@ async function main() {
         bot.start().catch(console.error)
       }
     }, 30000) // Check every 30 seconds
-
   } catch (error) {
     console.error('Failed to start bot:', error)
     process.exit(1)
@@ -147,7 +146,7 @@ async function main() {
 }
 
 // Run the bot
-main().catch(error => {
+main().catch((error) => {
   console.error('Fatal error:', error)
   process.exit(1)
 })

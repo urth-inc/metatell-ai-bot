@@ -10,7 +10,7 @@ export class PresenceManager implements IPresenceManager {
 
   constructor(
     private connectionManager: IConnectionManager,
-    private eventBus: IEventBus
+    private eventBus: IEventBus,
   ) {
     this.setupPresence()
   }
@@ -18,7 +18,9 @@ export class PresenceManager implements IPresenceManager {
   private setupPresence(): void {
     this.eventBus.on(SystemEvents.ROOM_JOINED, () => {
       const channel = this.connectionManager.getHubChannel()
-      if (!channel) { return }
+      if (!channel) {
+        return
+      }
 
       this.presence = new Presence(channel)
 
@@ -27,15 +29,21 @@ export class PresenceManager implements IPresenceManager {
         const newUsers = new Map<string, PresenceUser>()
 
         this.presence?.list((id: string, data: unknown) => {
-          const metaData = data as { metas?: Array<{ profile?: { displayName?: string; avatarId?: string }; permissions?: Record<string, unknown>; roles?: Record<string, unknown> }> }
+          const metaData = data as {
+            metas?: Array<{
+              profile?: { displayName?: string; avatarId?: string }
+              permissions?: Record<string, unknown>
+              roles?: Record<string, unknown>
+            }>
+          }
           const user: PresenceUser = {
             id,
             profile: {
               displayName: metaData.metas?.[0]?.profile?.displayName,
-              avatarId: metaData.metas?.[0]?.profile?.avatarId
+              avatarId: metaData.metas?.[0]?.profile?.avatarId,
             },
             permissions: (metaData.metas?.[0]?.permissions || {}) as Record<string, boolean>,
-            roles: (metaData.metas?.[0]?.roles || {}) as Record<string, boolean>
+            roles: (metaData.metas?.[0]?.roles || {}) as Record<string, boolean>,
           }
           newUsers.set(id, user)
         })

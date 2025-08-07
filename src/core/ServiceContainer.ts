@@ -6,11 +6,7 @@ export class ServiceContainer {
   private factories = new Map<string, ServiceFactory<unknown>>()
   private singletons = new Map<string, boolean>()
 
-  register<T>(
-    name: string,
-    factory: ServiceFactory<T>,
-    options?: { singleton?: boolean }
-  ): void {
+  register<T>(name: string, factory: ServiceFactory<T>, options?: { singleton?: boolean }): void {
     this.factories.set(name, factory)
     this.singletons.set(name, options?.singleton ?? true)
   }
@@ -55,10 +51,10 @@ export class ServiceContainer {
   bindWithDependencies<T>(
     interfaceName: string,
     implementation: new (...args: unknown[]) => T,
-    dependencies: string[]
+    dependencies: string[],
   ): void {
     this.register(interfaceName, (container) => {
-      const resolvedDeps = dependencies.map(dep => container.get(dep))
+      const resolvedDeps = dependencies.map((dep) => container.get(dep))
       return new implementation(...resolvedDeps)
     })
   }
