@@ -283,7 +283,9 @@ describe('AvatarController', () => {
       await avatarController.updateState(updates)
 
       const sendNAFRMock = mockMessageService.sendNAFR as ReturnType<typeof vi.fn>
-      const sentData = sendNAFRMock.mock.calls[0][0] as { data: { d: Array<{ components: Record<string, unknown> }> } }
+      const sentData = sendNAFRMock.mock.calls[0][0] as {
+        data: { d: Array<{ components: Record<string, unknown> }> }
+      }
       expect(sentData.data.d[0].components).toHaveProperty('0', {
         isVector3: true,
         ...updates.position,
@@ -296,7 +298,9 @@ describe('AvatarController', () => {
       await avatarController.updateState(updates)
 
       const sendNAFRMock = mockMessageService.sendNAFR as ReturnType<typeof vi.fn>
-      const sentData = sendNAFRMock.mock.calls[0][0] as { data: { d: Array<{ components: Record<string, unknown> }> } }
+      const sentData = sendNAFRMock.mock.calls[0][0] as {
+        data: { d: Array<{ components: Record<string, unknown> }> }
+      }
       expect(sentData.data.d[0].components).toHaveProperty('1', {
         x: updates.rotation.x,
         y: updates.rotation.y,
@@ -310,7 +314,9 @@ describe('AvatarController', () => {
       await avatarController.updateState(updates)
 
       const sendNAFRMock = mockMessageService.sendNAFR as ReturnType<typeof vi.fn>
-      const sentData = sendNAFRMock.mock.calls[0][0] as { data: { d: Array<{ components: Record<string, unknown> }> } }
+      const sentData = sendNAFRMock.mock.calls[0][0] as {
+        data: { d: Array<{ components: Record<string, unknown> }> }
+      }
       expect(sentData.data.d[0].components).toHaveProperty(
         '3',
         expect.objectContaining({
@@ -330,7 +336,9 @@ describe('AvatarController', () => {
       await avatarController.updateState(updates)
 
       const sendNAFRMock = mockMessageService.sendNAFR as ReturnType<typeof vi.fn>
-      const sentData = sendNAFRMock.mock.calls[0][0] as { data: { d: Array<{ components: Record<string, unknown> }> } }
+      const sentData = sendNAFRMock.mock.calls[0][0] as {
+        data: { d: Array<{ components: Record<string, unknown> }> }
+      }
       expect(sentData.data.d[0].components).toHaveProperty('0')
       expect(sentData.data.d[0].components).toHaveProperty('1')
       expect(sentData.data.d[0].components).toHaveProperty('3')

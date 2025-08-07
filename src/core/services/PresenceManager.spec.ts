@@ -388,7 +388,8 @@ describe('PresenceManager', () => {
       const roomJoinedHandler = roomJoinedCall?.[1]
       roomJoinedHandler?.()
 
-      const mockPresenceInstance = (Presence as ReturnType<typeof vi.fn>).mock.results[0].value as MockPresence
+      const mockPresenceInstance = (Presence as ReturnType<typeof vi.fn>).mock.results[0]
+        .value as MockPresence
       const onSyncCallback = mockPresenceInstance.onSync.mock.calls[0][0]
 
       mockPresenceInstance.list.mockImplementation((callback: PresenceListCallback) => {
@@ -414,7 +415,8 @@ describe('PresenceManager', () => {
       const roomJoinedHandler = roomJoinedCall?.[1]
       roomJoinedHandler?.()
 
-      const mockPresenceInstance = (Presence as ReturnType<typeof vi.fn>).mock.results[0].value as MockPresence
+      const mockPresenceInstance = (Presence as ReturnType<typeof vi.fn>).mock.results[0]
+        .value as MockPresence
       const onSyncCallback = mockPresenceInstance.onSync.mock.calls[0][0]
 
       // Initial sync with user

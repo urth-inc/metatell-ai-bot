@@ -7,111 +7,21 @@
   },
   "formatter": {
     "enabled": true,
-    "formatWithErrors": false,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineEnding": "lf",
-    "lineWidth": 100,
-    "attributePosition": "auto"
+    "lineWidth": 100
   },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
-      "complexity": {
-        "noForEach": "warn",
-        "noStaticOnlyClass": "warn",
-        "noUselessSwitchCase": "error",
-        "useFlatMap": "warn"
-      },
-      "correctness": {
-        "noConstAssign": "error",
-        "noConstantCondition": "error",
-        "noEmptyCharacterClassInRegex": "error",
-        "noEmptyPattern": "error",
-        "noGlobalObjectCalls": "error",
-        "noInvalidConstructorSuper": "error",
-        "noNonoctalDecimalEscape": "error",
-        "noPrecisionLoss": "error",
-        "noSelfAssign": "error",
-        "noSetterReturn": "error",
-        "noSwitchDeclarations": "error",
-        "noUndeclaredVariables": "error",
-        "noUnreachable": "error",
-        "noUnreachableSuper": "error",
-        "noUnsafeFinally": "error",
-        "noUnsafeOptionalChaining": "error",
-        "noUnusedLabels": "error",
-        "noUnusedPrivateClassMembers": "warn",
-        "noUnusedVariables": "warn",
-        "useIsNan": "error",
-        "useValidForDirection": "error",
-        "useYield": "error"
-      },
-      "style": {
-        "noDefaultExport": "off",
-        "noNegationElse": "off",
-        "noParameterAssign": "warn",
-        "noRestrictedGlobals": "warn",
-        "noUnusedTemplateLiteral": "warn",
-        "noUselessElse": "warn",
-        "useAsConstAssertion": "warn",
-        "useBlockStatements": "warn",
-        "useCollapsedElseIf": "warn",
-        "useConst": "error",
-        "useDefaultParameterLast": "warn",
-        "useExponentiationOperator": "warn",
-        "useShorthandFunctionType": "warn",
-        "useSingleVarDeclarator": "warn",
-        "useTemplate": "warn"
-      },
-      "suspicious": {
-        "noAsyncPromiseExecutor": "error",
-        "noCatchAssign": "error",
-        "noClassAssign": "error",
-        "noCompareNegZero": "error",
-        "noControlCharactersInRegex": "error",
-        "noDebugger": "error",
-        "noDuplicateCase": "error",
-        "noDuplicateClassMembers": "error",
-        "noDuplicateJsxProps": "error",
-        "noDuplicateObjectKeys": "error",
-        "noDuplicateParameters": "error",
-        "noEmptyBlockStatements": "warn",
-        "noFallthroughSwitchClause": "error",
-        "noFunctionAssign": "error",
-        "noGlobalAssign": "error",
-        "noImportAssign": "error",
-        "noMisleadingCharacterClass": "error",
-        "noPrototypeBuiltins": "error",
-        "noRedeclare": "error",
-        "noSelfCompare": "error",
-        "noShadowRestrictedNames": "error",
-        "noUnsafeNegation": "error",
-        "noVar": "error",
-        "useGetterReturn": "error"
-      }
+      "recommended": true
     }
   },
   "javascript": {
     "formatter": {
-      "jsxQuoteStyle": "double",
-      "quoteProperties": "asNeeded",
-      "trailingCommas": "all",
-      "semicolons": "asNeeded",
-      "arrowParentheses": "always",
-      "bracketSpacing": true,
-      "bracketSameLine": false,
       "quoteStyle": "single",
-      "attributePosition": "auto"
+      "trailingCommas": "all",
+      "semicolons": "asNeeded"
     }
-  },
-  "overrides": [
-    {
-      "includes": ["*.ts", "*.tsx"],
-      "linter": {
-        "rules": {}
-      }
-    }
-  ]
+  }
 }

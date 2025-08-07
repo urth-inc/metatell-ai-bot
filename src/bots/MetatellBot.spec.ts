@@ -191,7 +191,10 @@ describe('MetatellBot', () => {
 
   describe('presence handling', () => {
     it('should welcome new users', () => {
-      const joinCall = findMockCall(mockPresenceManager.on as ReturnType<typeof vi.fn>, (call) => call[0] === 'join')
+      const joinCall = findMockCall(
+        mockPresenceManager.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'join',
+      )
       const joinHandler = joinCall?.[1] as PresenceHandler
 
       const newUser: PresenceUser = {
@@ -209,7 +212,10 @@ describe('MetatellBot', () => {
     })
 
     it('should not welcome bot itself', () => {
-      const joinCall = findMockCall(mockPresenceManager.on as ReturnType<typeof vi.fn>, (call) => call[0] === 'join')
+      const joinCall = findMockCall(
+        mockPresenceManager.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'join',
+      )
       const joinHandler = joinCall?.[1] as PresenceHandler
 
       const botUser: PresenceUser = {
@@ -227,7 +233,10 @@ describe('MetatellBot', () => {
     it('should log user leave', () => {
       const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
 
-      const leaveCall = findMockCall(mockPresenceManager.on as ReturnType<typeof vi.fn>, (call) => call[0] === 'leave')
+      const leaveCall = findMockCall(
+        mockPresenceManager.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'leave',
+      )
       const leaveHandler = leaveCall?.[1] as PresenceHandler
 
       const user: PresenceUser = {
