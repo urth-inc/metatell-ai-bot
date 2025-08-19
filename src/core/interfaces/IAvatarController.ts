@@ -27,4 +27,9 @@ export interface IAvatarController {
   updateState(state: Partial<AvatarState>): Promise<void>
   getState(): AvatarState | null
   destroy(): Promise<void>
+  /**
+   * Resync avatar state for newly joined users
+   * Sends the complete avatar state with isFirstSync flag
+   */
+  resyncAvatar(): Promise<void>
 }

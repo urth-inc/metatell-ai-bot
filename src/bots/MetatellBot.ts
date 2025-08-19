@@ -182,15 +182,30 @@ export class MetatellBot {
     }
   }
 
-  private handleUserJoin(user: PresenceUser): void {
+  private async handleUserJoin(user: PresenceUser): Promise<void> {
     const config = this.configProvider.getConfiguration()
     const displayName = user.profile.displayName || 'Unknown'
 
-    // Welcome new users
+    // 自分自身のjoinイベントは無視
     if (displayName !== config.profile.displayName) {
+      // Welcome new users
       this.messageService.sendMessage(`Welcome to the room, ${displayName}! 👋`).catch((error) => {
         this.logger.debug('Welcome message error:', { error })
       })
+
+      // 重要: 新規ユーザーに対して既存のアバター情報を再送信
+      const currentState = this.avatarController.getState()
+      if (currentState) {
+        // 少し遅延を入れて、新規ユーザーの初期化が完了するのを待つ
+        setTimeout(async () => {
+          try {
+            await this.avatarController.resyncAvatar()
+            this.logger.debug(`Resynced avatar for new user: ${displayName}`)
+          } catch (error) {
+            this.logger.error('Failed to resync avatar:', error)
+          }
+        }, 1000) // 1秒の遅延
+      }
     }
   }
 

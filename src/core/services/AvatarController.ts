@@ -265,4 +265,56 @@ export class AvatarController implements IAvatarController {
     this.state = null
     // Additional cleanup if needed
   }
+
+  async resyncAvatar(): Promise<void> {
+    if (!this.state || !this.sessionId) {
+      throw new Error('Avatar not spawned')
+    }
+
+    const timestamp = Date.now()
+
+    // 既存のアバター状態を isFirstSync: true で再送信
+    const nafMessage = {
+      dataType: 'u',
+      data: {
+        networkId: this.state.networkId,
+        owner: this.sessionId,
+        creator: this.sessionId,
+        lastOwnerTime: timestamp,
+        template: '#remote-avatar',
+        persistent: false,
+        isFirstSync: true,  // 重要: 新規ユーザーに対して初回同期フラグを設定
+        forceRender: false,
+        megaphone: false,
+        temporaryMegaphone: false,
+        parent: null,
+        components: {
+          '0': { isVector3: true, ...this.state.position },
+          '1': { x: 0, y: 0, z: 0 },
+          '2': { x: 1, y: 1, z: 1 },
+          '3': {
+            avatarSrc: this.state.avatarSrc,
+            avatarType: 'skinnable',
+            muted: false,
+            isSharingAvatarCamera: false,
+          },
+          '4': { x: 0, y: 0, z: 0, w: 1 },
+          '5': { x: 0, y: 0, z: 0, w: 1 },
+          '6': { x: 0, y: 0, z: 0, w: 1 },
+          '7': { x: 0, y: 0, z: 0 },
+          '8': { x: 0, y: 0, z: 0 },
+          '9': false,
+          '10': { x: 0, y: 0, z: 0 },
+          '11': { x: 1, y: 1, z: 1 },
+          '12': false,
+          '13': null,
+          '14': { x: 0, y: 0, z: 0 },
+        },
+      },
+    }
+    
+    await this.messageService.sendNAF(nafMessage)
+    
+    logger.debug(`✅ Avatar resynced for new user`)
+  }
 }
