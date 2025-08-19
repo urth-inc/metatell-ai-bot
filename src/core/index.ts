@@ -1,26 +1,26 @@
 // Core exports
-export { ServiceContainer } from './ServiceContainer'
-export { ServiceFactory } from './ServiceFactory'
-
-// Interfaces
-export * from './interfaces/IEventBus'
-export * from './interfaces/IConnectionManager'
-export * from './interfaces/IConfigurationProvider'
-export * from './interfaces/IAvatarController'
-export * from './interfaces/IMessageService'
-export * from './interfaces/IRateLimiter'
-export * from './interfaces/IPresenceManager'
-export * from './interfaces/IAuthenticationService'
-
-// Services
-export { EventBus } from './services/EventBus'
-export { ConfigurationProvider } from './services/ConfigurationProvider'
-export { RateLimiter } from './services/RateLimiter'
-export { AuthenticationService } from './services/AuthenticationService'
-export { WebSocketConnectionManager } from './services/WebSocketConnectionManager'
-export { MessageService } from './services/MessageService'
-export { AvatarController } from './services/AvatarController'
-export { PresenceManager } from './services/PresenceManager'
 
 // Bots
-export { MetatellBot } from '../bots/MetatellBot'
+export { MetatellBot } from '../bots/MetatellBot.js'
+export * from './interfaces/IAuthenticationService.js'
+export * from './interfaces/IAvatarController.js'
+export * from './interfaces/IConfigurationProvider.js'
+export * from './interfaces/IConnectionManager.js'
+// Interfaces
+export * from './interfaces/IEventBus.js'
+export * from './interfaces/IMessageService.js'
+export * from './interfaces/IPresenceManager.js'
+export * from './interfaces/IRateLimiter.js'
+export * from './interfaces/IUserAvatarManager.js'
+export { ServiceContainer } from './ServiceContainer.js'
+export { ServiceFactory } from './ServiceFactory.js'
+export { AuthenticationService } from './services/AuthenticationService.js'
+export { AvatarController } from './services/AvatarController.js'
+export { ConfigurationProvider } from './services/ConfigurationProvider.js'
+// Services
+export { EventBus } from './services/EventBus.js'
+export { MessageService } from './services/MessageService.js'
+export { PresenceManager } from './services/PresenceManager.js'
+export { RateLimiter } from './services/RateLimiter.js'
+export { UserAvatarManager } from './services/UserAvatarManager.js'
+export { WebSocketConnectionManager } from './services/WebSocketConnectionManager.js'

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { ServiceContainer } from './ServiceContainer'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { ServiceContainer } from './ServiceContainer.js'
 
 describe('ServiceContainer', () => {
   let container: ServiceContainer

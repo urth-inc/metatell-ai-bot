@@ -1,22 +1,26 @@
-import { ServiceContainer } from './ServiceContainer'
-import { EventBus } from './services/EventBus'
-import { ConfigurationProvider } from './services/ConfigurationProvider'
-import { RateLimiter } from './services/RateLimiter'
-import { AuthenticationService } from './services/AuthenticationService'
-import { WebSocketConnectionManager } from './services/WebSocketConnectionManager'
-import { MessageService } from './services/MessageService'
-import { AvatarController } from './services/AvatarController'
-import { PresenceManager } from './services/PresenceManager'
-import { MetatellBot } from '../bots/MetatellBot'
-
-import type { IEventBus } from './interfaces/IEventBus'
-import type { IConfigurationProvider, BotConfiguration } from './interfaces/IConfigurationProvider'
-import type { IRateLimiter } from './interfaces/IRateLimiter'
-import type { IAuthenticationService } from './interfaces/IAuthenticationService'
-import type { IConnectionManager } from './interfaces/IConnectionManager'
-import type { IMessageService } from './interfaces/IMessageService'
-import type { IAvatarController } from './interfaces/IAvatarController'
-import type { IPresenceManager } from './interfaces/IPresenceManager'
+import { MetatellBot } from '../bots/MetatellBot.js'
+import type { IAuthenticationService } from './interfaces/IAuthenticationService.js'
+import type { IAvatarController } from './interfaces/IAvatarController.js'
+import type {
+  BotConfiguration,
+  IConfigurationProvider,
+} from './interfaces/IConfigurationProvider.js'
+import type { IConnectionManager } from './interfaces/IConnectionManager.js'
+import type { IEventBus } from './interfaces/IEventBus.js'
+import type { IMessageService } from './interfaces/IMessageService.js'
+import type { IPresenceManager } from './interfaces/IPresenceManager.js'
+import type { IRateLimiter } from './interfaces/IRateLimiter.js'
+import type { IUserAvatarManager } from './interfaces/IUserAvatarManager.js'
+import { ServiceContainer } from './ServiceContainer.js'
+import { AuthenticationService } from './services/AuthenticationService.js'
+import { AvatarController } from './services/AvatarController.js'
+import { ConfigurationProvider } from './services/ConfigurationProvider.js'
+import { EventBus } from './services/EventBus.js'
+import { MessageService } from './services/MessageService.js'
+import { PresenceManager } from './services/PresenceManager.js'
+import { RateLimiter } from './services/RateLimiter.js'
+import { UserAvatarManager } from './services/UserAvatarManager.js'
+import { WebSocketConnectionManager } from './services/WebSocketConnectionManager.js'
 
 export class ServiceFactory {
   private container: ServiceContainer
@@ -73,7 +77,6 @@ export class ServiceFactory {
         new MessageService(
           container.get<IConnectionManager>('IConnectionManager'),
           container.get<IEventBus>('IEventBus'),
-          container.get<IRateLimiter>('IRateLimiter'),
         ),
       { singleton: true },
     )
@@ -101,6 +104,18 @@ export class ServiceFactory {
       { singleton: true },
     )
 
+    // Register UserAvatarManager
+    this.container.register<IUserAvatarManager>(
+      'IUserAvatarManager',
+      (container) =>
+        new UserAvatarManager(
+          container.get<IMessageService>('IMessageService'),
+          container.get<IPresenceManager>('IPresenceManager'),
+          container.get<IEventBus>('IEventBus'),
+        ),
+      { singleton: true },
+    )
+
     // Register MetatellBot
     this.container.register<MetatellBot>(
       'MetatellBot',
@@ -111,6 +126,7 @@ export class ServiceFactory {
           container.get<IAvatarController>('IAvatarController'),
           container.get<IPresenceManager>('IPresenceManager'),
           container.get<IConfigurationProvider>('IConfigurationProvider'),
+          container.get<IUserAvatarManager>('IUserAvatarManager'),
         ),
       { singleton: true },
     )
