@@ -1,9 +1,9 @@
 import type {
-  IAuthenticationService,
-  AuthToken,
   AuthCredentials,
-} from '../interfaces/IAuthenticationService'
-import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider'
+  AuthToken,
+  IAuthenticationService,
+} from '../interfaces/IAuthenticationService.js'
+import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
 
 export class AuthenticationService implements IAuthenticationService {
   private token: AuthToken | null = null

@@ -1,9 +1,9 @@
 import type {
-  IConfigurationProvider,
   BotConfiguration,
-  BotProfile,
   BotContext,
-} from '../interfaces/IConfigurationProvider'
+  BotProfile,
+  IConfigurationProvider,
+} from '../interfaces/IConfigurationProvider.js'
 
 export class ConfigurationProvider implements IConfigurationProvider {
   private config: BotConfiguration

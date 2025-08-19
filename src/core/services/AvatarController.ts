@@ -1,12 +1,13 @@
+import { logger } from '../../utils/logger.js'
 import type {
-  IAvatarController,
   AvatarState,
+  IAvatarController,
   Position,
   Rotation,
-} from '../interfaces/IAvatarController'
-import type { IMessageService } from '../interfaces/IMessageService'
-import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider'
-import { type IEventBus, SystemEvents } from '../interfaces/IEventBus'
+} from '../interfaces/IAvatarController.js'
+import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
+import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
+import type { IMessageService } from '../interfaces/IMessageService.js'
 
 export class AvatarController implements IAvatarController {
   private state: AvatarState | null = null
@@ -117,7 +118,7 @@ export class AvatarController implements IAvatarController {
 
     // Emit event
     this.eventBus.emit(SystemEvents.AVATAR_SPAWNED, this.state)
-    console.log(`✅ Avatar spawned with ID: ${avatarId}`)
+    logger.debug(`✅ Avatar spawned with ID: ${avatarId}`)
   }
 
   async move(position: Position): Promise<void> {
@@ -149,7 +150,7 @@ export class AvatarController implements IAvatarController {
 
     await this.messageService.sendNAFR(nafData)
     this.eventBus.emit(SystemEvents.AVATAR_MOVED, this.state)
-    console.log(`Avatar moved to position (${position.x}, ${position.y}, ${position.z})`)
+    logger.debug(`Avatar moved to position (${position.x}, ${position.y}, ${position.z})`)
   }
 
   async rotate(rotation: Rotation): Promise<void> {
@@ -158,6 +159,9 @@ export class AvatarController implements IAvatarController {
     }
 
     this.state.rotation = rotation
+
+    // クォータニオンをオイラー角（度数）に変換
+    const euler = this.quaternionToEuler(rotation)
 
     const nafData = {
       dataType: 'um',
@@ -172,7 +176,7 @@ export class AvatarController implements IAvatarController {
             persistent: false,
             parent: null,
             components: {
-              '1': { x: rotation.x, y: rotation.y, z: rotation.z },
+              '14': { x: euler.x, y: euler.y, z: euler.z }, // ブラウザクライアント準拠（オイラー角、度数）
             },
           },
         ],
@@ -181,6 +185,23 @@ export class AvatarController implements IAvatarController {
 
     await this.messageService.sendNAFR(nafData)
     this.eventBus.emit(SystemEvents.AVATAR_UPDATED, this.state)
+  }
+
+  private quaternionToEuler(rotation: Rotation): { x: number; y: number; z: number } {
+    // クォータニオンからオイラー角への変換（ZYX順、度数）
+    const { x, y, z, w } = rotation
+
+    // wがundefinedの場合は正規化されたクォータニオンから計算
+    const normalizedW = w ?? Math.sqrt(Math.max(0, 1 - x * x - y * y - z * z))
+
+    // Y軸回転のみの場合の簡略化された変換
+    const yaw = Math.atan2(2 * (normalizedW * y + x * z), 1 - 2 * (y * y + z * z))
+
+    return {
+      x: 0, // X軸回転（ピッチ）
+      y: yaw * (180 / Math.PI), // Y軸回転（ヨー）を度数に変換
+      z: 0, // Z軸回転（ロール）
+    }
   }
 
   async updateState(state: Partial<AvatarState>): Promise<void> {
@@ -197,10 +218,11 @@ export class AvatarController implements IAvatarController {
     }
 
     if (state.rotation) {
-      components['1'] = {
-        x: state.rotation.x,
-        y: state.rotation.y,
-        z: state.rotation.z,
+      const euler = this.quaternionToEuler(state.rotation)
+      components['14'] = {
+        x: euler.x,
+        y: euler.y,
+        z: euler.z,
       }
     }
 

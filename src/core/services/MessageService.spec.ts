@@ -1,17 +1,15 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { MessageService } from './MessageService'
-import type { IConnectionManager } from '../interfaces/IConnectionManager'
-import type { IEventBus } from '../interfaces/IEventBus'
-import type { IRateLimiter } from '../interfaces/IRateLimiter'
-import { SystemEvents } from '../interfaces/IEventBus'
-import type { MockChannel } from '../../test-utils/mocks'
-import { findEventBusCall, findChannelCall } from '../../test-utils/mocks'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { MockChannel } from '../../test-utils/mocks.js'
+import { findChannelCall, findEventBusCall } from '../../test-utils/mocks.js'
+import type { IConnectionManager } from '../interfaces/IConnectionManager.js'
+import type { IEventBus } from '../interfaces/IEventBus.js'
+import { SystemEvents } from '../interfaces/IEventBus.js'
+import { MessageService } from './MessageService.js'
 
 describe('MessageService', () => {
   let messageService: MessageService
   let mockConnectionManager: IConnectionManager
   let mockEventBus: IEventBus
-  let mockRateLimiter: IRateLimiter
   let mockChannel: MockChannel
 
   beforeEach(() => {
@@ -42,15 +40,7 @@ describe('MessageService', () => {
       removeAllListeners: vi.fn(),
     }
 
-    // Mock rate limiter
-    mockRateLimiter = {
-      check: vi.fn(() => true),
-      wait: vi.fn(),
-      reset: vi.fn(),
-      getTimeUntilReset: vi.fn(() => 0),
-    }
-
-    messageService = new MessageService(mockConnectionManager, mockEventBus, mockRateLimiter)
+    messageService = new MessageService(mockConnectionManager, mockEventBus)
   })
 
   describe('constructor and setup', () => {
@@ -97,21 +87,6 @@ describe('MessageService', () => {
       mockConnectionManager.getHubChannel = vi.fn(() => null)
 
       await expect(messageService.sendMessage('Hello')).rejects.toThrow('Not connected to hub')
-    })
-
-    it('should handle rate limiting', async () => {
-      mockRateLimiter.check = vi.fn(() => false)
-      mockRateLimiter.getTimeUntilReset = vi.fn(() => 5000)
-
-      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
-
-      await messageService.sendMessage('Hello')
-
-      expect(mockRateLimiter.check).toHaveBeenCalledWith('message')
-      expect(mockRateLimiter.wait).toHaveBeenCalledWith('message')
-      expect(consoleLogSpy).toHaveBeenCalledWith('Rate limited: Message not sent (wait 5s)')
-
-      consoleLogSpy.mockRestore()
     })
   })
 

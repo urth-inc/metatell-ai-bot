@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { PresenceManager } from './PresenceManager'
-import type { IConnectionManager } from '../interfaces/IConnectionManager'
-import type { IEventBus } from '../interfaces/IEventBus'
-import { SystemEvents } from '../interfaces/IEventBus'
-import type { MockChannel, MockPresence } from '../../test-utils/mocks'
-import { findEventBusCall, findChannelCall } from '../../test-utils/mocks'
-import { noop } from '../../test-utils/helpers'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { noop } from '../../test-utils/helpers.js'
+import type { MockChannel, MockPresence } from '../../test-utils/mocks.js'
+import { findChannelCall, findEventBusCall } from '../../test-utils/mocks.js'
+import type { IConnectionManager } from '../interfaces/IConnectionManager.js'
+import type { IEventBus } from '../interfaces/IEventBus.js'
+import { SystemEvents } from '../interfaces/IEventBus.js'
+import { PresenceManager } from './PresenceManager.js'
 
 // Mock Phoenix Presence
 vi.mock('phoenix', () => {

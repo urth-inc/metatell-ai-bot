@@ -1,7 +1,8 @@
-import { Socket, type Channel } from 'phoenix'
-import type { IConnectionManager, ConnectionConfig } from '../interfaces/IConnectionManager'
-import { type IEventBus, SystemEvents } from '../interfaces/IEventBus'
-import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider'
+import { type Channel, Socket } from 'phoenix'
+import { logger } from '../../utils/logger.js'
+import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
+import type { ConnectionConfig, IConnectionManager } from '../interfaces/IConnectionManager.js'
+import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 
 export class WebSocketConnectionManager implements IConnectionManager {
   private socket: Socket | null = null
@@ -27,24 +28,24 @@ export class WebSocketConnectionManager implements IConnectionManager {
         },
         reconnectAfterMs: (tries) => {
           const delay = [1000, 2000, 5000, 10000][tries - 1] || 10000
-          console.log(`Reconnecting in ${delay}ms... (attempt ${tries})`)
+          logger.debug(`Reconnecting in ${delay}ms... (attempt ${tries})`)
           return delay
         },
       })
 
       // Set up socket event handlers
       this.socket.onOpen(() => {
-        console.log('WebSocket connected')
+        logger.debug('WebSocket connected')
         this.eventBus.emit(SystemEvents.CONNECTION_ESTABLISHED)
       })
 
       this.socket.onClose(() => {
-        console.log('WebSocket disconnected')
+        logger.debug('WebSocket disconnected')
         this.eventBus.emit(SystemEvents.CONNECTION_LOST)
       })
 
       this.socket.onError((error) => {
-        console.error('WebSocket error:', error)
+        logger.debug('WebSocket error:', error)
         this.eventBus.emit(SystemEvents.CONNECTION_ERROR, error)
       })
 
@@ -55,10 +56,10 @@ export class WebSocketConnectionManager implements IConnectionManager {
       await this.waitForConnection()
 
       // Join hub channel
-      console.log('About to join hub:', config.hubId)
+      logger.debug('About to join hub:', config.hubId)
       await this.joinHub(config.hubId)
     } catch (error) {
-      console.error('Connection failed:', error)
+      logger.error(`Connection failed: ${error}`)
       throw error
     }
   }
@@ -76,7 +77,7 @@ export class WebSocketConnectionManager implements IConnectionManager {
         context: config.context || {},
       }
 
-      console.log('Attempting to join hub with:', {
+      logger.debug('Attempting to join hub with:', {
         channel: `hub:${hubId}`,
         params: channelParams,
       })
@@ -87,17 +88,17 @@ export class WebSocketConnectionManager implements IConnectionManager {
         this.hubChannel
           .join()
           .receive('ok', (response: unknown) => {
-            console.log('Joined hub channel:', response)
+            logger.debug('Joined hub channel:', response)
             this.sessionId = (response as { session_id: string }).session_id
             this.eventBus.emit(SystemEvents.ROOM_JOINED, response)
             resolve()
           })
           .receive('error', (error: unknown) => {
-            console.error('Failed to join hub:', error)
+            logger.error(`Failed to join hub: ${error}`)
             reject(new Error(`Failed to join hub: ${JSON.stringify(error)}`))
           })
           .receive('timeout', () => {
-            console.error('Hub join timeout')
+            logger.error('Hub join timeout')
             reject(new Error('Hub join timeout'))
           })
       } else {

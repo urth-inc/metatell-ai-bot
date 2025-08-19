@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { EventBus } from './EventBus'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { EventBus } from './EventBus.js'
 
 describe('EventBus', () => {
   let eventBus: EventBus

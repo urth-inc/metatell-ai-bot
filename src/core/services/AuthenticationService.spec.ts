@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { AuthenticationService } from './AuthenticationService'
-import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider'
-import type { BotConfiguration } from '../interfaces/IConfigurationProvider'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type {
+  BotConfiguration,
+  IConfigurationProvider,
+} from '../interfaces/IConfigurationProvider.js'
+import { AuthenticationService } from './AuthenticationService.js'
 
 describe('AuthenticationService', () => {
   let authService: AuthenticationService

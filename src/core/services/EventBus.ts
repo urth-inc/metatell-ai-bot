@@ -1,4 +1,4 @@
-import type { IEventBus, EventHandler } from '../interfaces/IEventBus'
+import type { EventHandler, IEventBus } from '../interfaces/IEventBus.js'
 
 export class EventBus implements IEventBus {
   private events = new Map<string, Set<EventHandler>>()

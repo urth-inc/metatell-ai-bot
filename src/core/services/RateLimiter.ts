@@ -1,4 +1,4 @@
-import type { IRateLimiter, RateLimitConfig } from '../interfaces/IRateLimiter'
+import type { IRateLimiter, RateLimitConfig } from '../interfaces/IRateLimiter.js'
 
 interface RateLimitBucket {
   count: number

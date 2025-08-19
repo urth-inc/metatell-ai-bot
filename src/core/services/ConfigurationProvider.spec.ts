@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { ConfigurationProvider } from './ConfigurationProvider'
-import type { BotConfiguration } from '../interfaces/IConfigurationProvider'
+import { beforeEach, describe, expect, it } from 'vitest'
+import type { BotConfiguration } from '../interfaces/IConfigurationProvider.js'
+import { ConfigurationProvider } from './ConfigurationProvider.js'
 
 describe('ConfigurationProvider', () => {
   let provider: ConfigurationProvider

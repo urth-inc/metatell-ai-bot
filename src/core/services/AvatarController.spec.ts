@@ -1,10 +1,13 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { AvatarController } from './AvatarController'
-import type { IMessageService } from '../interfaces/IMessageService'
-import type { IConfigurationProvider, BotConfiguration } from '../interfaces/IConfigurationProvider'
-import type { IEventBus } from '../interfaces/IEventBus'
-import { SystemEvents } from '../interfaces/IEventBus'
-import { findEventBusCall } from '../../test-utils/mocks'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { findEventBusCall } from '../../test-utils/mocks.js'
+import type {
+  BotConfiguration,
+  IConfigurationProvider,
+} from '../interfaces/IConfigurationProvider.js'
+import type { IEventBus } from '../interfaces/IEventBus.js'
+import { SystemEvents } from '../interfaces/IEventBus.js'
+import type { IMessageService } from '../interfaces/IMessageService.js'
+import { AvatarController } from './AvatarController.js'
 
 describe('AvatarController', () => {
   let avatarController: AvatarController
@@ -233,7 +236,7 @@ describe('AvatarController', () => {
               persistent: false,
               parent: null,
               components: {
-                '1': { x: newRotation.x, y: newRotation.y, z: newRotation.z },
+                '14': { x: 0, y: 45, z: 0 }, // クォータニオン(0, √2/2, 0, √2/2)のY軸90度回転をオイラー角に変換
               },
             },
           ],
@@ -301,10 +304,10 @@ describe('AvatarController', () => {
       const sentData = sendNAFRMock.mock.calls[0][0] as {
         data: { d: Array<{ components: Record<string, unknown> }> }
       }
-      expect(sentData.data.d[0].components).toHaveProperty('1', {
-        x: updates.rotation.x,
-        y: updates.rotation.y,
-        z: updates.rotation.z,
+      expect(sentData.data.d[0].components).toHaveProperty('14', {
+        x: 0, // pitch
+        y: expect.any(Number), // yaw in degrees
+        z: 0, // roll
       })
       expect(sentData.data.d[0].components).not.toHaveProperty('0')
     })

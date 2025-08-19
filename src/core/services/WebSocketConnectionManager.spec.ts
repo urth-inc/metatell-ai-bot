@@ -1,10 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { WebSocketConnectionManager } from './WebSocketConnectionManager'
-import type { IEventBus } from '../interfaces/IEventBus'
-import type { IConfigurationProvider, BotConfiguration } from '../interfaces/IConfigurationProvider'
-import { SystemEvents } from '../interfaces/IEventBus'
-import type { MockSocket, MockChannel, SocketOptions } from '../../test-utils/mocks'
-import { noop } from '../../test-utils/helpers'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { noop } from '../../test-utils/helpers.js'
+import type { MockChannel, MockSocket, SocketOptions } from '../../test-utils/mocks.js'
+import type {
+  BotConfiguration,
+  IConfigurationProvider,
+} from '../interfaces/IConfigurationProvider.js'
+import type { IEventBus } from '../interfaces/IEventBus.js'
+import { SystemEvents } from '../interfaces/IEventBus.js'
+import { WebSocketConnectionManager } from './WebSocketConnectionManager.js'
 
 // Mock Phoenix Socket and Channel
 vi.mock('phoenix', () => {

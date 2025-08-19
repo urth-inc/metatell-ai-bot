@@ -1,7 +1,7 @@
-import type { IMessageService, NAFMessage } from '../interfaces/IMessageService'
-import type { IConnectionManager } from '../interfaces/IConnectionManager'
-import { type IEventBus, SystemEvents } from '../interfaces/IEventBus'
-import type { IRateLimiter } from '../interfaces/IRateLimiter'
+import { logger } from '../../utils/logger.js'
+import type { IConnectionManager } from '../interfaces/IConnectionManager.js'
+import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
+import type { IMessageService, NAFMessage } from '../interfaces/IMessageService.js'
 
 export class MessageService implements IMessageService {
   private messageHandlers = new Map<string, Set<(data: unknown) => void>>()
@@ -9,7 +9,6 @@ export class MessageService implements IMessageService {
   constructor(
     private connectionManager: IConnectionManager,
     private eventBus: IEventBus,
-    private rateLimiter: IRateLimiter,
   ) {
     this.setupChannelListeners()
   }
@@ -24,18 +23,21 @@ export class MessageService implements IMessageService {
 
       // Setup message listener
       channel.on('message', (payload: unknown) => {
+        logger.debug('📥 [MESSAGE RECEIVED]', payload)
         this.handleIncomingMessage('message', payload)
         this.eventBus.emit(SystemEvents.MESSAGE_RECEIVED, payload)
       })
 
       // Setup NAF listener
       channel.on('naf', (payload: unknown) => {
+        logger.debug('📥 [NAF RECEIVED]', payload)
         this.handleIncomingMessage('naf', payload)
         this.eventBus.emit(SystemEvents.NAF_RECEIVED, payload)
       })
 
       // Setup NAFR listener
       channel.on('nafr', (payload: unknown) => {
+        logger.debug('📥 [NAFR RECEIVED]', payload)
         this.handleIncomingMessage('nafr', payload)
         this.eventBus.emit(SystemEvents.NAFR_RECEIVED, payload)
       })
@@ -61,17 +63,13 @@ export class MessageService implements IMessageService {
       throw new Error('Not connected to hub')
     }
 
-    // Check rate limit
-    if (!this.rateLimiter.check('message')) {
-      const waitTime = this.rateLimiter.getTimeUntilReset('message')
-      console.log(`Rate limited: Message not sent (wait ${Math.ceil(waitTime / 1000)}s)`)
-      await this.rateLimiter.wait('message')
-    }
+    const messageData = { body: message, type: 'chat' }
+    logger.debug('📤 [MESSAGE SENT]', messageData)
 
     // Fire and forget - don't wait for response
-    channel.push('message', { body: message, type: 'chat' })
+    channel.push('message', messageData)
     this.eventBus.emit(SystemEvents.MESSAGE_SENT, { body: message })
-    console.log('Message sent:', message)
+    logger.debug('Message sent:', message)
   }
 
   async sendNAF(data: NAFMessage): Promise<void> {
@@ -80,9 +78,11 @@ export class MessageService implements IMessageService {
       throw new Error('Not connected to hub')
     }
 
+    logger.debug('📤 [NAF SENT]', data)
+
     // Fire and forget - don't wait for response
     channel.push('naf', data)
-    console.log('NAF message sent')
+    logger.debug('NAF message sent')
   }
 
   async sendNAFR(data: NAFMessage): Promise<void> {
@@ -91,9 +91,12 @@ export class MessageService implements IMessageService {
       throw new Error('Not connected to hub')
     }
 
+    const nafrData = { naf: JSON.stringify(data) }
+    logger.debug('📤 [NAFR SENT]', nafrData)
+
     // Fire and forget - don't wait for response
-    channel.push('nafr', { naf: JSON.stringify(data) })
-    console.log('NAFR message sent')
+    channel.push('nafr', nafrData)
+    logger.debug('NAFR message sent')
   }
 
   async beginTyping(): Promise<void> {

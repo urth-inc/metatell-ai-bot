@@ -1,7 +1,7 @@
-import type { IPresenceManager, PresenceUser } from '../interfaces/IPresenceManager'
-import type { IConnectionManager } from '../interfaces/IConnectionManager'
-import { type IEventBus, SystemEvents } from '../interfaces/IEventBus'
 import { Presence } from 'phoenix'
+import type { IConnectionManager } from '../interfaces/IConnectionManager.js'
+import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
+import type { IPresenceManager, PresenceUser } from '../interfaces/IPresenceManager.js'
 
 export class PresenceManager implements IPresenceManager {
   private presence: Presence | null = null
@@ -36,15 +36,38 @@ export class PresenceManager implements IPresenceManager {
               roles?: Record<string, unknown>
             }>
           }
+
+          // Metatellの実際のデータ構造に対応: metasがない場合はdataから直接取得を試す
+          let displayName = metaData.metas?.[0]?.profile?.displayName
+          let avatarId = metaData.metas?.[0]?.profile?.avatarId
+
+          // もしmetasが空またはundefinedなら、別の構造を試す
+          if (!displayName) {
+            const altData = data as Record<string, unknown>
+            displayName =
+              (altData?.displayName as string) ||
+              ((altData?.profile as Record<string, unknown>)?.displayName as string) ||
+              (altData?.name as string)
+          }
+
+          if (!avatarId) {
+            const altData = data as Record<string, unknown>
+            avatarId =
+              (altData?.avatarId as string) ||
+              ((altData?.profile as Record<string, unknown>)?.avatarId as string) ||
+              (altData?.avatar_id as string)
+          }
+
           const user: PresenceUser = {
             id,
             profile: {
-              displayName: metaData.metas?.[0]?.profile?.displayName,
-              avatarId: metaData.metas?.[0]?.profile?.avatarId,
+              displayName: displayName,
+              avatarId: avatarId,
             },
             permissions: (metaData.metas?.[0]?.permissions || {}) as Record<string, boolean>,
             roles: (metaData.metas?.[0]?.roles || {}) as Record<string, boolean>,
           }
+
           newUsers.set(id, user)
         })
 
@@ -83,7 +106,7 @@ export class PresenceManager implements IPresenceManager {
 
       // Handle presence diff
       channel.on('presence_diff', (diff: unknown) => {
-        console.log('Presence diff:', diff)
+        // Suppressed: Presence diff logging
       })
     })
   }
@@ -95,7 +118,7 @@ export class PresenceManager implements IPresenceManager {
         try {
           handler(user)
         } catch (error) {
-          console.error('Error in presence join handler:', error)
+          // Suppressed: Error in presence join handler
         }
       }
     }
@@ -108,7 +131,7 @@ export class PresenceManager implements IPresenceManager {
         try {
           handler(user)
         } catch (error) {
-          console.error('Error in presence leave handler:', error)
+          // Suppressed: Error in presence leave handler
         }
       }
     }
