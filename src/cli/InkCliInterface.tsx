@@ -2,7 +2,7 @@ import { Box, useApp, useInput, useStdout } from 'ink'
 import type React from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import type { AgentClient } from '../sdk/AgentClient.js'
-import { LoggerFactory, type LogRecord } from '../utils/logging/logger-factory.js'
+import { createLogger, getRingBuffer, type LogRecord } from '../utils/logging/logger-factory.js'
 import { CommandExecutor } from './commands/exec.js'
 import { COMMANDS, type CommandPlan, parseCommand } from './commands/plan.js'
 import { Footer } from './components/Footer.js'
@@ -50,7 +50,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
     searchQuery: '',
   })
 
-  const logger = LoggerFactory.createLogger('CLI')
+  const logger = createLogger('CLI')
   const executor = new CommandExecutor(client)
 
   // イベントキューでバッチ更新
@@ -66,12 +66,12 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
 
   // 初期化：バッファされたログを取得
   useEffect(() => {
-    const logs = LoggerFactory.getRingBuffer().drain()
+    const logs = getRingBuffer().drain()
     eventQueue.push({ logs })
 
     // ログシステムのリスナー設定
     const interval = setInterval(() => {
-      const newLogs = LoggerFactory.getRingBuffer().drain()
+      const newLogs = getRingBuffer().drain()
       if (newLogs.length > 0) {
         setState((prev) => ({
           ...prev,
@@ -81,7 +81,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
     }, 100)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [eventQueue.push])
 
   // 高さ計算
   const terminalHeight = stdout?.rows || 24
@@ -101,7 +101,38 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
     } else if (!state.isSearching) {
       eventQueue.push({ suggestions: [], selectedSuggestionIndex: 0 })
     }
-  }, [state.input, state.isSearching])
+  }, [state.input, state.isSearching, eventQueue.push])
+
+  // ログコマンドの処理
+  const handleLogsCommand = useCallback(
+    (plan: Extract<CommandPlan, { kind: 'logs' }>) => {
+      switch (plan.subcommand) {
+        case 'clear':
+          getRingBuffer().clear()
+          eventQueue.push({ logs: [] })
+          logger.info('Log history cleared')
+          break
+
+        case 'filter':
+          if (plan.arg) {
+            try {
+              const regex = new RegExp(plan.arg)
+              eventQueue.push({ filterRegex: regex })
+              logger.info(`Filter applied: /${plan.arg}/`)
+            } catch (_error) {
+              logger.error(`Invalid regex: ${plan.arg}`)
+            }
+          }
+          break
+
+
+        case 'tail':
+          // デフォルト動作
+          break
+      }
+    },
+    [logger, eventQueue.push],
+  )
 
   // コマンド実行
   const handleCommand = useCallback(
@@ -148,38 +179,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
         logger.error(`Command failed: ${error}`)
       }
     },
-    [state.commandHistory, executor, exit, logger],
-  )
-
-  // ログコマンドの処理
-  const handleLogsCommand = useCallback(
-    (plan: Extract<CommandPlan, { kind: 'logs' }>) => {
-      switch (plan.subcommand) {
-        case 'clear':
-          LoggerFactory.getRingBuffer().clear()
-          eventQueue.push({ logs: [] })
-          logger.info('Log history cleared')
-          break
-
-        case 'filter':
-          if (plan.arg) {
-            try {
-              const regex = new RegExp(plan.arg)
-              eventQueue.push({ filterRegex: regex })
-              logger.info(`Filter applied: /${plan.arg}/`)
-            } catch (error) {
-              logger.error(`Invalid regex: ${plan.arg}`)
-            }
-          }
-          break
-
-
-        case 'tail':
-          // デフォルト動作
-          break
-      }
-    },
-    [logger],
+    [state.commandHistory, executor, exit, logger, eventQueue.push, handleLogsCommand],
   )
 
   // キーボード入力処理

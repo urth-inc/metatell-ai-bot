@@ -1,4 +1,4 @@
-import { LoggerFactory, type LogRecord } from './logging/logger-factory.js'
+import { createLogger, enableConsole, getRingBuffer, type LogRecord } from './logging/logger-factory.js'
 
 /**
  * ログレベル
@@ -50,7 +50,7 @@ const isDebugMode = (): boolean => {
 export class ConsoleLogger implements Logger {
   private debugEnabled: boolean
   private cliStarted = false
-  private structuredLogger = LoggerFactory.createLogger('app')
+  private structuredLogger = createLogger('app')
 
   constructor() {
     this.debugEnabled = isDebugMode()
@@ -59,12 +59,12 @@ export class ConsoleLogger implements Logger {
   // CLI起動の通知
   notifyCliStarted(): void {
     this.cliStarted = true
-    LoggerFactory.enableConsole()
+    enableConsole()
   }
 
   // バッファリングしたログを取得（取得後にバッファをクリア）
   getBufferedLogs(): LogEntry[] {
-    const records = LoggerFactory.getRingBuffer().drain()
+    const records = getRingBuffer().drain()
     return records.map((record) => this.convertToLogEntry(record))
   }
 

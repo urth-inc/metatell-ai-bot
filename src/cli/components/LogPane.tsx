@@ -71,7 +71,7 @@ export const LogPane: React.FC<LogPaneProps> = ({ logs, filterRegex, height }) =
     }
   }
 
-  const getLogColor = (level: string): string | undefined => {
+  const getLogColor = (_level: string): string | undefined => {
     // 色は使わない（ユーザーの要望により）
     return undefined
   }

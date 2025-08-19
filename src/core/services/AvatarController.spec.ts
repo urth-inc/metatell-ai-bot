@@ -220,7 +220,9 @@ describe('AvatarController', () => {
     })
 
     it('should rotate avatar', async () => {
-      const newRotation = { x: 0, y: Math.PI / 2, z: 0, w: Math.SQRT1_2 }
+      // Y軸90度回転の正しいクォータニオン
+      const angle = Math.PI / 2 // 90度
+      const newRotation = { x: 0, y: Math.sin(angle / 2), z: 0, w: Math.cos(angle / 2) }
       await avatarController.rotate(newRotation)
 
       expect(mockMessageService.sendNAFR).toHaveBeenCalledWith({
@@ -236,7 +238,7 @@ describe('AvatarController', () => {
               persistent: false,
               parent: null,
               components: {
-                '14': { x: 0, y: 45, z: 0 }, // クォータニオン(0, √2/2, 0, √2/2)のY軸90度回転をオイラー角に変換
+                '14': { x: 0, y: expect.closeTo(90, 1), z: 0 }, // Y軸90度回転をオイラー角（度数）で表現（浮動小数点誤差を考慮）
               },
             },
           ],
@@ -343,7 +345,7 @@ describe('AvatarController', () => {
         data: { d: Array<{ components: Record<string, unknown> }> }
       }
       expect(sentData.data.d[0].components).toHaveProperty('0')
-      expect(sentData.data.d[0].components).toHaveProperty('1')
+      expect(sentData.data.d[0].components).toHaveProperty('14') // rotationは '14' として保存される
       expect(sentData.data.d[0].components).toHaveProperty('3')
     })
 

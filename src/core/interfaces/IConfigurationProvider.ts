@@ -15,6 +15,7 @@ export interface BotConfiguration {
   hubId: string
   profile: BotProfile
   context?: BotContext
+  debug?: boolean
 }
 
 export interface IConfigurationProvider {

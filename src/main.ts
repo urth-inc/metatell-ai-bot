@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
 import './websocket-polyfill.js'
+import { Command } from 'commander'
 import { ConfigManager } from './cli/config/config.js'
 import { startInkCli } from './cli/startInkCli.js'
 import type { BotConfiguration } from './core/interfaces/IConfigurationProvider.js'
 import { ServiceFactory } from './core/ServiceFactory.js'
 import { createAgentClient } from './sdk/AgentClient.js'
-import { LoggerFactory } from './utils/logging/logger-factory.js'
+import { enableConsole } from './utils/logging/logger-factory.js'
 
 /**
  * Extract hub ID from Metatell URL
@@ -22,45 +23,47 @@ function extractHubIdFromUrl(url: string): string {
 }
 
 async function main() {
-  // コマンドライン引数をパース
-  const args = process.argv.slice(2)
+  const program = new Command()
+  
+  program
+    .name('metatell-ai-bot')
+    .description('AI bot for Metatell metaverse')
+    .version('1.0.0')
+    .argument('[url]', 'Metatell room URL (e.g., https://metatell.app/LWF5w8n/)')
+    .option('-t, --token <token>', 'Authentication token')
+    .option('-d, --debug', 'Enable debug mode', false)
+    .option('-p, --profile <name>', 'Use a named profile from config')
+    .parse(process.argv)
+
+  const options = program.opts()
+  const [url] = program.args
+  
+  // デバッグモードの場合、パース結果を表示
+  if (options.debug) {
+    console.log('🔍 Debug mode enabled via CLI')
+    console.log('🔍 Parsed options:', options)
+    console.log('🔍 URL:', url)
+  }
+
+  // フラグをConfigManager用の形式に変換
   const flags: Record<string, string | boolean> = {}
-
-  // 最初の引数がURLの場合は、直接接続先として扱う
-  if (args.length > 0 && args[0].startsWith('https://')) {
-    flags['--url'] = args[0]
-  }
-
-  for (let i = 0; i < args.length; i++) {
-    if (args[i].startsWith('--')) {
-      const flag = args[i]
-      if (i + 1 < args.length && !args[i + 1].startsWith('--')) {
-        flags[flag] = args[i + 1]
-        i++
-      } else {
-        flags[flag] = true
-      }
-    }
-  }
+  if (url) flags['--url'] = url
+  if (options.token) flags['--token'] = options.token
+  if (options.debug) flags['--debug'] = true
+  if (options.profile) flags['--profile'] = options.profile
 
   // 設定を読み込み
   const configManager = new ConfigManager()
   const config = configManager.getConfig(flags)
 
   // URL が指定されていない場合はヘルプを表示
-  if (!config.url && !args.includes('--help')) {
-    console.error('Error: Connection URL is required\n')
-    console.error('Usage:')
-    console.error('  npm run start <url>')
-    console.error('  npm run start https://metatell.app/LWF5w8n/')
-    console.error('\nOptions:')
-    console.error('  --token <token>    Authentication token (optional)')
-    console.error('  --debug            Enable debug mode')
-    process.exit(1)
+  if (!config.url) {
+    program.help()
+    return
   }
 
   // デフォルト値
-  const metatellUrl = config.url!
+  const metatellUrl = config.url || ''
   const botName = config.profile?.displayName || 'AI Assistant'
   const avatarId = config.profile?.avatarId || 'hsBHyUu2'
   const authToken = config.token
@@ -73,7 +76,7 @@ async function main() {
     const url = new URL(metatellUrl)
     // Use WebSocket protocol for Socket connection
     socketUrl = `wss://${url.hostname}`
-  } catch (error) {
+  } catch (_error) {
     console.error(`Error: Invalid URL format - ${metatellUrl}`)
     process.exit(1)
   }
@@ -93,10 +96,26 @@ async function main() {
       embed: false,
       hmd: false,
     },
+    debug: config.debug,
   }
 
-  // ダミーのボットを作成（後方互換性のため）
+  // ボットを作成（AppSettingsも初期化される）
   factory.createBot(botConfig)
+  
+  // AppSettingsを取得してLoggingシステムを設定
+  const appSettings = factory.getService<import('./core/interfaces/IAppSettings.js').IAppSettings>('IAppSettings')
+  if (appSettings.debugMode) {
+    console.log('🔍 Debug mode enabled via AppSettings')
+    console.log('🔍 Bot configuration:', {
+      authUrl: socketUrl,
+      hubUrl: metatellUrl,
+      hubId: hubId,
+      botName: botName,
+      avatarId: avatarId,
+      debug: appSettings.debugMode
+    })
+    enableConsole(true)
+  }
 
   // AgentClient を作成
   const client = createAgentClient(factory, {
@@ -113,11 +132,7 @@ async function main() {
       : undefined,
   })
 
-  // デバッグモードの設定
-  if (config.debug) {
-    const { logger } = await import('./utils/logger.js')
-    logger.setDebugMode(true)
-  }
+  // デバッグモードの設定はAppSettingsで管理される
 
   // Handle shutdown gracefully
   const shutdown = async () => {
@@ -133,7 +148,9 @@ async function main() {
     const _cliApp = startInkCli(client)
 
     // CLI起動完了を通知
-    LoggerFactory.enableConsole()
+    if (!config.debug) {
+      enableConsole(false)
+    }
     const { logger } = await import('./utils/logger.js')
     logger.notifyCliStarted?.()
 

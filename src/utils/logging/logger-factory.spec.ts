@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ConsoleSink,
+  createLogger,
+  enableConsole,
+  getRingBuffer,
   Logger,
-  LoggerFactory,
   type LogRecord,
   MultiSink,
   RingBuffer,
@@ -165,13 +166,13 @@ describe('Logger', () => {
 
 describe('LoggerFactory', () => {
   it('should create logger with shared ring buffer', () => {
-    const logger1 = LoggerFactory.createLogger('Module1')
-    const logger2 = LoggerFactory.createLogger('Module2')
+    const logger1 = createLogger('Module1')
+    const logger2 = createLogger('Module2')
 
     logger1.info('msg from module 1')
     logger2.info('msg from module 2')
 
-    const records = LoggerFactory.getRingBuffer().drain()
+    const records = getRingBuffer().drain()
     expect(records).toHaveLength(2)
     expect(records[0].module).toBe('Module1')
     expect(records[1].module).toBe('Module2')
@@ -179,6 +180,6 @@ describe('LoggerFactory', () => {
 
   it('should enable console output', () => {
     // This test just verifies the method exists and doesn't throw
-    expect(() => LoggerFactory.enableConsole()).not.toThrow()
+    expect(() => enableConsole()).not.toThrow()
   })
 })

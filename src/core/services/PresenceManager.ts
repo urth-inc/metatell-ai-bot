@@ -105,7 +105,7 @@ export class PresenceManager implements IPresenceManager {
       })
 
       // Handle presence diff
-      channel.on('presence_diff', (diff: unknown) => {
+      channel.on('presence_diff', (_diff: unknown) => {
         // Suppressed: Presence diff logging
       })
     })
@@ -117,7 +117,7 @@ export class PresenceManager implements IPresenceManager {
       for (const handler of handlers) {
         try {
           handler(user)
-        } catch (error) {
+        } catch (_error) {
           // Suppressed: Error in presence join handler
         }
       }
@@ -130,7 +130,7 @@ export class PresenceManager implements IPresenceManager {
       for (const handler of handlers) {
         try {
           handler(user)
-        } catch (error) {
+        } catch (_error) {
           // Suppressed: Error in presence leave handler
         }
       }

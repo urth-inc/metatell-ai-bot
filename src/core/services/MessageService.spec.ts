@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MockChannel } from '../../test-utils/mocks.js'
 import { findChannelCall, findEventBusCall } from '../../test-utils/mocks.js'
+import type { IAppSettings } from '../interfaces/IAppSettings.js'
 import type { IConnectionManager } from '../interfaces/IConnectionManager.js'
 import type { IEventBus } from '../interfaces/IEventBus.js'
 import { SystemEvents } from '../interfaces/IEventBus.js'
@@ -11,6 +12,7 @@ describe('MessageService', () => {
   let mockConnectionManager: IConnectionManager
   let mockEventBus: IEventBus
   let mockChannel: MockChannel
+  let mockAppSettings: IAppSettings
 
   beforeEach(() => {
     // Mock channel
@@ -40,7 +42,16 @@ describe('MessageService', () => {
       removeAllListeners: vi.fn(),
     }
 
-    messageService = new MessageService(mockConnectionManager, mockEventBus)
+
+    // Mock app settings
+    mockAppSettings = {
+      debugMode: false,
+      logLevel: 'info' as const,
+      onDebugModeChanged: vi.fn(),
+      setDebugMode: vi.fn(),
+    }
+
+    messageService = new MessageService(mockConnectionManager, mockEventBus, mockAppSettings)
   })
 
   describe('constructor and setup', () => {
@@ -204,8 +215,6 @@ describe('MessageService', () => {
       })
       const normalHandler = vi.fn()
 
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-
       messageService.on('message', errorHandler)
       messageService.on('message', normalHandler)
 
@@ -217,12 +226,7 @@ describe('MessageService', () => {
 
       expect(errorHandler).toHaveBeenCalled()
       expect(normalHandler).toHaveBeenCalled()
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error in message handler for "message":',
-        expect.any(Error),
-      )
-
-      consoleErrorSpy.mockRestore()
+      // エラーがキャッチされ、他のハンドラーも実行されることを確認
     })
 
     it('should emit correct system events for each message type', () => {

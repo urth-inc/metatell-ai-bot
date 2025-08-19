@@ -106,17 +106,31 @@ describe('UserAvatarManager', () => {
       )?.[1] as (data: unknown) => void
 
       const movedHandler = vi.fn()
+      const updatedHandler = vi.fn()
       userAvatarManager.on('userMoved', movedHandler)
+      userAvatarManager.on('userUpdated', updatedHandler)
 
-      // First, add a user
-      const presenceJoinHandler = findMockCall(
-        mockPresenceManager.on as ReturnType<typeof vi.fn>,
-        (call) => call[0] === 'join',
-      )?.[1] as (user: unknown) => void
+      // First, create a user with NAF message to establish baseline
+      const nafHandler = findMockCall(
+        mockMessageService.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'naf',
+      )?.[1] as (data: unknown) => void
 
-      presenceJoinHandler({ id: 'user-456', profile: { displayName: 'MoveUser' } })
+      nafHandler({
+        dataType: 'u',
+        data: {
+          networkId: 'user-456',
+          owner: 'user-456',
+          components: {
+            '0': { x: 5, y: 0, z: 0 },
+          },
+        },
+      })
 
-      // Send NAFR update message
+      // Clear handlers to check only NAFR updates
+      vi.clearAllMocks()
+
+      // Send NAFR update message with position change
       nafrHandler({
         dataType: 'um',
         data: {
@@ -191,21 +205,16 @@ describe('UserAvatarManager', () => {
         (call) => call[0] === 'join',
       )?.[1] as (user: unknown) => void
 
-      const joinedHandler = vi.fn()
-      userAvatarManager.on('userJoined', joinedHandler)
-
+      // Presence join only adds user to internal map, no event is emitted
       presenceJoinHandler({
         id: 'new-user',
         profile: { displayName: 'NewUser' },
       })
 
-      expect(joinedHandler).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'new-user',
-          nickname: 'NewUser',
-          position: { x: 0, y: 0, z: 0 },
-        }),
-      )
+      // Check that user is added to internal state but no event is emitted yet
+      const user = userAvatarManager.getUser('new-user')
+      expect(user?.nickname).toBe('NewUser')
+      expect(user?.position).toBeNull() // Position is null until NAF message is received
     })
 
     it('should handle user leave from presence', () => {
@@ -236,17 +245,35 @@ describe('UserAvatarManager', () => {
     })
 
     it('should not emit userJoined if user already exists', () => {
-      const presenceJoinHandler = findMockCall(
-        mockPresenceManager.on as ReturnType<typeof vi.fn>,
-        (call) => call[0] === 'join',
-      )?.[1] as (user: unknown) => void
+      const nafHandler = findMockCall(
+        mockMessageService.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'naf',
+      )?.[1] as (data: unknown) => void
 
       const joinedHandler = vi.fn()
       userAvatarManager.on('userJoined', joinedHandler)
 
-      // Join twice
-      presenceJoinHandler({ id: 'dup-user', profile: { displayName: 'DupUser' } })
-      presenceJoinHandler({ id: 'dup-user', profile: { displayName: 'DupUser' } })
+      mockPresenceManager.getUser = vi.fn().mockReturnValue({
+        id: 'dup-user',
+        profile: { displayName: 'DupUser' },
+      })
+
+      // Create user twice with NAF message
+      nafHandler({
+        dataType: 'u',
+        data: {
+          networkId: 'dup-user',
+          components: { '0': { x: 0, y: 0, z: 0 } },
+        },
+      })
+
+      nafHandler({
+        dataType: 'u',
+        data: {
+          networkId: 'dup-user',
+          components: { '0': { x: 1, y: 0, z: 0 } },
+        },
+      })
 
       expect(joinedHandler).toHaveBeenCalledTimes(1)
     })
@@ -259,12 +286,13 @@ describe('UserAvatarManager', () => {
         (call) => call[0] === SystemEvents.USER_JOINED,
       )?.[1] as (data: unknown) => void
 
-      const joinedHandler = vi.fn()
-      userAvatarManager.on('userJoined', joinedHandler)
-
+      // System event only adds user to internal state, no event is emitted
       systemJoinHandler({ id: 'system-user', profile: { displayName: 'SystemUser' } })
 
-      expect(joinedHandler).toHaveBeenCalled()
+      // Check that user is added to internal state
+      const user = userAvatarManager.getUser('system-user')
+      expect(user?.nickname).toBe('SystemUser')
+      expect(user?.position).toBeNull() // Position is null until NAF message is received
     })
 
     it('should handle system USER_LEFT event', () => {
@@ -428,12 +456,23 @@ describe('UserAvatarManager', () => {
       userAvatarManager.on('userJoined', handler1)
       userAvatarManager.on('userJoined', handler2)
 
-      const presenceJoinHandler = findMockCall(
-        mockPresenceManager.on as ReturnType<typeof vi.fn>,
-        (call) => call[0] === 'join',
-      )?.[1] as (user: unknown) => void
+      const nafHandler = findMockCall(
+        mockMessageService.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'naf',
+      )?.[1] as (data: unknown) => void
 
-      presenceJoinHandler({ id: 'multi-handler-user', profile: {} })
+      mockPresenceManager.getUser = vi.fn().mockReturnValue({
+        id: 'multi-handler-user',
+        profile: { displayName: 'MultiUser' },
+      })
+
+      nafHandler({
+        dataType: 'u',
+        data: {
+          networkId: 'multi-handler-user',
+          components: { '0': { x: 0, y: 0, z: 0 } },
+        },
+      })
 
       expect(handler1).toHaveBeenCalled()
       expect(handler2).toHaveBeenCalled()
@@ -465,12 +504,23 @@ describe('UserAvatarManager', () => {
       userAvatarManager.on('userJoined', errorHandler)
       userAvatarManager.on('userJoined', normalHandler)
 
-      const presenceJoinHandler = findMockCall(
-        mockPresenceManager.on as ReturnType<typeof vi.fn>,
-        (call) => call[0] === 'join',
-      )?.[1] as (user: unknown) => void
+      const nafHandler = findMockCall(
+        mockMessageService.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'naf',
+      )?.[1] as (data: unknown) => void
 
-      presenceJoinHandler({ id: 'error-test-user', profile: {} })
+      mockPresenceManager.getUser = vi.fn().mockReturnValue({
+        id: 'error-test-user',
+        profile: { displayName: 'ErrorUser' },
+      })
+
+      nafHandler({
+        dataType: 'u',
+        data: {
+          networkId: 'error-test-user',
+          components: { '0': { x: 0, y: 0, z: 0 } },
+        },
+      })
 
       expect(errorHandler).toHaveBeenCalled()
       expect(normalHandler).toHaveBeenCalled()
@@ -490,11 +540,17 @@ describe('UserAvatarManager', () => {
         (call) => call[0] === 'naf',
       )?.[1] as (data: unknown) => void
 
+      mockPresenceManager.getUser = vi.fn().mockReturnValue({
+        id: 'avatar-test-user',
+        profile: { displayName: 'AvatarUser' },
+      })
+
       nafHandler({
         dataType: 'u',
         data: {
           networkId: 'avatar-test-user',
           components: {
+            '0': { x: 0, y: 0, z: 0 }, // Position is required
             '3': {
               avatarSrc: 'https://example.com/avatar?avatar_id=custom-avatar-123&other=param',
             },
@@ -512,11 +568,17 @@ describe('UserAvatarManager', () => {
         (call) => call[0] === 'naf',
       )?.[1] as (data: unknown) => void
 
+      mockPresenceManager.getUser = vi.fn().mockReturnValue({
+        id: 'no-avatar-id-user',
+        profile: { displayName: 'NoAvatarUser' },
+      })
+
       nafHandler({
         dataType: 'u',
         data: {
           networkId: 'no-avatar-id-user',
           components: {
+            '0': { x: 0, y: 0, z: 0 }, // Position is required
             '3': { avatarSrc: 'https://example.com/avatar' },
           },
         },

@@ -1,15 +1,21 @@
-import { logger } from '../../utils/logger.js'
+import { createLogger } from '../../utils/logging/logger-factory.js'
+import type { IAppSettings } from '../interfaces/IAppSettings.js'
 import type { IConnectionManager } from '../interfaces/IConnectionManager.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService, NAFMessage } from '../interfaces/IMessageService.js'
 
 export class MessageService implements IMessageService {
   private messageHandlers = new Map<string, Set<(data: unknown) => void>>()
+  private logger = createLogger('MessageService')
 
   constructor(
     private connectionManager: IConnectionManager,
     private eventBus: IEventBus,
+    private appSettings: IAppSettings,
   ) {
+    if (this.appSettings.debugMode) {
+      console.log('🔍 MessageService: Debug mode is ON')
+    }
     this.setupChannelListeners()
   }
 
@@ -23,21 +29,30 @@ export class MessageService implements IMessageService {
 
       // Setup message listener
       channel.on('message', (payload: unknown) => {
-        logger.debug('📥 [MESSAGE RECEIVED]', payload)
+        if (this.appSettings.debugMode) {
+          console.log('🔍 📥 [MESSAGE RECEIVED]', payload)
+          this.logger.debug('📥 [MESSAGE RECEIVED]', payload)
+        }
         this.handleIncomingMessage('message', payload)
         this.eventBus.emit(SystemEvents.MESSAGE_RECEIVED, payload)
       })
 
       // Setup NAF listener
       channel.on('naf', (payload: unknown) => {
-        logger.debug('📥 [NAF RECEIVED]', payload)
+        if (this.appSettings.debugMode) {
+          console.log('🔍 📥 [NAF RECEIVED]', payload)
+          this.logger.debug('📥 [NAF RECEIVED]', payload)
+        }
         this.handleIncomingMessage('naf', payload)
         this.eventBus.emit(SystemEvents.NAF_RECEIVED, payload)
       })
 
       // Setup NAFR listener
       channel.on('nafr', (payload: unknown) => {
-        logger.debug('📥 [NAFR RECEIVED]', payload)
+        if (this.appSettings.debugMode) {
+          console.log('🔍 📥 [NAFR RECEIVED]', payload)
+          this.logger.debug('📥 [NAFR RECEIVED]', payload)
+        }
         this.handleIncomingMessage('nafr', payload)
         this.eventBus.emit(SystemEvents.NAFR_RECEIVED, payload)
       })
@@ -51,7 +66,7 @@ export class MessageService implements IMessageService {
         try {
           handler(data)
         } catch (error) {
-          console.error(`Error in message handler for "${type}":`, error)
+          this.logger.error(`Error in message handler for "${type}":`, error)
         }
       }
     }
@@ -64,12 +79,14 @@ export class MessageService implements IMessageService {
     }
 
     const messageData = { body: message, type: 'chat' }
-    logger.debug('📤 [MESSAGE SENT]', messageData)
+    if (this.appSettings.debugMode) {
+      console.log('🔍 📤 [MESSAGE SENT]', messageData)
+      this.logger.debug('📤 [MESSAGE SENT]', messageData)
+    }
 
     // Fire and forget - don't wait for response
     channel.push('message', messageData)
     this.eventBus.emit(SystemEvents.MESSAGE_SENT, { body: message })
-    logger.debug('Message sent:', message)
   }
 
   async sendNAF(data: NAFMessage): Promise<void> {
@@ -78,11 +95,13 @@ export class MessageService implements IMessageService {
       throw new Error('Not connected to hub')
     }
 
-    logger.debug('📤 [NAF SENT]', data)
+    if (this.appSettings.debugMode) {
+      console.log('🔍 📤 [NAF SENT]', data)
+      this.logger.debug('📤 [NAF SENT]', data)
+    }
 
     // Fire and forget - don't wait for response
     channel.push('naf', data)
-    logger.debug('NAF message sent')
   }
 
   async sendNAFR(data: NAFMessage): Promise<void> {
@@ -92,11 +111,13 @@ export class MessageService implements IMessageService {
     }
 
     const nafrData = { naf: JSON.stringify(data) }
-    logger.debug('📤 [NAFR SENT]', nafrData)
+    if (this.appSettings.debugMode) {
+      console.log('🔍 📤 [NAFR SENT]', nafrData)
+      this.logger.debug('📤 [NAFR SENT]', nafrData)
+    }
 
     // Fire and forget - don't wait for response
     channel.push('nafr', nafrData)
-    logger.debug('NAFR message sent')
   }
 
   async beginTyping(): Promise<void> {

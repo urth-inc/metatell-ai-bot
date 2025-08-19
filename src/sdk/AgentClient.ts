@@ -7,7 +7,7 @@ import type { IConfigurationProvider } from '../core/interfaces/IConfigurationPr
 import type { IConnectionManager } from '../core/interfaces/IConnectionManager.js'
 import type { IUserAvatarManager, UserAvatar } from '../core/interfaces/IUserAvatarManager.js'
 import type { ServiceFactory } from '../core/ServiceFactory.js'
-import { LoggerFactory, type LogRecord } from '../utils/logging/logger-factory.js'
+import { createLogger } from '../utils/logging/logger-factory.js'
 import { RateLimitedQueue } from './rate.js'
 
 export interface ConnectionOptions {
@@ -73,7 +73,7 @@ export class DefaultAgentClient implements AgentClient {
   private bot: MetatellBot
   private userAvatarManager: IUserAvatarManager
   private rateLimiter = new RateLimitedQueue()
-  private logger = LoggerFactory.createLogger('AgentClient')
+  private logger = createLogger('AgentClient')
   private status: ConnectionStatus = {
     connected: false,
     connecting: false,
@@ -82,7 +82,6 @@ export class DefaultAgentClient implements AgentClient {
 
   constructor(
     private factory: ServiceFactory,
-    private config: AgentClientConfig = {},
   ) {
     // 既存のサービスを取得
     this.bot = factory.getService('MetatellBot') as MetatellBot
@@ -225,11 +224,11 @@ export class DefaultAgentClient implements AgentClient {
     return this.userAvatarManager.getUsersInRange(botState.position, radius)
   }
 
-  on(event: string, handler: (...args: unknown[]) => void): void {
+  on(_event: string, _handler: (...args: unknown[]) => void): void {
     // TODO: イベントシステムの統合
   }
 
-  off(event: string, handler: (...args: unknown[]) => void): void {
+  off(_event: string, _handler: (...args: unknown[]) => void): void {
     // TODO: イベントシステムの統合
   }
 

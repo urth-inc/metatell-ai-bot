@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { noop } from '../../test-utils/helpers.js'
 import type { MockChannel, MockSocket, SocketOptions } from '../../test-utils/mocks.js'
+import type { IAppSettings } from '../interfaces/IAppSettings.js'
 import type {
   BotConfiguration,
   IConfigurationProvider,
@@ -37,6 +38,7 @@ describe('WebSocketConnectionManager', () => {
   let connectionManager: WebSocketConnectionManager
   let mockEventBus: IEventBus
   let mockConfigProvider: IConfigurationProvider
+  let mockAppSettings: IAppSettings
   let mockSocket: MockSocket
   let mockChannel: MockChannel
 
@@ -68,7 +70,15 @@ describe('WebSocketConnectionManager', () => {
       updateContext: vi.fn(),
     }
 
-    connectionManager = new WebSocketConnectionManager(mockEventBus, mockConfigProvider)
+    // Mock app settings
+    mockAppSettings = {
+      debugMode: false,
+      logLevel: 'info' as const,
+      onDebugModeChanged: vi.fn(),
+      setDebugMode: vi.fn(),
+    }
+
+    connectionManager = new WebSocketConnectionManager(mockEventBus, mockConfigProvider, mockAppSettings)
   })
 
   describe('connect', () => {

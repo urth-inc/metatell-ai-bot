@@ -1,5 +1,6 @@
 import { type Channel, Socket } from 'phoenix'
-import { logger } from '../../utils/logger.js'
+import { createLogger } from '../../utils/logging/logger-factory.js'
+import type { IAppSettings } from '../interfaces/IAppSettings.js'
 import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
 import type { ConnectionConfig, IConnectionManager } from '../interfaces/IConnectionManager.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
@@ -8,11 +9,17 @@ export class WebSocketConnectionManager implements IConnectionManager {
   private socket: Socket | null = null
   private hubChannel: Channel | null = null
   private sessionId: string | null = null
+  private logger = createLogger('WebSocketConnectionManager')
 
   constructor(
     private eventBus: IEventBus,
     private configProvider: IConfigurationProvider,
-  ) {}
+    private appSettings: IAppSettings,
+  ) {
+    if (this.appSettings.debugMode) {
+      console.log('🔍 WebSocketConnectionManager: Debug mode is ON')
+    }
+  }
 
   async connect(config: ConnectionConfig): Promise<void> {
     try {
@@ -28,24 +35,24 @@ export class WebSocketConnectionManager implements IConnectionManager {
         },
         reconnectAfterMs: (tries) => {
           const delay = [1000, 2000, 5000, 10000][tries - 1] || 10000
-          logger.debug(`Reconnecting in ${delay}ms... (attempt ${tries})`)
+          this.logger.debug(`Reconnecting in ${delay}ms... (attempt ${tries})`)
           return delay
         },
       })
 
       // Set up socket event handlers
       this.socket.onOpen(() => {
-        logger.debug('WebSocket connected')
+        this.logger.debug('WebSocket connected')
         this.eventBus.emit(SystemEvents.CONNECTION_ESTABLISHED)
       })
 
       this.socket.onClose(() => {
-        logger.debug('WebSocket disconnected')
+        this.logger.debug('WebSocket disconnected')
         this.eventBus.emit(SystemEvents.CONNECTION_LOST)
       })
 
       this.socket.onError((error) => {
-        logger.debug('WebSocket error:', error)
+        this.logger.debug('WebSocket error:', { error })
         this.eventBus.emit(SystemEvents.CONNECTION_ERROR, error)
       })
 
@@ -56,10 +63,10 @@ export class WebSocketConnectionManager implements IConnectionManager {
       await this.waitForConnection()
 
       // Join hub channel
-      logger.debug('About to join hub:', config.hubId)
+      this.logger.debug('About to join hub:', { hubId: config.hubId })
       await this.joinHub(config.hubId)
     } catch (error) {
-      logger.error(`Connection failed: ${error}`)
+      this.logger.error(`Connection failed: ${error}`)
       throw error
     }
   }
@@ -77,7 +84,7 @@ export class WebSocketConnectionManager implements IConnectionManager {
         context: config.context || {},
       }
 
-      logger.debug('Attempting to join hub with:', {
+      this.logger.debug('Attempting to join hub with:', {
         channel: `hub:${hubId}`,
         params: channelParams,
       })
@@ -85,20 +92,49 @@ export class WebSocketConnectionManager implements IConnectionManager {
       this.hubChannel = this.socket?.channel(`hub:${hubId}`, channelParams) || null
 
       if (this.hubChannel) {
+        // デバッグモードの場合、主要なイベントを監視
+        if (this.appSettings.debugMode) {
+          // PhoenixのChannelは特定のイベントに対してのみリスナーを設定可能
+          // 全てのイベントを監視するには、個別にリスナーを追加する必要がある
+          const debugEvents = [
+            'phx_reply',
+            'presence_state',
+            'presence_diff',
+            'message',
+            'naf',
+            'nafr',
+            'event',
+            'events:entering',
+            'events:entered',
+            'events:leaving',
+            'events:left',
+            'hub:member_update',
+            'hub:avatar_update',
+            'hub:scene_update',
+          ]
+
+          debugEvents.forEach(event => {
+            this.hubChannel?.on(event, (payload: unknown) => {
+              console.log(`🔍 [WS_RECEIVE] ${event}:`, payload)
+              this.logger.debug('[WS_RECEIVE]', { event, payload })
+            })
+          })
+        }
+
         this.hubChannel
           .join()
           .receive('ok', (response: unknown) => {
-            logger.debug('Joined hub channel:', response)
+            this.logger.debug('Joined hub channel:', { response })
             this.sessionId = (response as { session_id: string }).session_id
             this.eventBus.emit(SystemEvents.ROOM_JOINED, response)
             resolve()
           })
           .receive('error', (error: unknown) => {
-            logger.error(`Failed to join hub: ${error}`)
+            this.logger.error(`Failed to join hub: ${error}`)
             reject(new Error(`Failed to join hub: ${JSON.stringify(error)}`))
           })
           .receive('timeout', () => {
-            logger.error('Hub join timeout')
+            this.logger.error('Hub join timeout')
             reject(new Error('Hub join timeout'))
           })
       } else {

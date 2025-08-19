@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { IAppSettings } from '../core/interfaces/IAppSettings.js'
 import type { IAvatarController } from '../core/interfaces/IAvatarController.js'
 import type {
   BotConfiguration,
@@ -21,6 +22,7 @@ describe('MetatellBot', () => {
   let mockPresenceManager: IPresenceManager
   let mockConfigProvider: IConfigurationProvider
   let mockUserAvatarManager: IUserAvatarManager
+  let mockAppSettings: IAppSettings
   let mockChannel: MockChannel
 
   beforeEach(() => {
@@ -108,6 +110,14 @@ describe('MetatellBot', () => {
       off: vi.fn(),
     }
 
+    // Mock app settings
+    mockAppSettings = {
+      debugMode: false,
+      logLevel: 'info',
+      onDebugModeChanged: vi.fn(),
+      setDebugMode: vi.fn(),
+    }
+
     bot = new MetatellBot(
       mockConnectionManager,
       mockMessageService,
@@ -115,6 +125,7 @@ describe('MetatellBot', () => {
       mockPresenceManager,
       mockConfigProvider,
       mockUserAvatarManager,
+      mockAppSettings,
     )
   })
 
@@ -135,7 +146,7 @@ describe('MetatellBot', () => {
     })
 
     it('should respond to help command', () => {
-      messageHandler({ body: 'help', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot help', session_id: 'user-123' })
 
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
         expect.stringContaining('Available commands:'),
@@ -143,7 +154,7 @@ describe('MetatellBot', () => {
     })
 
     it('should respond to info command', () => {
-      messageHandler({ body: 'info', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot info', session_id: 'user-123' })
 
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
         expect.stringContaining('Room Information:'),
@@ -151,7 +162,7 @@ describe('MetatellBot', () => {
     })
 
     it('should respond to hello message', () => {
-      messageHandler({ body: 'hello there!', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot hello there!', session_id: 'user-123' })
 
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
         expect.stringContaining("Hello! I'm TestBot"),
@@ -159,7 +170,7 @@ describe('MetatellBot', () => {
     })
 
     it('should respond to time command', () => {
-      messageHandler({ body: 'time', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot time', session_id: 'user-123' })
 
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
         expect.stringContaining('Current time:'),
@@ -167,38 +178,33 @@ describe('MetatellBot', () => {
     })
 
     it('should handle move command', () => {
-      messageHandler({ body: 'move 10 0 -5', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot move 10 0 -5', session_id: 'user-123' })
 
       expect(mockAvatarController.move).toHaveBeenCalledWith({ x: 10, y: 0, z: -5 })
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith('Moving to position (10, 0, -5)')
     })
 
     it('should ignore invalid move command', () => {
-      messageHandler({ body: 'move abc def', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot move abc def', session_id: 'user-123' })
 
       expect(mockAvatarController.move).not.toHaveBeenCalled()
     })
 
     it('should ignore messages from bot itself', () => {
-      messageHandler({ body: 'hello', session_id: 'bot-session-123' })
+      messageHandler({ body: '@TestBot hello', session_id: 'bot-session-123' })
 
       expect(mockMessageService.sendMessage).not.toHaveBeenCalled()
     })
 
     it('should handle errors in message handlers', () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-
       // Add a handler that throws
       const errorHandler = vi.fn(() => {
         throw new Error('Handler error')
       })
       bot.addMessageHandler(errorHandler)
 
-      messageHandler({ body: 'test', session_id: 'user-123' })
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Error in message handler:', expect.any(Error))
-
-      consoleErrorSpy.mockRestore()
+      // エラーが発生してもクラッシュしないことを確認
+      expect(() => messageHandler({ body: '@TestBot test', session_id: 'user-123' })).not.toThrow()
     })
   })
 
@@ -243,9 +249,7 @@ describe('MetatellBot', () => {
       expect(mockMessageService.sendMessage).not.toHaveBeenCalled()
     })
 
-    it('should log user leave', () => {
-      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
-
+    it('should handle user leave without logging', () => {
       const leaveCall = findMockCall(
         mockPresenceManager.on as ReturnType<typeof vi.fn>,
         (call) => call[0] === 'leave',
@@ -259,11 +263,8 @@ describe('MetatellBot', () => {
         roles: {},
       }
 
-      leaveHandler(user)
-
-      expect(consoleLogSpy).toHaveBeenCalledWith('User left: LeavingUser')
-
-      consoleLogSpy.mockRestore()
+      // Should not throw
+      expect(() => leaveHandler(user)).not.toThrow()
     })
   })
 
@@ -274,7 +275,7 @@ describe('MetatellBot', () => {
 
       const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
       const messageHandler = onCalls[0][1] as MessageHandler
-      messageHandler({ body: 'test', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot test', session_id: 'user-123' })
 
       expect(customHandler).toHaveBeenCalledWith('test', 'user-123')
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith('Custom response')
@@ -287,7 +288,7 @@ describe('MetatellBot', () => {
 
       const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
       const messageHandler = onCalls[0][1] as MessageHandler
-      messageHandler({ body: 'test', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot test', session_id: 'user-123' })
 
       expect(customHandler).not.toHaveBeenCalled()
     })
@@ -320,15 +321,10 @@ describe('MetatellBot', () => {
     })
 
     it('should not start if already running', async () => {
-      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
-
       await bot.start()
       await bot.start()
 
       expect(mockConnectionManager.connect).toHaveBeenCalledTimes(1)
-      expect(consoleLogSpy).toHaveBeenCalledWith('Bot is already running')
-
-      consoleLogSpy.mockRestore()
     })
 
     it('should handle connection errors', async () => {
@@ -368,27 +364,20 @@ describe('MetatellBot', () => {
     })
 
     it('should not stop if not running', async () => {
-      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined)
-
       await bot.stop()
 
       expect(mockMessageService.sendMessage).not.toHaveBeenCalled()
-      expect(consoleLogSpy).toHaveBeenCalledWith('Bot is not running')
-
-      consoleLogSpy.mockRestore()
     })
 
     it('should handle errors during stop', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       await bot.start()
 
       mockMessageService.sendMessage = vi.fn().mockRejectedValue(new Error('Send failed'))
 
       await bot.stop()
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Error stopping bot:', expect.any(Error))
-
-      consoleErrorSpy.mockRestore()
+      // エラーが発生してもstopが完了することを確認
+      expect(bot.isActive()).toBe(false)
     })
   })
 
@@ -396,7 +385,7 @@ describe('MetatellBot', () => {
     it('should return room information', () => {
       const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
       const messageHandler = onCalls[0][1] as MessageHandler
-      messageHandler({ body: 'info', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot info', session_id: 'user-123' })
 
       const expectedMessage = expect.stringContaining('Users online: 2')
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(expectedMessage)
@@ -409,7 +398,7 @@ describe('MetatellBot', () => {
 
       const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
       const messageHandler = onCalls[0][1] as MessageHandler
-      messageHandler({ body: 'info', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot info', session_id: 'user-123' })
 
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
         expect.stringContaining('Unknown'),
@@ -439,7 +428,7 @@ describe('MetatellBot', () => {
 
       const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
       const messageHandler = onCalls[0][1] as MessageHandler
-      messageHandler({ body: 'users', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot users', session_id: 'user-123' })
 
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
         expect.stringContaining('👥 Users in room (2):'),
@@ -457,7 +446,7 @@ describe('MetatellBot', () => {
 
       const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
       const messageHandler = onCalls[0][1] as MessageHandler
-      messageHandler({ body: 'users', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot users', session_id: 'user-123' })
 
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith('No users currently in the room')
     })
@@ -490,7 +479,7 @@ describe('MetatellBot', () => {
 
       const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
       const messageHandler = onCalls[0][1] as MessageHandler
-      messageHandler({ body: 'nearby 10', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot nearby 10', session_id: 'user-123' })
 
       expect(mockUserAvatarManager.getUsersInRange).toHaveBeenCalledWith({ x: 0, y: 0, z: 0 }, 10)
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
@@ -506,7 +495,7 @@ describe('MetatellBot', () => {
 
       const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
       const messageHandler = onCalls[0][1] as MessageHandler
-      messageHandler({ body: 'nearby 5', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot nearby 5', session_id: 'user-123' })
 
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith('No users within 5 units')
     })
@@ -516,7 +505,7 @@ describe('MetatellBot', () => {
 
       const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
       const messageHandler = onCalls[0][1] as MessageHandler
-      messageHandler({ body: 'nearby 10', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot nearby 10', session_id: 'user-123' })
 
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith('Bot avatar not spawned yet')
     })
@@ -524,7 +513,7 @@ describe('MetatellBot', () => {
     it('should ignore invalid nearby command', () => {
       const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
       const messageHandler = onCalls[0][1] as MessageHandler
-      messageHandler({ body: 'nearby abc', session_id: 'user-123' })
+      messageHandler({ body: '@TestBot nearby abc', session_id: 'user-123' })
 
       expect(mockUserAvatarManager.getUsersInRange).not.toHaveBeenCalled()
     })

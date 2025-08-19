@@ -1,5 +1,12 @@
 import type { vi } from 'vitest'
-import type { RegisterOptions, ServiceFactory } from './types.js'
+
+// ServiceFactory 型定義
+export type ServiceFactory<T = unknown> = (container?: unknown) => T
+
+// RegisterOptions 型定義
+export interface RegisterOptions {
+  singleton?: boolean
+}
 
 // ServiceContainer のモック型
 export interface MockServiceContainer {

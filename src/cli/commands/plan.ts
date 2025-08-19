@@ -179,7 +179,7 @@ function parseMove(args: string[]): CommandPlan {
   const y = parseFloat(args[1])
   const z = parseFloat(args[2])
 
-  if (isNaN(x) || isNaN(y) || isNaN(z)) {
+  if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(z)) {
     throw new ParseError('Invalid coordinates', '/move <x> <y> <z>')
   }
 
@@ -204,7 +204,7 @@ function parseLook(args: string[]): CommandPlan {
     const y = parseFloat(args[1])
     const z = parseFloat(args[2])
 
-    if (isNaN(x) || isNaN(y) || isNaN(z)) {
+    if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(z)) {
       throw new ParseError('Invalid coordinates', '/look <x> <y> <z>')
     }
 
@@ -216,7 +216,7 @@ function parseLook(args: string[]): CommandPlan {
 
 function parseNearby(args: string[]): CommandPlan {
   const radius = args[0] ? parseFloat(args[0]) : undefined
-  if (radius !== undefined && isNaN(radius)) {
+  if (radius !== undefined && Number.isNaN(radius)) {
     throw new ParseError('Invalid radius', '/nearby [radius]')
   }
   return { kind: 'nearby', radius }
@@ -226,7 +226,7 @@ function parseUsers(args: string[]): CommandPlan {
   const flags = parseFlags(args)
   const nearby = flags['--nearby'] ? parseFloat(flags['--nearby'] as string) : undefined
 
-  if (nearby !== undefined && isNaN(nearby)) {
+  if (nearby !== undefined && Number.isNaN(nearby)) {
     throw new ParseError('Invalid --nearby value', '/users [--nearby <n>]')
   }
 

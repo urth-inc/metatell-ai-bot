@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MetatellBot } from '../bots/MetatellBot.js'
-import type { MockServiceContainer } from '../test-utils/service-mocks.js'
+import type { MockServiceContainer, ServiceFactory as ServiceFactoryType } from '../test-utils/service-mocks.js'
 import { findRegisterCall } from '../test-utils/service-mocks.js'
 import type { BotConfiguration } from './interfaces/IConfigurationProvider.js'
 import { ServiceContainer } from './ServiceContainer.js'
 import { ServiceFactory } from './ServiceFactory.js'
+import { AppSettings } from './services/AppSettings.js'
 import { AuthenticationService } from './services/AuthenticationService.js'
 import { AvatarController } from './services/AvatarController.js'
 import { ConfigurationProvider } from './services/ConfigurationProvider.js'
@@ -16,6 +17,7 @@ import { WebSocketConnectionManager } from './services/WebSocketConnectionManage
 
 // Mock all service modules
 vi.mock('./ServiceContainer')
+vi.mock('./services/AppSettings')
 vi.mock('./services/EventBus')
 vi.mock('./services/ConfigurationProvider')
 vi.mock('./services/RateLimiter')
@@ -55,6 +57,7 @@ describe('ServiceFactory', () => {
 
     it('should register all services', () => {
       const registeredServices = [
+        'IAppSettings',
         'IEventBus',
         'IConfigurationProvider',
         'IRateLimiter',
@@ -79,6 +82,7 @@ describe('ServiceFactory', () => {
   describe('service registrations', () => {
     it('should register all services as singletons', () => {
       const singletonServices = [
+        'IAppSettings',
         'IEventBus',
         'IConfigurationProvider',
         'IRateLimiter',
@@ -97,6 +101,18 @@ describe('ServiceFactory', () => {
       }
     })
 
+    it('should register AppSettings correctly', () => {
+      const appSettingsRegistration = findRegisterCall(mockContainer, 'IAppSettings')
+
+      expect(appSettingsRegistration).toBeDefined()
+      expect(appSettingsRegistration?.[1]).toBeInstanceOf(Function)
+
+      // Test factory function
+      const factory = appSettingsRegistration?.[1] as ServiceFactoryType<AppSettings>
+      factory()
+      expect(AppSettings).toHaveBeenCalled()
+    })
+
     it('should register EventBus correctly', () => {
       const eventBusRegistration = findRegisterCall(mockContainer, 'IEventBus')
 
@@ -104,7 +120,7 @@ describe('ServiceFactory', () => {
       expect(eventBusRegistration?.[1]).toBeInstanceOf(Function)
 
       // Test factory function
-      const factory = eventBusRegistration?.[1] as ServiceFactory<EventBus>
+      const factory = eventBusRegistration?.[1] as ServiceFactoryType<EventBus>
       factory()
       expect(EventBus).toHaveBeenCalled()
     })
@@ -116,7 +132,7 @@ describe('ServiceFactory', () => {
       expect(rateLimiterRegistration?.[1]).toBeInstanceOf(Function)
 
       // Test factory function
-      const factory = rateLimiterRegistration?.[1] as ServiceFactory<RateLimiter>
+      const factory = rateLimiterRegistration?.[1] as ServiceFactoryType<RateLimiter>
       factory()
       expect(RateLimiter).toHaveBeenCalledWith({ maxRequests: 1, windowMs: 15000 })
     })
@@ -131,7 +147,7 @@ describe('ServiceFactory', () => {
       const mockConfigProvider = {}
       mockContainer.get.mockReturnValue(mockConfigProvider)
 
-      const factory = authRegistration?.[1] as ServiceFactory<AuthenticationService>
+      const factory = authRegistration?.[1] as ServiceFactoryType<AuthenticationService>
       factory(mockContainer)
 
       expect(mockContainer.get).toHaveBeenCalledWith('IConfigurationProvider')
@@ -147,14 +163,19 @@ describe('ServiceFactory', () => {
       // Test factory function
       const mockEventBus = {}
       const mockConfigProvider = {}
-      mockContainer.get.mockReturnValueOnce(mockEventBus).mockReturnValueOnce(mockConfigProvider)
+      const mockAppSettings = {}
+      mockContainer.get
+        .mockReturnValueOnce(mockEventBus)
+        .mockReturnValueOnce(mockConfigProvider)
+        .mockReturnValueOnce(mockAppSettings)
 
       const factory = connRegistration?.[1] as ServiceFactoryType<WebSocketConnectionManager>
       factory(mockContainer)
 
       expect(mockContainer.get).toHaveBeenCalledWith('IEventBus')
       expect(mockContainer.get).toHaveBeenCalledWith('IConfigurationProvider')
-      expect(WebSocketConnectionManager).toHaveBeenCalledWith(mockEventBus, mockConfigProvider)
+      expect(mockContainer.get).toHaveBeenCalledWith('IAppSettings')
+      expect(WebSocketConnectionManager).toHaveBeenCalledWith(mockEventBus, mockConfigProvider, mockAppSettings)
     })
 
     it('should register MessageService with dependencies', () => {
@@ -166,18 +187,19 @@ describe('ServiceFactory', () => {
       // Test factory function
       const mockConnManager = {}
       const mockEventBus = {}
-      const mockRateLimiter = {}
+      const mockAppSettings = {}
       mockContainer.get
         .mockReturnValueOnce(mockConnManager)
         .mockReturnValueOnce(mockEventBus)
-        .mockReturnValueOnce(mockRateLimiter)
+        .mockReturnValueOnce(mockAppSettings)
 
-      const factory = msgRegistration?.[1] as ServiceFactory<MessageService>
+      const factory = msgRegistration?.[1] as ServiceFactoryType<MessageService>
       factory(mockContainer)
 
       expect(mockContainer.get).toHaveBeenCalledWith('IConnectionManager')
       expect(mockContainer.get).toHaveBeenCalledWith('IEventBus')
-      expect(MessageService).toHaveBeenCalledWith(mockConnManager, mockEventBus)
+      expect(mockContainer.get).toHaveBeenCalledWith('IAppSettings')
+      expect(MessageService).toHaveBeenCalledWith(mockConnManager, mockEventBus, mockAppSettings)
     })
 
     it('should register AvatarController with dependencies', () => {
@@ -195,7 +217,7 @@ describe('ServiceFactory', () => {
         .mockReturnValueOnce(mockConfigProvider)
         .mockReturnValueOnce(mockEventBus)
 
-      const factory = avatarRegistration?.[1] as ServiceFactory<AvatarController>
+      const factory = avatarRegistration?.[1] as ServiceFactoryType<AvatarController>
       factory(mockContainer)
 
       expect(mockContainer.get).toHaveBeenCalledWith('IMessageService')
@@ -219,7 +241,7 @@ describe('ServiceFactory', () => {
       const mockEventBus = {}
       mockContainer.get.mockReturnValueOnce(mockConnManager).mockReturnValueOnce(mockEventBus)
 
-      const factory = presenceRegistration?.[1] as ServiceFactory<PresenceManager>
+      const factory = presenceRegistration?.[1] as ServiceFactoryType<PresenceManager>
       factory(mockContainer)
 
       expect(mockContainer.get).toHaveBeenCalledWith('IConnectionManager')
@@ -240,6 +262,7 @@ describe('ServiceFactory', () => {
       const mockPresenceManager = {}
       const mockConfigProvider = {}
       const mockUserAvatarManager = {}
+      const mockAppSettings = {}
 
       mockContainer.get
         .mockReturnValueOnce(mockConnManager)
@@ -248,8 +271,9 @@ describe('ServiceFactory', () => {
         .mockReturnValueOnce(mockPresenceManager)
         .mockReturnValueOnce(mockConfigProvider)
         .mockReturnValueOnce(mockUserAvatarManager)
+        .mockReturnValueOnce(mockAppSettings)
 
-      const factory = botRegistration?.[1] as ServiceFactory<MetatellBot>
+      const factory = botRegistration?.[1] as ServiceFactoryType<MetatellBot>
       factory(mockContainer)
 
       expect(mockContainer.get).toHaveBeenCalledWith('IConnectionManager')
@@ -258,6 +282,7 @@ describe('ServiceFactory', () => {
       expect(mockContainer.get).toHaveBeenCalledWith('IPresenceManager')
       expect(mockContainer.get).toHaveBeenCalledWith('IConfigurationProvider')
       expect(mockContainer.get).toHaveBeenCalledWith('IUserAvatarManager')
+      expect(mockContainer.get).toHaveBeenCalledWith('IAppSettings')
 
       expect(MetatellBot).toHaveBeenCalledWith(
         mockConnManager,
@@ -266,6 +291,7 @@ describe('ServiceFactory', () => {
         mockPresenceManager,
         mockConfigProvider,
         mockUserAvatarManager,
+        mockAppSettings,
       )
     })
   })
@@ -273,11 +299,12 @@ describe('ServiceFactory', () => {
   describe('createBot', () => {
     it('should create bot with configuration', () => {
       const config: BotConfiguration = {
-        apiUrl: 'https://test.api',
         authUrl: 'https://test.auth',
+        hubUrl: 'https://test.hub',
         hubId: 'test-hub',
         profile: { displayName: 'TestBot' },
         context: { mobile: false, embed: false, hmd: false },
+        debug: true,
       }
 
       const mockBot = {}
@@ -287,14 +314,21 @@ describe('ServiceFactory', () => {
 
       // Verify ConfigurationProvider was created with config
       expect(ConfigurationProvider).toHaveBeenCalledWith(config)
+      
+      // Verify AppSettings was created with debug mode from config
+      expect(AppSettings).toHaveBeenCalledWith(true)
 
-      // Find the config provider registration that happens in createBot
+      // Find the registrations that happen in createBot
       const configRegistrations = mockContainer.register.mock.calls.filter(
         (call) => call[0] === 'IConfigurationProvider',
+      )
+      const appSettingsRegistrations = mockContainer.register.mock.calls.filter(
+        (call) => call[0] === 'IAppSettings',
       )
 
       // Should have 2 registrations: one in constructor, one in createBot
       expect(configRegistrations).toHaveLength(2)
+      expect(appSettingsRegistrations).toHaveLength(2)
 
       // Get bot from container
       expect(mockContainer.get).toHaveBeenCalledWith('MetatellBot')

@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { noop } from '../../test-utils/helpers.js'
 import type { MockChannel, MockPresence } from '../../test-utils/mocks.js'
 import { findChannelCall, findEventBusCall } from '../../test-utils/mocks.js'
 import type { IConnectionManager } from '../interfaces/IConnectionManager.js'
@@ -274,8 +273,6 @@ describe('PresenceManager', () => {
       })
       const normalHandler = vi.fn()
 
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(noop)
-
       presenceManager.on('join', errorHandler)
       presenceManager.on('join', normalHandler)
 
@@ -287,20 +284,13 @@ describe('PresenceManager', () => {
 
       expect(errorHandler).toHaveBeenCalled()
       expect(normalHandler).toHaveBeenCalled()
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error in presence join handler:',
-        expect.any(Error),
-      )
-
-      consoleErrorSpy.mockRestore()
+      // NOTE: エラーログは実装では抑制されているため、テストしない
     })
 
     it('should handle errors in leave handlers', () => {
       const errorHandler = vi.fn(() => {
         throw new Error('Handler error')
       })
-
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(noop)
 
       presenceManager.on('leave', errorHandler)
 
@@ -314,12 +304,8 @@ describe('PresenceManager', () => {
       mockPresence.list.mockImplementation(() => undefined)
       onSyncCallback()
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error in presence leave handler:',
-        expect.any(Error),
-      )
-
-      consoleErrorSpy.mockRestore()
+      expect(errorHandler).toHaveBeenCalled()
+      // NOTE: エラーログは実装では抑制されているため、テストしない
     })
   })
 
@@ -441,9 +427,7 @@ describe('PresenceManager', () => {
   })
 
   describe('presence diff handling', () => {
-    it('should log presence diff', () => {
-      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(noop)
-
+    it('should handle presence diff', () => {
       // Setup presence
       const roomJoinedCall = findEventBusCall(mockEventBus.on, SystemEvents.ROOM_JOINED)
       const roomJoinedHandler = roomJoinedCall?.[1]
@@ -454,11 +438,10 @@ describe('PresenceManager', () => {
       const presenceDiffHandler = presenceDiffCall?.[1] as (data: unknown) => void
 
       const diffData = { joins: {}, leaves: {} }
-      presenceDiffHandler(diffData)
-
-      expect(consoleLogSpy).toHaveBeenCalledWith('Presence diff:', diffData)
-
-      consoleLogSpy.mockRestore()
+      
+      // Should handle presence diff without error
+      expect(() => presenceDiffHandler(diffData)).not.toThrow()
+      // NOTE: ログ出力は実装では抑制されているため、テストしない
     })
   })
 })

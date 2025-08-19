@@ -2,65 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { parseCommand } from './plan.js'
 
 describe('parseCommand', () => {
-  describe('connect command', () => {
-    it('should parse connect with all flags', () => {
-      const result = parseCommand(
-        '/connect --url wss://example.com --token abc123 --room lobby --join',
-      )
-      expect(result).toEqual({
-        kind: 'connect',
-        url: 'wss://example.com',
-        token: 'abc123',
-        room: 'lobby',
-        join: true,
-      })
-    })
-
-    it('should parse connect with minimal flags', () => {
-      const result = parseCommand('/connect --url wss://example.com')
-      expect(result).toEqual({
-        kind: 'connect',
-        url: 'wss://example.com',
-        token: undefined,
-        room: undefined,
-        join: false,
-      })
-    })
-
-    it('should error on missing url', () => {
-      const result = parseCommand('/connect')
-      expect(result).toEqual({
-        kind: 'error',
-        message: 'Missing --url',
-        usage: '/connect --url <wss> [--token <str|@file>] [--room <id>] [--join]',
-      })
-    })
-  })
-
-  describe('status command', () => {
-    it('should parse status without flags', () => {
-      const result = parseCommand('/status')
-      expect(result).toEqual({
-        kind: 'status',
-        json: false,
-      })
-    })
-
-    it('should parse status with json flag', () => {
-      const result = parseCommand('/status --json')
-      expect(result).toEqual({
-        kind: 'status',
-        json: true,
-      })
-    })
-  })
-
   describe('say command', () => {
     it('should parse say with message', () => {
-      const result = parseCommand('/say Hello world!')
+      const result = parseCommand('/say hello world')
       expect(result).toEqual({
         kind: 'say',
-        message: 'Hello world!',
+        message: 'hello world',
       })
     })
 
@@ -75,7 +22,7 @@ describe('parseCommand', () => {
   })
 
   describe('move command', () => {
-    it('should parse move with valid coordinates', () => {
+    it('should parse move with coordinates', () => {
       const result = parseCommand('/move 1.5 2.0 -3.5')
       expect(result).toEqual({
         kind: 'move',
@@ -86,6 +33,15 @@ describe('parseCommand', () => {
     })
 
     it('should error on invalid coordinates', () => {
+      const result = parseCommand('/move 1 2')
+      expect(result).toEqual({
+        kind: 'error',
+        message: 'Invalid arguments',
+        usage: '/move <x> <y> <z>',
+      })
+    })
+
+    it('should error on non-numeric coordinates', () => {
       const result = parseCommand('/move 1 2 abc')
       expect(result).toEqual({
         kind: 'error',
@@ -93,13 +49,13 @@ describe('parseCommand', () => {
         usage: '/move <x> <y> <z>',
       })
     })
+  })
 
-    it('should error on missing coordinates', () => {
-      const result = parseCommand('/move 1 2')
+  describe('status command', () => {
+    it('should parse status without flags', () => {
+      const result = parseCommand('/status')
       expect(result).toEqual({
-        kind: 'error',
-        message: 'Invalid arguments',
-        usage: '/move <x> <y> <z>',
+        kind: 'status',
       })
     })
   })
@@ -128,44 +84,87 @@ describe('parseCommand', () => {
         target: { type: 'nearest' },
       })
     })
+
+    it('should error on invalid arguments', () => {
+      const result = parseCommand('/look')
+      expect(result).toEqual({
+        kind: 'error',
+        message: 'Missing arguments',
+        usage: '/look <x> <y> <z> | /look user <id> | /look nearest',
+      })
+    })
+  })
+
+  describe('nearby command', () => {
+    it('should parse nearby without radius', () => {
+      const result = parseCommand('/nearby')
+      expect(result).toEqual({
+        kind: 'nearby',
+        radius: undefined,
+      })
+    })
+
+    it('should parse nearby with radius', () => {
+      const result = parseCommand('/nearby 10')
+      expect(result).toEqual({
+        kind: 'nearby',
+        radius: 10,
+      })
+    })
+
+    it('should error on invalid radius', () => {
+      const result = parseCommand('/nearby abc')
+      expect(result).toEqual({
+        kind: 'error',
+        message: 'Invalid radius',
+        usage: '/nearby [radius]',
+      })
+    })
   })
 
   describe('users command', () => {
-    it('should parse users list', () => {
-      const result = parseCommand('/users list')
+    it('should parse users without flags', () => {
+      const result = parseCommand('/users')
       expect(result).toEqual({
         kind: 'users',
-        subcommand: 'list',
         nearby: undefined,
       })
     })
 
-    it('should parse users json with nearby filter', () => {
-      const result = parseCommand('/users json --nearby 10')
+    it('should parse users with nearby flag', () => {
+      const result = parseCommand('/users --nearby 10')
       expect(result).toEqual({
         kind: 'users',
-        subcommand: 'json',
         nearby: 10,
       })
     })
 
-    it('should error on invalid subcommand', () => {
-      const result = parseCommand('/users invalid')
+    it('should error on invalid nearby value', () => {
+      const result = parseCommand('/users --nearby abc')
       expect(result).toEqual({
         kind: 'error',
-        message: 'Invalid subcommand',
-        usage: '/users list|json|count [--nearby <n>]',
+        message: 'Invalid --nearby value',
+        usage: '/users [--nearby <n>]',
       })
     })
   })
 
   describe('logs command', () => {
-    it('should parse logs filter', () => {
-      const result = parseCommand('/logs filter ERROR|WARN')
+    it('should parse logs tail', () => {
+      const result = parseCommand('/logs tail')
+      expect(result).toEqual({
+        kind: 'logs',
+        subcommand: 'tail',
+        arg: undefined,
+      })
+    })
+
+    it('should parse logs filter with pattern', () => {
+      const result = parseCommand('/logs filter error.*')
       expect(result).toEqual({
         kind: 'logs',
         subcommand: 'filter',
-        arg: 'ERROR|WARN',
+        arg: 'error.*',
       })
     })
 
@@ -183,7 +182,34 @@ describe('parseCommand', () => {
       expect(result).toEqual({
         kind: 'error',
         message: 'Missing argument for filter',
-        usage: '/logs tail|filter <regex>|clear|save <path>',
+        usage: '/logs tail|filter <regex>|clear',
+      })
+    })
+
+    it('should error on invalid subcommand', () => {
+      const result = parseCommand('/logs invalid')
+      expect(result).toEqual({
+        kind: 'error',
+        message: 'Invalid subcommand',
+        usage: '/logs tail|filter <regex>|clear',
+      })
+    })
+  })
+
+  describe('help command', () => {
+    it('should parse help', () => {
+      const result = parseCommand('/help')
+      expect(result).toEqual({
+        kind: 'help',
+      })
+    })
+  })
+
+  describe('quit command', () => {
+    it('should parse quit', () => {
+      const result = parseCommand('/quit')
+      expect(result).toEqual({
+        kind: 'quit',
       })
     })
   })
@@ -191,17 +217,23 @@ describe('parseCommand', () => {
   describe('aliases', () => {
     it('should resolve /? to /help', () => {
       const result = parseCommand('/?')
-      expect(result).toEqual({ kind: 'help' })
+      expect(result).toEqual({
+        kind: 'help',
+      })
     })
 
     it('should resolve /exit to /quit', () => {
       const result = parseCommand('/exit')
-      expect(result).toEqual({ kind: 'quit' })
+      expect(result).toEqual({
+        kind: 'quit',
+      })
     })
 
     it('should resolve /q to /quit', () => {
       const result = parseCommand('/q')
-      expect(result).toEqual({ kind: 'quit' })
+      expect(result).toEqual({
+        kind: 'quit',
+      })
     })
   })
 

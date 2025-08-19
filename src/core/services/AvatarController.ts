@@ -1,4 +1,4 @@
-import { logger } from '../../utils/logger.js'
+import { createLogger } from '../../utils/logging/logger-factory.js'
 import type {
   AvatarState,
   IAvatarController,
@@ -12,6 +12,7 @@ import type { IMessageService } from '../interfaces/IMessageService.js'
 export class AvatarController implements IAvatarController {
   private state: AvatarState | null = null
   private sessionId: string | null = null
+  private logger = createLogger('AvatarController')
 
   constructor(
     private messageService: IMessageService,
@@ -118,7 +119,7 @@ export class AvatarController implements IAvatarController {
 
     // Emit event
     this.eventBus.emit(SystemEvents.AVATAR_SPAWNED, this.state)
-    logger.debug(`✅ Avatar spawned with ID: ${avatarId}`)
+    this.logger.debug(`✅ Avatar spawned with ID: ${avatarId}`)
   }
 
   async move(position: Position): Promise<void> {
@@ -150,7 +151,7 @@ export class AvatarController implements IAvatarController {
 
     await this.messageService.sendNAFR(nafData)
     this.eventBus.emit(SystemEvents.AVATAR_MOVED, this.state)
-    logger.debug(`Avatar moved to position (${position.x}, ${position.y}, ${position.z})`)
+    this.logger.debug(`Avatar moved to position (${position.x}, ${position.y}, ${position.z})`)
   }
 
   async rotate(rotation: Rotation): Promise<void> {
@@ -315,6 +316,6 @@ export class AvatarController implements IAvatarController {
     
     await this.messageService.sendNAF(nafMessage)
     
-    logger.debug(`✅ Avatar resynced for new user`)
+    this.logger.debug(`✅ Avatar resynced for new user`)
   }
 }

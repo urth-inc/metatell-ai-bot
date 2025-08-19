@@ -1,4 +1,5 @@
 import { MetatellBot } from '../bots/MetatellBot.js'
+import type { IAppSettings } from './interfaces/IAppSettings.js'
 import type { IAuthenticationService } from './interfaces/IAuthenticationService.js'
 import type { IAvatarController } from './interfaces/IAvatarController.js'
 import type {
@@ -12,6 +13,7 @@ import type { IPresenceManager } from './interfaces/IPresenceManager.js'
 import type { IRateLimiter } from './interfaces/IRateLimiter.js'
 import type { IUserAvatarManager } from './interfaces/IUserAvatarManager.js'
 import { ServiceContainer } from './ServiceContainer.js'
+import { AppSettings } from './services/AppSettings.js'
 import { AuthenticationService } from './services/AuthenticationService.js'
 import { AvatarController } from './services/AvatarController.js'
 import { ConfigurationProvider } from './services/ConfigurationProvider.js'
@@ -31,6 +33,9 @@ export class ServiceFactory {
   }
 
   private registerServices(): void {
+    // Register AppSettings (singleton)
+    this.container.register<IAppSettings>('IAppSettings', () => new AppSettings(), { singleton: true })
+
     // Register EventBus (singleton)
     this.container.register<IEventBus>('IEventBus', () => new EventBus(), { singleton: true })
 
@@ -66,6 +71,7 @@ export class ServiceFactory {
         new WebSocketConnectionManager(
           container.get<IEventBus>('IEventBus'),
           container.get<IConfigurationProvider>('IConfigurationProvider'),
+          container.get<IAppSettings>('IAppSettings'),
         ),
       { singleton: true },
     )
@@ -77,6 +83,7 @@ export class ServiceFactory {
         new MessageService(
           container.get<IConnectionManager>('IConnectionManager'),
           container.get<IEventBus>('IEventBus'),
+          container.get<IAppSettings>('IAppSettings'),
         ),
       { singleton: true },
     )
@@ -127,6 +134,7 @@ export class ServiceFactory {
           container.get<IPresenceManager>('IPresenceManager'),
           container.get<IConfigurationProvider>('IConfigurationProvider'),
           container.get<IUserAvatarManager>('IUserAvatarManager'),
+          container.get<IAppSettings>('IAppSettings'),
         ),
       { singleton: true },
     )
@@ -138,6 +146,14 @@ export class ServiceFactory {
     this.container.register<IConfigurationProvider>(
       'IConfigurationProvider',
       () => configProvider,
+      { singleton: true },
+    )
+
+    // Initialize app settings with debug mode from config
+    const appSettings = new AppSettings(config.debug || false)
+    this.container.register<IAppSettings>(
+      'IAppSettings',
+      () => appSettings,
       { singleton: true },
     )
 

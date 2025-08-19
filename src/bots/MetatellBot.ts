@@ -1,17 +1,18 @@
+import type { IAppSettings } from '../core/interfaces/IAppSettings.js'
 import type { IAvatarController } from '../core/interfaces/IAvatarController.js'
 import type { IConfigurationProvider } from '../core/interfaces/IConfigurationProvider.js'
 import type { IConnectionManager } from '../core/interfaces/IConnectionManager.js'
 import type { IMessageService } from '../core/interfaces/IMessageService.js'
 import type { IPresenceManager, PresenceUser } from '../core/interfaces/IPresenceManager.js'
 import type { IUserAvatarManager } from '../core/interfaces/IUserAvatarManager.js'
-import { LoggerFactory } from '../utils/logging/logger-factory.js'
+import { createLogger } from '../utils/logging/logger-factory.js'
 
 export type MessageHandler = (message: string, sessionId: string) => string | null
 
 export class MetatellBot {
   private messageHandlers: MessageHandler[] = []
   private isRunning = false
-  private logger = LoggerFactory.createLogger('MetatellBot')
+  private logger = createLogger('MetatellBot')
 
   constructor(
     private connectionManager: IConnectionManager,
@@ -20,6 +21,7 @@ export class MetatellBot {
     private presenceManager: IPresenceManager,
     private configProvider: IConfigurationProvider,
     private userAvatarManager: IUserAvatarManager,
+    private appSettings: IAppSettings,
   ) {
     this.setupEventHandlers()
     this.setupDefaultHandlers()
@@ -159,18 +161,45 @@ export class MetatellBot {
     const { body, session_id } = payload as { body: string; session_id: string }
 
     // Don't respond to own messages
-    const _config = this.configProvider.getConfiguration()
+    const config = this.configProvider.getConfiguration()
     if (session_id === this.connectionManager.getSessionId()) {
       return
     }
 
-    // ログは出さない（Ink UI内で処理するため）
+    // デバッグモード時はWSメッセージをログ出力
+    if (this.appSettings.debugMode) {
+      console.log('🔍 MetatellBot: Debug mode is ON, received message:', { body, session_id })
+      this.logger.debug('[WS_MESSAGE]', { body, session_id })
+    }
+
+    // メンション機能: @名前 がついている場合のみ返事をする
+    const botName = config.profile.displayName
+    const mentionPattern = new RegExp(`@${botName}\\b`, 'i')
+    
+    if (!mentionPattern.test(body)) {
+      // メンションされていない場合は無視
+      return
+    }
+
+    // メンションを削除してメッセージを処理
+    const cleanedMessage = body.replace(mentionPattern, '').trim()
+    
+    if (this.appSettings.debugMode) {
+      this.logger.debug('[MENTION_PROCESSED]', { 
+        original: body, 
+        cleaned: cleanedMessage,
+        length: cleanedMessage.length
+      })
+    }
 
     // Process message through handlers
     for (const handler of this.messageHandlers) {
       try {
-        const response = handler(body, session_id)
+        const response = handler(cleanedMessage, session_id)
         if (response) {
+          if (this.appSettings.debugMode) {
+            this.logger.debug('[HANDLER_MATCHED]', { message: cleanedMessage, response })
+          }
           this.messageService.sendMessage(response).catch((error) => {
             this.logger.debug('Message send error:', { error })
           })
@@ -261,7 +290,7 @@ export class MetatellBot {
       // Send welcome message
       this.logger.info('Sending welcome message...')
       await this.messageService.sendMessage(
-        `🤖 ${config.profile.displayName} is now online! Type "help" to see what I can do.`,
+        `🤖 ${config.profile.displayName} is now online! Type "@${config.profile.displayName} help" to see what I can do.`,
       )
 
       this.isRunning = true
@@ -292,6 +321,8 @@ export class MetatellBot {
       // logger.debug('Bot stopped successfully')
     } catch (error) {
       this.logger.error(`Error stopping bot: ${error}`)
+      // エラーが発生しても、停止フラグは設定する
+      this.isRunning = false
     }
   }
 

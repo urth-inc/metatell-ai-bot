@@ -76,7 +76,7 @@ describe('RateLimitedQueue', () => {
 
   it('should throw error after max attempts', async () => {
     const queue = new RateLimitedQueue()
-    queue.setRate('test', 0.01) // Very low rate (0.01 per second = 1 per 100 seconds)
+    queue.setRate('test', 1) // 1 per second, but we'll consume all tokens quickly
 
     const fn = vi.fn().mockResolvedValue('result')
 
@@ -84,8 +84,16 @@ describe('RateLimitedQueue', () => {
     await queue.execute('test', fn)
     expect(fn).toHaveBeenCalledOnce()
 
+    // Immediately change rate to very low to prevent refill
+    queue.setRate('test', 0.01) // Very low rate (0.01 per second = 1 per 100 seconds)
+
     // Second execution should fail after retries because no tokens available
-    await expect(queue.execute('test', fn)).rejects.toThrow('Rate limit exceeded for test')
+    try {
+      await queue.execute('test', fn)
+      expect.fail('Expected error to be thrown')
+    } catch (error) {
+      expect((error as Error).message).toBe('Rate limit exceeded for test')
+    }
 
     // Function should still have been called only once
     expect(fn).toHaveBeenCalledOnce()

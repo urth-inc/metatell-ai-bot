@@ -41,7 +41,7 @@ export class RingBuffer implements LogSink {
 
     const result: LogRecord[] = []
     const start = this.wrapped ? this.writeIndex : 0
-    const end = this.wrapped ? this.capacity : this.writeIndex
+    const _end = this.wrapped ? this.capacity : this.writeIndex
 
     // 古いログから順に取得
     for (let i = start; i < this.capacity; i++) {
@@ -100,7 +100,19 @@ export class MultiSink implements LogSink {
  * Console sink for direct output
  */
 export class ConsoleSink implements LogSink {
+  constructor(private readonly minLevel: LogLevel = 'info') {}
+
+  private shouldLog(level: LogLevel): boolean {
+    const levels: LogLevel[] = ['debug', 'info', 'warn', 'error']
+    const recordLevelIndex = levels.indexOf(level)
+    const minLevelIndex = levels.indexOf(this.minLevel)
+    return recordLevelIndex >= minLevelIndex
+  }
+
   write(record: LogRecord): void {
+    if (!this.shouldLog(record.level)) {
+      return
+    }
     const timestamp = new Date(record.ts).toISOString()
     const prefix = `[${timestamp}] [${record.level.toUpperCase()}] [${record.module}]`
     const message = record.meta
@@ -109,7 +121,7 @@ export class ConsoleSink implements LogSink {
 
     switch (record.level) {
       case 'debug':
-        console.debug(message)
+        console.log(message)  // console.debugはデフォルトで非表示のためconsole.logを使用
         break
       case 'info':
         console.info(message)
@@ -163,27 +175,26 @@ export class Logger {
 /**
  * Logger factory with global ring buffer
  */
-export class LoggerFactory {
-  private static ringBuffer = new RingBuffer(1000)
-  private static multiSink = new MultiSink([LoggerFactory.ringBuffer])
-  private static cliStarted = false
+const ringBuffer = new RingBuffer(1000)
+const multiSink = new MultiSink([ringBuffer])
+let cliStarted = false
 
-  static createLogger(module: string): Logger {
-    return new Logger(module, LoggerFactory.multiSink)
-  }
+export function createLogger(module: string): Logger {
+  return new Logger(module, multiSink)
+}
 
-  static getRingBuffer(): RingBuffer {
-    return LoggerFactory.ringBuffer
-  }
+export function getRingBuffer(): RingBuffer {
+  return ringBuffer
+}
 
-  static enableConsole(): void {
-    if (!LoggerFactory.cliStarted) {
-      LoggerFactory.cliStarted = true
-      LoggerFactory.multiSink.addSink(new ConsoleSink())
-    }
+export function enableConsole(debug = false): void {
+  if (!cliStarted) {
+    cliStarted = true
+    const minLevel = debug ? 'debug' : 'info'
+    multiSink.addSink(new ConsoleSink(minLevel))
   }
+}
 
-  static disableConsole(): void {
-    // 将来の拡張用
-  }
+export function disableConsole(): void {
+  // 将来の拡張用
 }
