@@ -47,6 +47,16 @@ export class MetatellBot {
   private setupDefaultHandlers(): void {
     // Help command
     this.addMessageHandler((message) => {
+      // デバッグログを追加
+      if (this.appSettings.debugMode) {
+        this.logger.debug('[HELP_HANDLER]', { 
+          message, 
+          lowercased: message.toLowerCase(),
+          isHelp: message.toLowerCase() === 'help',
+          trimmed: message.trim(),
+          trimmedLowercased: message.trim().toLowerCase()
+        })
+      }
       if (message.toLowerCase() === 'help') {
         return `Available commands:
 • help - Show this help message
@@ -174,7 +184,18 @@ export class MetatellBot {
 
     // メンション機能: @名前 がついている場合のみ返事をする
     const botName = config.profile.displayName
-    const mentionPattern = new RegExp(`@${botName}\\b`, 'i')
+    // スペースを含む名前でも正しく動作するように修正
+    const escapedBotName = botName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const mentionPattern = new RegExp(`@${escapedBotName}(?:\\s|$)`, 'i')
+    
+    if (this.appSettings.debugMode) {
+      this.logger.debug('[MENTION_CHECK]', { 
+        botName,
+        pattern: mentionPattern.toString(),
+        body,
+        hasMatch: mentionPattern.test(body)
+      })
+    }
     
     if (!mentionPattern.test(body)) {
       // メンションされていない場合は無視
@@ -188,7 +209,9 @@ export class MetatellBot {
       this.logger.debug('[MENTION_PROCESSED]', { 
         original: body, 
         cleaned: cleanedMessage,
-        length: cleanedMessage.length
+        cleanedQuoted: `"${cleanedMessage}"`,
+        length: cleanedMessage.length,
+        charCodes: Array.from(cleanedMessage).map(c => c.charCodeAt(0))
       })
     }
 

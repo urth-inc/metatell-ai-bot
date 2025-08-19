@@ -169,6 +169,28 @@ describe('MetatellBot', () => {
       )
     })
 
+    it('should handle help command with different cases', () => {
+      // 通常のhelp
+      messageHandler({ body: '@TestBot help', session_id: 'user-123' })
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Available commands:'),
+      )
+      
+      // 大文字のHELP
+      mockMessageService.sendMessage.mockClear()
+      messageHandler({ body: '@TestBot HELP', session_id: 'user-123' })
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Available commands:'),
+      )
+      
+      // 余分なスペース
+      mockMessageService.sendMessage.mockClear()
+      messageHandler({ body: '@TestBot  help  ', session_id: 'user-123' })
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Available commands:'),
+      )
+    })
+
     it('should respond to time command', () => {
       messageHandler({ body: '@TestBot time', session_id: 'user-123' })
 
@@ -389,6 +411,53 @@ describe('MetatellBot', () => {
 
       const expectedMessage = expect.stringContaining('Users online: 2')
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(expectedMessage)
+    })
+    
+    it('should handle bot names with spaces correctly', () => {
+      // 元の設定を保存
+      const originalGetConfiguration = mockConfigProvider.getConfiguration
+      
+      // スペースを含む名前の設定
+      mockConfigProvider.getConfiguration = vi.fn(() => ({
+        authUrl: 'https://test.app/auth',
+        hubId: 'test-hub',
+        profile: {
+          displayName: 'AI Assistant',
+          avatarId: 'bot-avatar',
+        },
+        context: {},
+      }))
+      
+      // 新しいボットインスタンスを作成
+      const spaceBot = new MetatellBot(
+        mockConnectionManager,
+        mockMessageService,
+        mockAvatarController,
+        mockPresenceManager,
+        mockUserAvatarManager,
+        mockConfigProvider,
+        mockAppSettings,
+      )
+      
+      // メッセージハンドラーを取得
+      const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
+      const messageHandler = onCalls[0][1] as MessageHandler
+      
+      // helpコマンドのテスト
+      messageHandler({ body: '@AI Assistant help', session_id: 'user-123' })
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Available commands:'),
+      )
+      
+      // helloコマンドのテスト
+      mockMessageService.sendMessage.mockClear()
+      messageHandler({ body: '@AI Assistant hello', session_id: 'user-123' })
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
+        expect.stringContaining("Hello! I'm AI Assistant"),
+      )
+      
+      // 設定を元に戻す
+      mockConfigProvider.getConfiguration = originalGetConfiguration
     })
 
     it('should handle users without display names', () => {
