@@ -1,2 +1,2 @@
 // Export everything from core
-export * from './core'
+export * from './core/index.js'

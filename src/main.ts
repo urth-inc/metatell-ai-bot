@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
-import './websocket-polyfill'
-import { ServiceFactory } from './core/ServiceFactory'
-import type { BotConfiguration } from './core/interfaces/IConfigurationProvider'
+import './websocket-polyfill.js'
+import { ConfigManager } from './cli/config/config.js'
+import { startInkCli } from './cli/startInkCli.js'
+import type { BotConfiguration } from './core/interfaces/IConfigurationProvider.js'
+import { ServiceFactory } from './core/ServiceFactory.js'
+import { createAgentClient } from './sdk/AgentClient.js'
+import { LoggerFactory } from './utils/logging/logger-factory.js'
 
 /**
  * Extract hub ID from Metatell URL
@@ -18,14 +22,48 @@ function extractHubIdFromUrl(url: string): string {
 }
 
 async function main() {
-  // Get configuration from command line or environment
-  const metatellUrl =
-    process.argv[2] ||
-    process.env.METATELL_URL ||
-    'https://metatell.app/DfueGup/palatable-hospitable-outing'
-  const botName = process.env.BOT_NAME || 'AI Assistant'
-  const avatarId = process.env.AVATAR_ID || 'hsBHyUu2'
-  const _authToken = process.env.METATELL_AUTH_TOKEN
+  // コマンドライン引数をパース
+  const args = process.argv.slice(2)
+  const flags: Record<string, string | boolean> = {}
+
+  // 最初の引数がURLの場合は、直接接続先として扱う
+  if (args.length > 0 && args[0].startsWith('https://')) {
+    flags['--url'] = args[0]
+  }
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i].startsWith('--')) {
+      const flag = args[i]
+      if (i + 1 < args.length && !args[i + 1].startsWith('--')) {
+        flags[flag] = args[i + 1]
+        i++
+      } else {
+        flags[flag] = true
+      }
+    }
+  }
+
+  // 設定を読み込み
+  const configManager = new ConfigManager()
+  const config = configManager.getConfig(flags)
+
+  // URL が指定されていない場合はヘルプを表示
+  if (!config.url && !args.includes('--help')) {
+    console.error('Error: Connection URL is required\n')
+    console.error('Usage:')
+    console.error('  npm run start <url>')
+    console.error('  npm run start https://metatell.app/LWF5w8n/')
+    console.error('\nOptions:')
+    console.error('  --token <token>    Authentication token (optional)')
+    console.error('  --debug            Enable debug mode')
+    process.exit(1)
+  }
+
+  // デフォルト値
+  const metatellUrl = config.url!
+  const botName = config.profile?.displayName || 'AI Assistant'
+  const avatarId = config.profile?.avatarId || 'hsBHyUu2'
+  const authToken = config.token
 
   let hubId: string
   let socketUrl: string
@@ -35,19 +73,14 @@ async function main() {
     const url = new URL(metatellUrl)
     // Use WebSocket protocol for Socket connection
     socketUrl = `wss://${url.hostname}`
-  } catch (_error) {
-    console.error('Invalid Metatell URL:', metatellUrl)
+  } catch (error) {
+    console.error(`Error: Invalid URL format - ${metatellUrl}`)
     process.exit(1)
   }
 
-  console.log('🚀 Starting bot...')
-  console.log(`📍 URL: ${metatellUrl}`)
-  console.log(`🏠 Hub ID: ${hubId}`)
-  console.log(`🌐 Socket URL: ${socketUrl}`)
-  console.log(`🤖 Bot Name: ${botName}`)
-  console.log(`👤 Avatar ID: ${avatarId}`)
-
-  const config: BotConfiguration = {
+  // Create bot using factory
+  const factory = new ServiceFactory()
+  const botConfig: BotConfiguration = {
     authUrl: socketUrl,
     hubUrl: metatellUrl,
     hubId: hubId,
@@ -62,66 +95,33 @@ async function main() {
     },
   }
 
-  // Create bot using factory
-  const factory = new ServiceFactory()
-  const bot = factory.createBot(config)
+  // ダミーのボットを作成（後方互換性のため）
+  factory.createBot(botConfig)
 
-  // Add custom command handlers
-  bot.addMessageHandler((message) => {
-    if (message.toLowerCase() === 'help') {
-      return `Available commands:
-• help - Show this help message
-• info - Show room information
-• hello - Say hello!
-• time - Show current time
-• echo <text> - Echo your message
-• calc <expression> - Simple calculator
-• status - Show bot status
-• move <x> <y> <z> - Move avatar to position`
-    }
-    return null
+  // AgentClient を作成
+  const client = createAgentClient(factory, {
+    profile: {
+      displayName: botName,
+      avatarId,
+    },
+    rateLimit: config.rate
+      ? {
+          messages: config.rate.messagesPerSec,
+          moves: config.rate.movesPerSec,
+          looks: config.rate.looksPerSec,
+        }
+      : undefined,
   })
 
-  bot.addMessageHandler((message) => {
-    if (message.toLowerCase().match(/!status|!info/)) {
-      return 'Bot is running and ready!'
-    }
-    return null
-  })
-
-  bot.addMessageHandler((message) => {
-    if (message.toLowerCase().match(/!time|!date/)) {
-      return `Current time: ${new Date().toLocaleString()}`
-    }
-    return null
-  })
-
-  bot.addMessageHandler((message) => {
-    const echoMatch = message.match(/^echo\s+(.+)$/i)
-    if (echoMatch) {
-      return `Echo: ${echoMatch[1]}`
-    }
-    return null
-  })
-
-  bot.addMessageHandler((message) => {
-    const calcMatch = message.match(/^calc\s+(.+)$/i)
-    if (calcMatch) {
-      try {
-        // Simple math evaluation (be careful with eval in production!)
-        const result = Function(`"use strict"; return (${calcMatch[1]})`)()
-        return `Result: ${result}`
-      } catch (_error) {
-        return 'Invalid math expression'
-      }
-    }
-    return null
-  })
+  // デバッグモードの設定
+  if (config.debug) {
+    const { logger } = await import('./utils/logger.js')
+    logger.setDebugMode(true)
+  }
 
   // Handle shutdown gracefully
   const shutdown = async () => {
-    console.log('\n👋 Shutting down...')
-    await bot.stop()
+    await client.disconnect()
     process.exit(0)
   }
 
@@ -129,24 +129,26 @@ async function main() {
   process.on('SIGTERM', shutdown)
 
   try {
-    // Start the bot
-    await bot.start()
+    // CLI を起動
+    const _cliApp = startInkCli(client)
 
-    // Keep the process alive
-    setInterval(() => {
-      if (!bot.isActive()) {
-        console.error('Bot is not active, restarting...')
-        bot.start().catch(console.error)
-      }
-    }, 30000) // Check every 30 seconds
-  } catch (error) {
-    console.error('Failed to start bot:', error)
+    // CLI起動完了を通知
+    LoggerFactory.enableConsole()
+    const { logger } = await import('./utils/logger.js')
+    logger.notifyCliStarted?.()
+
+    // 自動接続
+    LoggerFactory.createLogger('Main').info('Connecting to', { url: metatellUrl })
+    await client.connect({
+      url: metatellUrl,
+      token: authToken,
+    })
+  } catch (_error) {
     process.exit(1)
   }
 }
 
 // Run the bot
-main().catch((error) => {
-  console.error('Fatal error:', error)
+main().catch((_error) => {
   process.exit(1)
 })

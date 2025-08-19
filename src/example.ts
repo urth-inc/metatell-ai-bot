@@ -16,7 +16,7 @@ class MetatellAIBot extends MetatellClient {
 
   // メッセージハンドラーをオーバーライド
   protected handleMessage(payload: MessagePayload): void {
-    console.log(`[${payload.from_session_id}] ${payload.body}`)
+    logger.debug(`[${payload.from_session_id}] ${payload.body}`)
 
     // 自分のメッセージは無視
     if (payload.from_session_id === this.getSessionId()) {
@@ -73,15 +73,15 @@ async function main() {
   try {
     // 接続
     await bot.connect()
-    console.log('✅ Connected to server')
+    logger.debug('✅ Connected to server')
 
     // ハブに参加
     const joinResponse = await bot.joinHub()
-    console.log('✅ Joined hub:', joinResponse.session_id)
+    logger.debug('✅ Joined hub:', joinResponse.session_id)
 
     // ルームに入室
     await bot.enterRoom()
-    console.log('✅ Entered room')
+    logger.debug('✅ Entered room')
 
     // 挨拶メッセージを送信
     bot.sendMessage('AI Bot has joined the room! Type "hello" or "help" to interact with me.')
@@ -92,12 +92,12 @@ async function main() {
     // 定期的に存在を示す
     setInterval(() => {
       const users = bot.getPresenceList()
-      console.log(`Currently ${Object.keys(users).length} users in room`)
+      logger.debug(`Currently ${Object.keys(users).length} users in room`)
     }, 30000)
 
     // プロセス終了時のクリーンアップ
     process.on('SIGINT', async () => {
-      console.log('\n👋 Shutting down...')
+      logger.debug('\n👋 Shutting down...')
       bot.sendMessage('Goodbye everyone!')
       bot.disconnect()
       process.exit(0)
