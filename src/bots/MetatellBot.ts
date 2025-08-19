@@ -28,10 +28,14 @@ export class MetatellBot {
   }
 
   private setupEventHandlers(): void {
+    console.log('🔍 [SETUP_EVENT_HANDLERS] Setting up event handlers')
+    
     // Handle incoming messages
     this.messageService.on('message', (payload: unknown) => {
+      console.log('🔍 [MESSAGE_EVENT] Received message event')
       this.handleIncomingMessage(payload)
     })
+    console.log('🔍 [SETUP_EVENT_HANDLERS] Message handler registered')
 
     // Handle user joins
     this.presenceManager.on('join', (user: PresenceUser) => {
@@ -42,22 +46,35 @@ export class MetatellBot {
     this.presenceManager.on('leave', (user: PresenceUser) => {
       this.handleUserLeave(user)
     })
+    
+    console.log('🔍 [SETUP_EVENT_HANDLERS] All event handlers registered')
   }
 
   private setupDefaultHandlers(): void {
     // Help command
     this.addMessageHandler((message) => {
-      // デバッグログを追加
+      // デバッグログを追加（常に出力）
+      const isHelp = message.toLowerCase() === 'help'
+      console.log('🔍 [HELP_HANDLER]', { 
+        message, 
+        messageQuoted: `"${message}"`,
+        lowercased: message.toLowerCase(),
+        isHelp,
+        trimmed: message.trim(),
+        trimmedLowercased: message.trim().toLowerCase(),
+        charCodes: Array.from(message).map(c => c.charCodeAt(0))
+      })
+      
       if (this.appSettings.debugMode) {
         this.logger.debug('[HELP_HANDLER]', { 
           message, 
           lowercased: message.toLowerCase(),
-          isHelp: message.toLowerCase() === 'help',
+          isHelp,
           trimmed: message.trim(),
           trimmedLowercased: message.trim().toLowerCase()
         })
       }
-      if (message.toLowerCase() === 'help') {
+      if (isHelp) {
         return `Available commands:
 • help - Show this help message
 • info - Show room information
@@ -80,7 +97,16 @@ export class MetatellBot {
 
     // Hello command
     this.addMessageHandler((message) => {
-      if (message.toLowerCase().includes('hello')) {
+      const includesHello = message.toLowerCase().includes('hello')
+      console.log('🔍 [HELLO_HANDLER]', { 
+        message, 
+        messageQuoted: `"${message}"`,
+        lowercased: message.toLowerCase(),
+        includesHello,
+        charCodes: Array.from(message).map(c => c.charCodeAt(0))
+      })
+      
+      if (includesHello) {
         const config = this.configProvider.getConfiguration()
         return `Hello! I'm ${config.profile.displayName}, your AI assistant! 👋`
       }
@@ -168,17 +194,28 @@ export class MetatellBot {
   }
 
   private handleIncomingMessage(payload: unknown): void {
+    // 最初に生のペイロードをログ出力
+    console.log('📨 [RAW_MESSAGE]', payload)
+    console.log('🔍 Debug mode status:', this.appSettings.debugMode)
+    
     const { body, session_id } = payload as { body: string; session_id: string }
 
     // Don't respond to own messages
     const config = this.configProvider.getConfiguration()
     if (session_id === this.connectionManager.getSessionId()) {
+      console.log('📨 [IGNORED] Own message')
       return
     }
 
     // デバッグモード時はWSメッセージをログ出力
+    console.log('🔍 MetatellBot: Received message:', { 
+      body, 
+      session_id,
+      debugMode: this.appSettings.debugMode,
+      botName: config.profile.displayName
+    })
+    
     if (this.appSettings.debugMode) {
-      console.log('🔍 MetatellBot: Debug mode is ON, received message:', { body, session_id })
       this.logger.debug('[WS_MESSAGE]', { body, session_id })
     }
 
@@ -188,22 +225,43 @@ export class MetatellBot {
     const escapedBotName = botName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const mentionPattern = new RegExp(`@${escapedBotName}(?:\\s|$)`, 'i')
     
+    // メンションチェックのログは常に出力
+    const mentionTestResult = mentionPattern.test(body)
+    console.log('🔍 [MENTION_CHECK]', { 
+      botName,
+      escapedBotName,
+      pattern: mentionPattern.toString(),
+      body,
+      hasMatch: mentionTestResult,
+      bodyCharCodes: Array.from(body).map(c => `${c}(${c.charCodeAt(0)})`)
+    })
+    
     if (this.appSettings.debugMode) {
       this.logger.debug('[MENTION_CHECK]', { 
         botName,
         pattern: mentionPattern.toString(),
         body,
-        hasMatch: mentionPattern.test(body)
+        hasMatch: mentionTestResult
       })
     }
     
-    if (!mentionPattern.test(body)) {
+    if (!mentionTestResult) {
       // メンションされていない場合は無視
+      console.log('🔍 [MENTION_NOT_FOUND] Ignoring message')
       return
     }
 
     // メンションを削除してメッセージを処理
     const cleanedMessage = body.replace(mentionPattern, '').trim()
+    
+    // cleanedMessageのログも常に出力
+    console.log('🔍 [MENTION_PROCESSED]', { 
+      original: body, 
+      cleaned: cleanedMessage,
+      cleanedQuoted: `"${cleanedMessage}"`,
+      length: cleanedMessage.length,
+      charCodes: Array.from(cleanedMessage).map(c => c.charCodeAt(0))
+    })
     
     if (this.appSettings.debugMode) {
       this.logger.debug('[MENTION_PROCESSED]', { 
@@ -216,22 +274,31 @@ export class MetatellBot {
     }
 
     // Process message through handlers
-    for (const handler of this.messageHandlers) {
+    console.log(`🔍 [PROCESSING_HANDLERS] Total handlers: ${this.messageHandlers.length}`)
+    for (let i = 0; i < this.messageHandlers.length; i++) {
+      const handler = this.messageHandlers[i]
       try {
+        console.log(`🔍 [HANDLER_${i}] Testing handler...`)
         const response = handler(cleanedMessage, session_id)
+        console.log(`🔍 [HANDLER_${i}] Response:`, response)
+        
         if (response) {
+          console.log(`🔍 [HANDLER_MATCHED] Handler ${i} matched, sending response`)
           if (this.appSettings.debugMode) {
             this.logger.debug('[HANDLER_MATCHED]', { message: cleanedMessage, response })
           }
           this.messageService.sendMessage(response).catch((error) => {
+            console.error('🔍 [MESSAGE_SEND_ERROR]', error)
             this.logger.debug('Message send error:', { error })
           })
           break // Only send first matching response
         }
       } catch (error) {
+        console.error(`🔍 [HANDLER_ERROR] Error in handler ${i}:`, error)
         this.logger.debug('Error in message handler:', { error })
       }
     }
+    console.log('🔍 [HANDLERS_COMPLETE]')
   }
 
   private async handleUserJoin(user: PresenceUser): Promise<void> {
