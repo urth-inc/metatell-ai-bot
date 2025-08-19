@@ -1,16 +1,17 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { MetatellBot } from './MetatellBot'
-import type { IConnectionManager } from '../core/interfaces/IConnectionManager'
-import type { IMessageService } from '../core/interfaces/IMessageService'
-import type { IAvatarController } from '../core/interfaces/IAvatarController'
-import type { IPresenceManager, PresenceUser } from '../core/interfaces/IPresenceManager'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { IAvatarController } from '../core/interfaces/IAvatarController.js'
 import type {
-  IConfigurationProvider,
   BotConfiguration,
-} from '../core/interfaces/IConfigurationProvider'
-import type { MockChannel } from '../test-utils/mocks'
-import { getMockCalls, findMockCall } from '../test-utils/mocks'
-import type { MessageHandler, PresenceHandler } from '../test-utils/types'
+  IConfigurationProvider,
+} from '../core/interfaces/IConfigurationProvider.js'
+import type { IConnectionManager } from '../core/interfaces/IConnectionManager.js'
+import type { IMessageService } from '../core/interfaces/IMessageService.js'
+import type { IPresenceManager, PresenceUser } from '../core/interfaces/IPresenceManager.js'
+import type { IUserAvatarManager, UserAvatar } from '../core/interfaces/IUserAvatarManager.js'
+import type { MockChannel } from '../test-utils/mocks.js'
+import { findMockCall, getMockCalls } from '../test-utils/mocks.js'
+import type { MessageHandler, PresenceHandler } from '../test-utils/types.js'
+import { MetatellBot } from './MetatellBot.js'
 
 describe('MetatellBot', () => {
   let bot: MetatellBot
@@ -19,6 +20,7 @@ describe('MetatellBot', () => {
   let mockAvatarController: IAvatarController
   let mockPresenceManager: IPresenceManager
   let mockConfigProvider: IConfigurationProvider
+  let mockUserAvatarManager: IUserAvatarManager
   let mockChannel: MockChannel
 
   beforeEach(() => {
@@ -96,12 +98,23 @@ describe('MetatellBot', () => {
       updateContext: vi.fn(),
     }
 
+    // Mock user avatar manager
+    mockUserAvatarManager = {
+      getUsers: vi.fn(() => []),
+      getUser: vi.fn(),
+      getUserCount: vi.fn(() => 0),
+      getUsersInRange: vi.fn(() => []),
+      on: vi.fn(),
+      off: vi.fn(),
+    }
+
     bot = new MetatellBot(
       mockConnectionManager,
       mockMessageService,
       mockAvatarController,
       mockPresenceManager,
       mockConfigProvider,
+      mockUserAvatarManager,
     )
   })
 
@@ -401,6 +414,119 @@ describe('MetatellBot', () => {
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
         expect.stringContaining('Unknown'),
       )
+    })
+  })
+
+  describe('users command', () => {
+    it('should list all users with positions', () => {
+      const testUsers: UserAvatar[] = [
+        {
+          id: 'user-123-full-id',
+          nickname: 'Alice',
+          position: { x: 10.5, y: 0.2, z: -5.3 },
+          rotation: { x: 0, y: 0, z: 0, w: 1 },
+          lastUpdated: Date.now(),
+        },
+        {
+          id: 'user-456-full-id',
+          nickname: 'Bob',
+          position: { x: -3.2, y: 0, z: 7.8 },
+          rotation: { x: 0, y: 0, z: 0, w: 1 },
+          lastUpdated: Date.now(),
+        },
+      ]
+      mockUserAvatarManager.getUsers = vi.fn(() => testUsers)
+
+      const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
+      const messageHandler = onCalls[0][1] as MessageHandler
+      messageHandler({ body: 'users', session_id: 'user-123' })
+
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
+        expect.stringContaining('👥 Users in room (2):'),
+      )
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Alice (user-123...') && expect.stringContaining('10.5, 0.2, -5.3'),
+      )
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Bob (user-456...') && expect.stringContaining('-3.2, 0.0, 7.8'),
+      )
+    })
+
+    it('should handle empty user list', () => {
+      mockUserAvatarManager.getUsers = vi.fn(() => [])
+
+      const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
+      const messageHandler = onCalls[0][1] as MessageHandler
+      messageHandler({ body: 'users', session_id: 'user-123' })
+
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith('No users currently in the room')
+    })
+  })
+
+  describe('nearby command', () => {
+    beforeEach(() => {
+      // Setup bot avatar state
+      mockAvatarController.getState = vi.fn(() => ({
+        networkId: 'bot-123',
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 },
+        avatarId: 'bot-avatar',
+        displayName: 'TestBot',
+        avatarSrc: 'https://example.com/avatar',
+      }))
+    })
+
+    it('should list users within radius', () => {
+      const nearbyUsers: UserAvatar[] = [
+        {
+          id: 'user-near',
+          nickname: 'NearUser',
+          position: { x: 3, y: 0, z: 4 }, // Distance: 5
+          rotation: { x: 0, y: 0, z: 0, w: 1 },
+          lastUpdated: Date.now(),
+        },
+      ]
+      mockUserAvatarManager.getUsersInRange = vi.fn(() => nearbyUsers)
+
+      const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
+      const messageHandler = onCalls[0][1] as MessageHandler
+      messageHandler({ body: 'nearby 10', session_id: 'user-123' })
+
+      expect(mockUserAvatarManager.getUsersInRange).toHaveBeenCalledWith({ x: 0, y: 0, z: 0 }, 10)
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
+        expect.stringContaining('📍 Users within 10 units (1):'),
+      )
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
+        expect.stringContaining('NearUser - 5.0 units away'),
+      )
+    })
+
+    it('should handle no users within radius', () => {
+      mockUserAvatarManager.getUsersInRange = vi.fn(() => [])
+
+      const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
+      const messageHandler = onCalls[0][1] as MessageHandler
+      messageHandler({ body: 'nearby 5', session_id: 'user-123' })
+
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith('No users within 5 units')
+    })
+
+    it('should handle bot avatar not spawned', () => {
+      mockAvatarController.getState = vi.fn(() => null)
+
+      const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
+      const messageHandler = onCalls[0][1] as MessageHandler
+      messageHandler({ body: 'nearby 10', session_id: 'user-123' })
+
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith('Bot avatar not spawned yet')
+    })
+
+    it('should ignore invalid nearby command', () => {
+      const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
+      const messageHandler = onCalls[0][1] as MessageHandler
+      messageHandler({ body: 'nearby abc', session_id: 'user-123' })
+
+      expect(mockUserAvatarManager.getUsersInRange).not.toHaveBeenCalled()
     })
   })
 })

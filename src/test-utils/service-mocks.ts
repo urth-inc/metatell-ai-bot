@@ -1,5 +1,5 @@
 import type { vi } from 'vitest'
-import type { ServiceFactory, RegisterOptions } from './types'
+import type { RegisterOptions, ServiceFactory } from './types.js'
 
 // ServiceContainer のモック型
 export interface MockServiceContainer {

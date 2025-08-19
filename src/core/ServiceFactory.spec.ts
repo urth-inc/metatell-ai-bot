@@ -1,18 +1,18 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { ServiceFactory } from './ServiceFactory'
-import { ServiceContainer } from './ServiceContainer'
-import { EventBus } from './services/EventBus'
-import { ConfigurationProvider } from './services/ConfigurationProvider'
-import { RateLimiter } from './services/RateLimiter'
-import { AuthenticationService } from './services/AuthenticationService'
-import { WebSocketConnectionManager } from './services/WebSocketConnectionManager'
-import { MessageService } from './services/MessageService'
-import { AvatarController } from './services/AvatarController'
-import { PresenceManager } from './services/PresenceManager'
-import { MetatellBot } from '../bots/MetatellBot'
-import type { BotConfiguration } from './interfaces/IConfigurationProvider'
-import type { MockServiceContainer } from '../test-utils/service-mocks'
-import { findRegisterCall } from '../test-utils/service-mocks'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { MetatellBot } from '../bots/MetatellBot.js'
+import type { MockServiceContainer } from '../test-utils/service-mocks.js'
+import { findRegisterCall } from '../test-utils/service-mocks.js'
+import type { BotConfiguration } from './interfaces/IConfigurationProvider.js'
+import { ServiceContainer } from './ServiceContainer.js'
+import { ServiceFactory } from './ServiceFactory.js'
+import { AuthenticationService } from './services/AuthenticationService.js'
+import { AvatarController } from './services/AvatarController.js'
+import { ConfigurationProvider } from './services/ConfigurationProvider.js'
+import { EventBus } from './services/EventBus.js'
+import { MessageService } from './services/MessageService.js'
+import { PresenceManager } from './services/PresenceManager.js'
+import { RateLimiter } from './services/RateLimiter.js'
+import { WebSocketConnectionManager } from './services/WebSocketConnectionManager.js'
 
 // Mock all service modules
 vi.mock('./ServiceContainer')
@@ -63,6 +63,7 @@ describe('ServiceFactory', () => {
         'IMessageService',
         'IAvatarController',
         'IPresenceManager',
+        'IUserAvatarManager',
         'MetatellBot',
       ]
 
@@ -86,6 +87,7 @@ describe('ServiceFactory', () => {
         'IMessageService',
         'IAvatarController',
         'IPresenceManager',
+        'IUserAvatarManager',
         'MetatellBot',
       ]
 
@@ -175,8 +177,7 @@ describe('ServiceFactory', () => {
 
       expect(mockContainer.get).toHaveBeenCalledWith('IConnectionManager')
       expect(mockContainer.get).toHaveBeenCalledWith('IEventBus')
-      expect(mockContainer.get).toHaveBeenCalledWith('IRateLimiter')
-      expect(MessageService).toHaveBeenCalledWith(mockConnManager, mockEventBus, mockRateLimiter)
+      expect(MessageService).toHaveBeenCalledWith(mockConnManager, mockEventBus)
     })
 
     it('should register AvatarController with dependencies', () => {
@@ -238,6 +239,7 @@ describe('ServiceFactory', () => {
       const mockAvatarController = {}
       const mockPresenceManager = {}
       const mockConfigProvider = {}
+      const mockUserAvatarManager = {}
 
       mockContainer.get
         .mockReturnValueOnce(mockConnManager)
@@ -245,6 +247,7 @@ describe('ServiceFactory', () => {
         .mockReturnValueOnce(mockAvatarController)
         .mockReturnValueOnce(mockPresenceManager)
         .mockReturnValueOnce(mockConfigProvider)
+        .mockReturnValueOnce(mockUserAvatarManager)
 
       const factory = botRegistration?.[1] as ServiceFactory<MetatellBot>
       factory(mockContainer)
@@ -254,6 +257,7 @@ describe('ServiceFactory', () => {
       expect(mockContainer.get).toHaveBeenCalledWith('IAvatarController')
       expect(mockContainer.get).toHaveBeenCalledWith('IPresenceManager')
       expect(mockContainer.get).toHaveBeenCalledWith('IConfigurationProvider')
+      expect(mockContainer.get).toHaveBeenCalledWith('IUserAvatarManager')
 
       expect(MetatellBot).toHaveBeenCalledWith(
         mockConnManager,
@@ -261,6 +265,7 @@ describe('ServiceFactory', () => {
         mockAvatarController,
         mockPresenceManager,
         mockConfigProvider,
+        mockUserAvatarManager,
       )
     })
   })
