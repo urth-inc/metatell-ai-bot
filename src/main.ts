@@ -7,7 +7,7 @@ import { startInkCli } from './cli/startInkCli.js'
 import type { BotConfiguration } from './core/interfaces/IConfigurationProvider.js'
 import { ServiceFactory } from './core/ServiceFactory.js'
 import { createAgentClient } from './sdk/AgentClient.js'
-import { enableConsole } from './utils/logging/logger-factory.js'
+import { createLogger, enableConsole } from './utils/logging/logger-factory.js'
 
 /**
  * Extract hub ID from Metatell URL
@@ -155,7 +155,7 @@ async function main() {
     logger.notifyCliStarted?.()
 
     // 自動接続
-    LoggerFactory.createLogger('Main').info('Connecting to', { url: metatellUrl })
+    createLogger('Main').info('Connecting to', { url: metatellUrl })
     await client.connect({
       url: metatellUrl,
       token: authToken,

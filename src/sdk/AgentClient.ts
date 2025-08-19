@@ -82,6 +82,7 @@ export class DefaultAgentClient implements AgentClient {
 
   constructor(
     private factory: ServiceFactory,
+    private config: AgentClientConfig = {},
   ) {
     // 既存のサービスを取得
     this.bot = factory.getService('MetatellBot') as MetatellBot
