@@ -11,6 +11,7 @@
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
+    "debug": "node dist/main-debug.js",
     "test": "vitest"
   },
   "dependencies": {

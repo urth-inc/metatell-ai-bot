@@ -256,6 +256,11 @@ export class DefaultAgentClient implements AgentClient {
       await this.messageService.sendMessage(message)
     })
   }
+  
+  // Alias for send
+  async say(message: string): Promise<void> {
+    return this.send(message)
+  }
 
   async move(position: { x: number; y: number; z: number }): Promise<void> {
     return this.rateLimiter.execute('moves', async () => {
