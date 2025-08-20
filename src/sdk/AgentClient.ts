@@ -4,6 +4,7 @@
 
 import type { MetatellBot } from '../bots/MetatellBot.js'
 import type { IConnectionManager } from '../core/interfaces/IConnectionManager.js'
+import type { IEventBus } from '../core/interfaces/IEventBus.js'
 import type { IUserAvatarManager, UserAvatar } from '../core/interfaces/IUserAvatarManager.js'
 import type { ServiceFactory } from '../core/ServiceFactory.js'
 import { getLogger } from './logging/index.js'
@@ -74,6 +75,7 @@ export interface AgentClient {
 export class DefaultAgentClient implements AgentClient {
   private bot: MetatellBot
   private userAvatarManager: IUserAvatarManager
+  private eventBus: IEventBus
   private rateLimiter = new RateLimitedQueue()
   private logger = getLogger('AgentClient')
   private status: ConnectionStatus = {
@@ -89,6 +91,7 @@ export class DefaultAgentClient implements AgentClient {
     // 既存のサービスを取得
     this.bot = factory.getService('MetatellBot') as MetatellBot
     this.userAvatarManager = factory.getService('IUserAvatarManager') as IUserAvatarManager
+    this.eventBus = factory.getService('IEventBus') as IEventBus
 
     // レート制限の設定
     if (config.rateLimit?.messages) {
@@ -232,12 +235,14 @@ export class DefaultAgentClient implements AgentClient {
     return this.userAvatarManager.getUsersInRange(botState.position, radius)
   }
 
-  on(_event: string, _handler: (...args: unknown[]) => void): void {
-    // TODO: イベントシステムの統合
+  on(event: string, handler: (...args: unknown[]) => void): void {
+    // Proxy to internal event bus
+    this.eventBus.on(event, handler)
   }
 
-  off(_event: string, _handler: (...args: unknown[]) => void): void {
-    // TODO: イベントシステムの統合
+  off(event: string, handler: (...args: unknown[]) => void): void {
+    // Proxy to internal event bus
+    this.eventBus.off(event, handler)
   }
 
   setRateLimit(key: 'messages' | 'moves' | 'looks', perSecond: number): void {
