@@ -1,5 +1,5 @@
 import { type Channel, Socket } from 'phoenix'
-import { createLogger } from '../../utils/logging/logger-factory.js'
+import { getLogger } from '../../sdk/logging/index.js'
 import type { IAppSettings } from '../interfaces/IAppSettings.js'
 import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
 import type { ConnectionConfig, IConnectionManager } from '../interfaces/IConnectionManager.js'
@@ -9,7 +9,7 @@ export class WebSocketConnectionManager implements IConnectionManager {
   private socket: Socket | null = null
   private hubChannel: Channel | null = null
   private sessionId: string | null = null
-  private logger = createLogger('WebSocketConnectionManager')
+  private logger = getLogger('WebSocketConnectionManager')
 
   constructor(
     private eventBus: IEventBus,

@@ -1,4 +1,4 @@
-import { createLogger } from '../../utils/logging/logger-factory.js'
+import { getLogger } from '../../sdk/logging/index.js'
 import type {
   AvatarState,
   IAvatarController,
@@ -12,7 +12,7 @@ import type { IMessageService } from '../interfaces/IMessageService.js'
 export class AvatarController implements IAvatarController {
   private state: AvatarState | null = null
   private sessionId: string | null = null
-  private logger = createLogger('AvatarController')
+  private logger = getLogger('AvatarController')
 
   constructor(
     private messageService: IMessageService,

@@ -1,4 +1,4 @@
-import { createLogger } from '../../utils/logging/logger-factory.js'
+import { getLogger } from '../../sdk/logging/index.js'
 import type { IAppSettings } from '../interfaces/IAppSettings.js'
 import type { IConnectionManager } from '../interfaces/IConnectionManager.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
@@ -6,7 +6,7 @@ import type { IMessageService, NAFMessage } from '../interfaces/IMessageService.
 
 export class MessageService implements IMessageService {
   private messageHandlers = new Map<string, Set<(data: unknown) => void>>()
-  private logger = createLogger('MessageService')
+  private logger = getLogger('MessageService')
 
   constructor(
     private connectionManager: IConnectionManager,
