@@ -114,6 +114,14 @@ async function main() {
   const appSettings = factory.getService<import('@metatell/sdk').IAppSettings>('IAppSettings')
   const provider = new DefaultLoggerProvider()
   
+  // デバッグモードでコンソールログを有効化
+  if (config.debug) {
+    appSettings.setDebugMode(true)
+    appSettings.setLogLevel('debug')
+    provider.enableConsole(true)
+    mainLogger.info('Debug mode enabled via CLI flag')
+  }
+  
   // デバッグモード変更時のログレベル制御をここで行う（責務の分離）
   appSettings.onDebugModeChanged((enabled) => {
     // ログレベルをデバッグモードに応じて設定
