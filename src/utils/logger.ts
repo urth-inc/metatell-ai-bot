@@ -1,4 +1,4 @@
-import { createLogger, enableConsole, getRingBuffer, type LogRecord } from './logging/logger-factory.js'
+import { getLogger, getLoggerProvider, getRingBuffer, type CoreLogRecord, type RingBufferLike } from '../sdk/logging/index.js'
 
 /**
  * ログレベル
@@ -50,29 +50,52 @@ const isDebugMode = (): boolean => {
 export class ConsoleLogger implements Logger {
   private debugEnabled: boolean
   private cliStarted = false
-  private structuredLogger = createLogger('app')
+  private structuredLogger: ReturnType<typeof getLogger> | null = null
 
   constructor() {
     this.debugEnabled = isDebugMode()
   }
 
+  private getStructuredLogger() {
+    if (!this.structuredLogger) {
+      try {
+        this.structuredLogger = getLogger('app')
+      } catch {
+        // Fallback if provider not registered yet
+        // This can happen during tests or early initialization
+        return {
+          debug: () => {},
+          info: () => {},
+          warn: () => {},
+          error: () => {},
+        }
+      }
+    }
+    return this.structuredLogger
+  }
+
   // CLI起動の通知
   notifyCliStarted(): void {
     this.cliStarted = true
-    enableConsole()
+    const provider = getLoggerProvider()
+    if (provider?.enableConsole) {
+      provider.enableConsole(this.debugEnabled)
+    }
   }
 
-  // バッファリングしたログを取得（取得後にバッファをクリア）
+  // バッファリングしたログを取得（前回以降の新規ログのみ）
   getBufferedLogs(): LogEntry[] {
-    const records = getRingBuffer().drain()
-    return records.map((record) => this.convertToLogEntry(record))
+    const rb = getRingBuffer() as RingBufferLike
+    // Use drainNew() if available, fallback to drain() for compatibility
+    const records = rb.drainNew ? rb.drainNew() : rb.drain()
+    return records.map((record: CoreLogRecord) => this.convertToLogEntry(record))
   }
 
-  private convertToLogEntry(record: LogRecord): LogEntry {
+  private convertToLogEntry(record: CoreLogRecord): LogEntry {
     const levelMap: Record<string, LogLevel> = {
       debug: LogLevel.DEBUG,
       info: LogLevel.LOG,
-      warn: LogLevel.ERROR,
+      warn: LogLevel.LOG,   // WARNをERRORに昇格させない
       error: LogLevel.ERROR,
     }
     return {
@@ -85,19 +108,23 @@ export class ConsoleLogger implements Logger {
 
   debug(message: string, data?: unknown): void {
     if (!this.debugEnabled) return
-    this.structuredLogger.debug(message, data)
+    this.getStructuredLogger().debug(message, data)
   }
 
   log(message: string, data?: unknown): void {
-    this.structuredLogger.info(message, data)
+    this.getStructuredLogger().info(message, data)
   }
 
   error(message: string, data?: unknown): void {
-    this.structuredLogger.error(message, data)
+    this.getStructuredLogger().error(message, data)
   }
 
   setDebugMode(enabled: boolean): void {
     this.debugEnabled = enabled
+    const provider = getLoggerProvider()
+    if (provider?.setMinLevel) {
+      provider.setMinLevel(enabled ? 'debug' : 'info')
+    }
     if (this.cliStarted) {
       console.log(`🐛 Debug logging ${enabled ? 'enabled' : 'disabled'}`)
     }
