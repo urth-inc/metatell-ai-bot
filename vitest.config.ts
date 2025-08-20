@@ -1,32 +1,35 @@
 import { defineConfig } from 'vitest/config'
+import path from 'node:path'
 
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'happy-dom',
-    setupFiles: ['./vitest.setup.ts'],
+    environment: 'node',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
-        'node_modules/',
-        'dist/',
-        '**/*.d.ts',
+        'node_modules/**',
+        'packages/*/dist/**',
         '**/*.spec.ts',
-        'src/websocket-polyfill.ts',
-        'src/example.ts',
-        'src/main.ts',
-        'src/types/**',
-        'src/core/interfaces/**',
-        'vitest.config.ts',
-        'src/metatell-bot.ts',
-        'src/metatell-client.ts',
-      ],
+        '**/*.test.ts',
+        '**/types/**',
+        '**/test-utils/**',
+        '**/*.d.ts',
+        'packages/bot/src/example.ts',
+        'packages/bot/src/main.ts',
+        'packages/bot/src/websocket-polyfill.ts'
+      ]
     },
+    include: [
+      'packages/*/src/**/*.{test,spec}.{js,ts}',
+      'test-utils/**/*.{test,spec}.{js,ts}'
+    ]
   },
   resolve: {
     alias: {
-      '@': '/src',
-    },
-  },
+      '@metatell/sdk': path.resolve(__dirname, './packages/sdk/src'),
+      '@metatell/bot': path.resolve(__dirname, './packages/bot/src')
+    }
+  }
 })
