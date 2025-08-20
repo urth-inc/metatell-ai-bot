@@ -241,7 +241,7 @@ export class MetatellBot {
     }
   }
 
-  public async start(): Promise<void> {
+  public async start(connectionInfo?: { authUrl: string; hubId: string; authToken?: string }): Promise<void> {
     if (this.isRunning) {
       this.logger.debug('Bot is already running')
       return
@@ -249,11 +249,15 @@ export class MetatellBot {
 
     try {
       const config = this.configProvider.getConfiguration()
+      
+      // Use provided connection info or fall back to config
+      const authUrl = connectionInfo?.authUrl || config.authUrl
+      const hubId = connectionInfo?.hubId || config.hubId
 
       // Connect to server
       await this.connectionManager.connect({
-        authUrl: config.authUrl,
-        hubId: config.hubId,
+        authUrl,
+        hubId,
       })
 
       // Enter room

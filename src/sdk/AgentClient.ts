@@ -13,6 +13,9 @@ import { RateLimitedQueue } from './rate.js'
 export interface ConnectionOptions {
   url: string
   token?: string
+  authUrl?: string  // Allow passing authUrl directly
+  hubUrl?: string   // Allow passing hubUrl directly
+  hubId?: string    // Allow passing hubId directly
 }
 
 export interface AgentClientConfig {
@@ -105,34 +108,39 @@ export class DefaultAgentClient implements AgentClient {
     this.status.connecting = true
 
     try {
-      // URLを解析してauthUrlとhubIdを取得
-      const url = new URL(options.url)
+      let authUrl: string
+      let hubUrl: string
+      let hubId: string
 
-      // HTTPSからWSSに変換
-      const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-      const authUrl = `${protocol}//${url.host}`
+      // Use provided values or parse from URL
+      if (options.authUrl && options.hubUrl && options.hubId) {
+        authUrl = options.authUrl
+        hubUrl = options.hubUrl
+        hubId = options.hubId
+      } else {
+        // URLを解析してauthUrlとhubIdを取得
+        const url = new URL(options.url)
 
-      // hubIdを取得（パスから'/'を除去）
-      const pathParts = url.pathname.split('/').filter(Boolean)
-      const hubId = pathParts[0]
+        // HTTPSからWSSに変換
+        const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+        authUrl = `${protocol}//${url.host}`
+        hubUrl = options.url
 
-      if (!hubId) {
-        throw new Error('Invalid URL: hub ID not found')
+        // hubIdを取得（パスから'/'を除去）
+        const pathParts = url.pathname.split('/').filter(Boolean)
+        hubId = pathParts[0]
+
+        if (!hubId) {
+          throw new Error('Invalid URL: hub ID not found')
+        }
       }
 
-      // 設定を更新
-      const configProvider = this.factory.getService(
-        'IConfigurationProvider',
-      ) as IConfigurationProvider
-      configProvider.set('authUrl', authUrl)
-      configProvider.set('hubUrl', options.url)
-      configProvider.set('hubId', hubId)
-      if (options.token) {
-        configProvider.set('authToken', options.token)
-      }
-
-      // ボットを起動
-      await this.bot.start()
+      // Pass connection info directly to bot.start()
+      await this.bot.start({
+        authUrl,
+        hubId,
+        authToken: options.token,
+      })
 
       // セッションIDを取得
       const connectionManager = this.factory.getService('IConnectionManager') as IConnectionManager

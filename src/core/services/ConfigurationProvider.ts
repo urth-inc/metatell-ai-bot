@@ -1,15 +1,13 @@
 import type {
   BotConfiguration,
-  BotContext,
-  BotProfile,
   IConfigurationProvider,
 } from '../interfaces/IConfigurationProvider.js'
 
 export class ConfigurationProvider implements IConfigurationProvider {
-  private config: BotConfiguration
-  private customSettings = new Map<string, unknown>()
+  private readonly config: BotConfiguration
 
   constructor(initialConfig: BotConfiguration) {
+    // Create an immutable copy of the configuration
     this.config = {
       ...initialConfig,
       context: initialConfig.context || {
@@ -18,14 +16,13 @@ export class ConfigurationProvider implements IConfigurationProvider {
         hmd: false,
       },
     }
+    // Freeze the configuration to prevent modifications
+    Object.freeze(this.config)
+    Object.freeze(this.config.profile)
+    Object.freeze(this.config.context)
   }
 
   get<T = unknown>(key: string): T | undefined {
-    // Check custom settings first
-    if (this.customSettings.has(key)) {
-      return this.customSettings.get(key) as T
-    }
-
     // Check nested config properties
     const keys = key.split('.')
     let value: unknown = this.config
@@ -41,28 +38,12 @@ export class ConfigurationProvider implements IConfigurationProvider {
     return value as T
   }
 
-  set<T = unknown>(key: string, value: T): void {
-    this.customSettings.set(key, value)
-  }
-
   getConfiguration(): BotConfiguration {
-    return { ...this.config }
-  }
-
-  updateProfile(profile: Partial<BotProfile>): void {
-    this.config.profile = {
-      ...this.config.profile,
-      ...profile,
+    // Return a copy to prevent external modifications
+    return {
+      ...this.config,
+      profile: { ...this.config.profile },
+      context: this.config.context ? { ...this.config.context } : undefined,
     }
-  }
-
-  updateContext(context: Partial<BotContext>): void {
-    this.config.context = {
-      mobile: false,
-      embed: false,
-      hmd: false,
-      ...(this.config.context || {}),
-      ...context,
-    } as BotContext
   }
 }

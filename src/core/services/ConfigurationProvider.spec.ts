@@ -75,43 +75,10 @@ describe('ConfigurationProvider', () => {
       expect(provider.get('nonexistent.nested.deep')).toBeUndefined()
     })
 
-    it('should prioritize custom settings over config', () => {
-      provider.set('apiUrl', 'https://custom.app')
-      expect(provider.get<string>('apiUrl')).toBe('https://custom.app')
-    })
+    // Removed test - set method no longer exists
   })
 
-  describe('set', () => {
-    it('should store custom settings', () => {
-      provider.set('customKey', 'customValue')
-      expect(provider.get<string>('customKey')).toBe('customValue')
-    })
-
-    it('should override existing config values in custom settings', () => {
-      expect(provider.get<string>('apiUrl')).toBe('https://metatell.app')
-
-      provider.set('apiUrl', 'https://new.app')
-      expect(provider.get<string>('apiUrl')).toBe('https://new.app')
-
-      // Original config should remain unchanged
-      const config = provider.getConfiguration()
-      expect(config.apiUrl).toBe('https://metatell.app')
-    })
-
-    it('should handle different value types', () => {
-      provider.set('stringValue', 'test')
-      provider.set('numberValue', 42)
-      provider.set('booleanValue', true)
-      provider.set('objectValue', { nested: 'value' })
-      provider.set('arrayValue', [1, 2, 3])
-
-      expect(provider.get<string>('stringValue')).toBe('test')
-      expect(provider.get<number>('numberValue')).toBe(42)
-      expect(provider.get<boolean>('booleanValue')).toBe(true)
-      expect(provider.get<{ nested: string }>('objectValue')).toEqual({ nested: 'value' })
-      expect(provider.get<number[]>('arrayValue')).toEqual([1, 2, 3])
-    })
-  })
+  // Removed set tests - set method no longer exists
 
   describe('getConfiguration', () => {
     it('should return a copy of the configuration', () => {
@@ -122,97 +89,10 @@ describe('ConfigurationProvider', () => {
       expect(config1).not.toBe(config2) // Different object references
     })
 
-    it('should not include custom settings in configuration', () => {
-      provider.set('customKey', 'customValue')
-      const config = provider.getConfiguration()
-
-      expect('customKey' in config).toBe(false)
-    })
+    // Removed test - custom settings no longer supported
   })
 
-  describe('updateProfile', () => {
-    it('should update profile partially', () => {
-      provider.updateProfile({ displayName: 'UpdatedBot' })
+  // Removed updateProfile tests - configuration is now immutable
 
-      const config = provider.getConfiguration()
-      expect(config.profile?.displayName).toBe('UpdatedBot')
-      expect(config.profile?.avatarColor).toBe('blue') // Original value preserved
-    })
-
-    it('should create profile if not exists', () => {
-      const providerNoProfile = new ConfigurationProvider({ apiUrl: 'test' })
-      providerNoProfile.updateProfile({ displayName: 'NewBot' })
-
-      const config = providerNoProfile.getConfiguration()
-      expect(config.profile?.displayName).toBe('NewBot')
-    })
-
-    it('should handle multiple profile updates', () => {
-      provider.updateProfile({ displayName: 'Bot1' })
-      provider.updateProfile({ avatarColor: 'red' })
-      provider.updateProfile({ displayName: 'Bot2' })
-
-      const config = provider.getConfiguration()
-      expect(config.profile?.displayName).toBe('Bot2')
-      expect(config.profile?.avatarColor).toBe('red')
-    })
-  })
-
-  describe('updateContext', () => {
-    it('should update context partially', () => {
-      provider.updateContext({ mobile: true })
-
-      const config = provider.getConfiguration()
-      expect(config.context?.mobile).toBe(true)
-      expect(config.context?.embed).toBe(false) // Default value preserved
-      expect(config.context?.hmd).toBe(false) // Default value preserved
-    })
-
-    it('should preserve existing context values', () => {
-      provider.updateContext({ mobile: true })
-      provider.updateContext({ embed: true })
-
-      const config = provider.getConfiguration()
-      expect(config.context?.mobile).toBe(true)
-      expect(config.context?.embed).toBe(true)
-      expect(config.context?.hmd).toBe(false)
-    })
-
-    it('should handle context update when context is initially undefined', () => {
-      const providerNoContext = new ConfigurationProvider({ apiUrl: 'test' })
-
-      // First, let's verify context is created with defaults
-      const initialConfig = providerNoContext.getConfiguration()
-      expect(initialConfig.context).toEqual({
-        mobile: false,
-        embed: false,
-        hmd: false,
-      })
-
-      // Now update context
-      providerNoContext.updateContext({ mobile: true })
-
-      const config = providerNoContext.getConfiguration()
-      expect(config.context).toEqual({
-        mobile: true,
-        embed: false,
-        hmd: false,
-      })
-    })
-
-    it('should handle all context properties', () => {
-      provider.updateContext({
-        mobile: true,
-        embed: true,
-        hmd: true,
-      })
-
-      const config = provider.getConfiguration()
-      expect(config.context).toEqual({
-        mobile: true,
-        embed: true,
-        hmd: true,
-      })
-    })
-  })
+  // Removed updateContext tests - configuration is now immutable
 })
