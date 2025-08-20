@@ -5,14 +5,17 @@ import type { IConnectionManager } from '../core/interfaces/IConnectionManager.j
 import type { IMessageService } from '../core/interfaces/IMessageService.js'
 import type { IPresenceManager, PresenceUser } from '../core/interfaces/IPresenceManager.js'
 import type { IUserAvatarManager } from '../core/interfaces/IUserAvatarManager.js'
-import { createLogger } from '../utils/logging/logger-factory.js'
+import { getLogger } from '../sdk/logging/index.js'
+import { CommandRegistry, type CommandContext } from './commands/BotCommand.js'
+import { defaultCommands } from './commands/defaultCommands.js'
 
-export type MessageHandler = (message: string, sessionId: string) => string | null
+export type MessageHandler = (message: string, sessionId: string) => string | null | Promise<string | null>
 
 export class MetatellBot {
   private messageHandlers: MessageHandler[] = []
+  private commandRegistry = new CommandRegistry()
   private isRunning = false
-  private logger = createLogger('MetatellBot')
+  private logger = getLogger('MetatellBot')
 
   constructor(
     private connectionManager: IConnectionManager,
@@ -24,6 +27,7 @@ export class MetatellBot {
     private appSettings: IAppSettings,
   ) {
     this.setupEventHandlers()
+    this.setupCommands()
     this.setupDefaultHandlers()
   }
 
@@ -31,9 +35,9 @@ export class MetatellBot {
     console.log('🔍 [SETUP_EVENT_HANDLERS] Setting up event handlers')
     
     // Handle incoming messages
-    this.messageService.on('message', (payload: unknown) => {
+    this.messageService.on('message', async (payload: unknown) => {
       console.log('🔍 [MESSAGE_EVENT] Received message event')
-      this.handleIncomingMessage(payload)
+      await this.handleIncomingMessage(payload)
     })
     console.log('🔍 [SETUP_EVENT_HANDLERS] Message handler registered')
 
@@ -50,150 +54,45 @@ export class MetatellBot {
     console.log('🔍 [SETUP_EVENT_HANDLERS] All event handlers registered')
   }
 
-  private setupDefaultHandlers(): void {
-    // Help command
-    this.addMessageHandler((message) => {
-      // デバッグログを追加（常に出力）
-      const isHelp = message.toLowerCase() === 'help'
-      console.log('🔍 [HELP_HANDLER]', { 
-        message, 
-        messageQuoted: `"${message}"`,
-        lowercased: message.toLowerCase(),
-        isHelp,
-        trimmed: message.trim(),
-        trimmedLowercased: message.trim().toLowerCase(),
-        charCodes: Array.from(message).map(c => c.charCodeAt(0))
-      })
-      
+  /**
+   * Setup declarative command system
+   */
+  private setupCommands(): void {
+    // Register default commands
+    this.commandRegistry.registerAll(defaultCommands)
+    
+    // Create command context
+    const context: CommandContext = {
+      avatarController: this.avatarController,
+      userAvatarManager: this.userAvatarManager,
+      presenceManager: this.presenceManager,
+      messageService: this.messageService,
+      logger: this.logger,
+    }
+    
+    // Add a single message handler that uses the command registry
+    this.addMessageHandler(async (message, sessionId) => {
+      // Debug logging
       if (this.appSettings.debugMode) {
-        this.logger.debug('[HELP_HANDLER]', { 
-          message, 
-          lowercased: message.toLowerCase(),
-          isHelp,
-          trimmed: message.trim(),
-          trimmedLowercased: message.trim().toLowerCase()
-        })
+        this.logger.debug('[COMMAND_HANDLER]', { message, sessionId })
       }
-      if (isHelp) {
-        return `Available commands:
-• help - Show this help message
-• info - Show room information
-• hello - Say hello!
-• time - Show current time
-• move <x> <y> <z> - Move avatar to position
-• users - Show all users with positions
-• nearby <radius> - Show users within radius`
-      }
-      return null
-    })
-
-    // Info command
-    this.addMessageHandler((message) => {
-      if (message.toLowerCase() === 'info') {
-        return this.getRoomInfo()
-      }
-      return null
-    })
-
-    // Hello command
-    this.addMessageHandler((message) => {
-      const includesHello = message.toLowerCase().includes('hello')
-      console.log('🔍 [HELLO_HANDLER]', { 
-        message, 
-        messageQuoted: `"${message}"`,
-        lowercased: message.toLowerCase(),
-        includesHello,
-        charCodes: Array.from(message).map(c => c.charCodeAt(0))
-      })
       
-      if (includesHello) {
-        const config = this.configProvider.getConfiguration()
-        return `Hello! I'm ${config.profile.displayName}, your AI assistant! 👋`
-      }
-      return null
+      // Try to execute command
+      const result = await this.commandRegistry.execute(message, sessionId, context)
+      return result
     })
-
-    // Time command
-    this.addMessageHandler((message) => {
-      if (message.toLowerCase() === 'time') {
-        return `Current time: ${new Date().toLocaleString()}`
-      }
-      return null
-    })
-
-    // Move command
-    this.addMessageHandler((message) => {
-      const moveMatch = message.match(
-        /^move\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)$/i,
-      )
-      if (moveMatch) {
-        const x = parseFloat(moveMatch[1])
-        const y = parseFloat(moveMatch[2])
-        const z = parseFloat(moveMatch[3])
-
-        this.avatarController.move({ x, y, z }).catch((error) => {
-          this.logger.debug('Avatar move error:', { error })
-        })
-        return `Moving to position (${x}, ${y}, ${z})`
-      }
-      return null
-    })
-
-    // Users command - 全ユーザーと位置情報を表示
-    this.addMessageHandler((message) => {
-      if (message.toLowerCase() === 'users') {
-        const users = this.userAvatarManager.getUsers()
-        if (users.length === 0) {
-          return 'No users currently in the room'
-        }
-
-        const userList = users
-          .map((u) => {
-            const pos = u.position
-            return `• ${u.nickname} (${u.id.substring(0, 8)}...) at (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})`
-          })
-          .join('\n')
-
-        return `👥 Users in room (${users.length}):\n${userList}`
-      }
-      return null
-    })
-
-    // Nearby command - 指定半径内のユーザーを表示
-    this.addMessageHandler((message) => {
-      const nearbyMatch = message.match(/^nearby\s+(\d+(?:\.\d+)?)$/i)
-      if (nearbyMatch) {
-        const radius = parseFloat(nearbyMatch[1])
-        const myState = this.avatarController.getState()
-
-        if (!myState) {
-          return 'Bot avatar not spawned yet'
-        }
-
-        const nearbyUsers = this.userAvatarManager.getUsersInRange(myState.position, radius)
-
-        if (nearbyUsers.length === 0) {
-          return `No users within ${radius} units`
-        }
-
-        const userList = nearbyUsers
-          .map((u) => {
-            const pos = u.position
-            const dx = pos.x - myState.position.x
-            const dy = pos.y - myState.position.y
-            const dz = pos.z - myState.position.z
-            const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
-            return `• ${u.nickname} - ${distance.toFixed(1)} units away`
-          })
-          .join('\n')
-
-        return `📍 Users within ${radius} units (${nearbyUsers.length}):\n${userList}`
-      }
-      return null
+    
+    this.logger.info('Command system initialized', { 
+      commandCount: this.commandRegistry.getAll().length 
     })
   }
+  
+  private setupDefaultHandlers(): void {
+    // Legacy compatibility: Keep addMessageHandler for custom handlers
+    // All default commands are now handled by the command registry
+  }
 
-  private handleIncomingMessage(payload: unknown): void {
+  private async handleIncomingMessage(payload: unknown): Promise<void> {
     // 最初に生のペイロードをログ出力
     console.log('📨 [RAW_MESSAGE]', payload)
     console.log('🔍 Debug mode status:', this.appSettings.debugMode)
@@ -279,7 +178,7 @@ export class MetatellBot {
       const handler = this.messageHandlers[i]
       try {
         console.log(`🔍 [HANDLER_${i}] Testing handler...`)
-        const response = handler(cleanedMessage, session_id)
+        const response = await handler(cleanedMessage, session_id)
         console.log(`🔍 [HANDLER_${i}] Response:`, response)
         
         if (response) {
@@ -287,10 +186,7 @@ export class MetatellBot {
           if (this.appSettings.debugMode) {
             this.logger.debug('[HANDLER_MATCHED]', { message: cleanedMessage, response })
           }
-          this.messageService.sendMessage(response).catch((error) => {
-            console.error('🔍 [MESSAGE_SEND_ERROR]', error)
-            this.logger.debug('Message send error:', { error })
-          })
+          await this.messageService.sendMessage(response)
           break // Only send first matching response
         }
       } catch (error) {
@@ -333,15 +229,6 @@ export class MetatellBot {
     // ログは出さない
   }
 
-  private getRoomInfo(): string {
-    const users = this.presenceManager.getUsers()
-    const userList = users.map((u) => u.profile.displayName || 'Unknown').join(', ')
-
-    return `📊 Room Information:
-• Users online: ${users.length}
-• Connected users: ${userList}
-• Server time: ${new Date().toLocaleString()}`
-  }
 
   public addMessageHandler(handler: MessageHandler): void {
     this.messageHandlers.push(handler)
