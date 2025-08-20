@@ -3,7 +3,7 @@
 import './websocket-polyfill.js'
 import { Command } from 'commander'
 import { ConfigManager } from './cli/config/config.js'
-import { startInkCli } from './cli/startInkCli.jsx'
+import { startInkCli } from './cli/startInkCli.js'
 import { BotServiceFactory } from './bots/BotServiceFactory.js'
 import {
   type BotConfiguration,
