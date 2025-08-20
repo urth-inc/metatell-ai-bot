@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { registerLoggerProvider, DefaultLoggerProvider, getLogger } from '../../sdk/logging/index.js'
 import { findMockCall } from '../../test-utils/mocks.js'
 import type { IEventBus } from '../interfaces/IEventBus.js'
 import { SystemEvents } from '../interfaces/IEventBus.js'
@@ -7,8 +6,20 @@ import type { IMessageService } from '../interfaces/IMessageService.js'
 import type { IPresenceManager } from '../interfaces/IPresenceManager.js'
 import { UserAvatarManager } from './UserAvatarManager.js'
 
-// Register logger provider for tests
-registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
+// Mock logger
+const mockLogger = {
+  error: vi.fn(),
+  debug: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+}
+
+vi.mock('../../sdk/logging/index.js', () => ({
+  getLogger: vi.fn(() => mockLogger),
+  registerLoggerProvider: vi.fn(),
+  DefaultLoggerProvider: vi.fn(),
+  setLogLevel: vi.fn(),
+}))
 
 describe('UserAvatarManager', () => {
   let userAvatarManager: UserAvatarManager
@@ -17,6 +28,8 @@ describe('UserAvatarManager', () => {
   let mockEventBus: IEventBus
 
   beforeEach(() => {
+    vi.clearAllMocks()
+    
     // Mock message service
     mockMessageService = {
       sendMessage: vi.fn(),
@@ -498,8 +511,6 @@ describe('UserAvatarManager', () => {
     })
 
     it('should handle errors in event handlers', () => {
-      const logger = getLogger('UserAvatarManager')
-      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
       const errorHandler = vi.fn(() => {
         throw new Error('Handler error')
       })
@@ -528,12 +539,10 @@ describe('UserAvatarManager', () => {
 
       expect(errorHandler).toHaveBeenCalled()
       expect(normalHandler).toHaveBeenCalled()
-      expect(loggerSpy).toHaveBeenCalledWith(
+      expect(mockLogger.error).toHaveBeenCalledWith(
         'Error in userJoined handler',
         { error: expect.any(Error) },
       )
-
-      loggerSpy.mockRestore()
     })
   })
 

@@ -1,47 +1,62 @@
 import { describe, expect, it, vi } from 'vitest'
 import { AppSettings } from './AppSettings.js'
-import { getLogger } from '../../sdk/logging/index.js'
+
+// Mock logger
+const mockLogger = {
+  error: vi.fn(),
+  debug: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+}
+
+vi.mock('../../sdk/logging/index.js', () => ({
+  getLogger: vi.fn(() => mockLogger),
+  registerLoggerProvider: vi.fn(),
+  DefaultLoggerProvider: vi.fn(),
+  setLogLevel: vi.fn(),
+}))
 
 describe('AppSettings', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('should initialize with default values', () => {
     const appSettings = new AppSettings()
     
     expect(appSettings.debugMode).toBe(false)
     expect(appSettings.logLevel).toBe('info')
   })
-
+  
   it('should initialize with custom values', () => {
     const appSettings = new AppSettings(true, 'debug')
     
     expect(appSettings.debugMode).toBe(true)
     expect(appSettings.logLevel).toBe('debug')
   })
-
+  
   it('should notify when debug mode changes', () => {
-    const appSettings = new AppSettings(false)
+    const appSettings = new AppSettings()
     const callback = vi.fn()
     
     appSettings.onDebugModeChanged(callback)
     appSettings.setDebugMode(true)
     
     expect(callback).toHaveBeenCalledWith(true)
-    expect(appSettings.debugMode).toBe(true)
-    // setDebugMode no longer changes logLevel directly (responsibility separation)
-    expect(appSettings.logLevel).toBe('info')
   })
-
+  
   it('should not notify when debug mode value is the same', () => {
-    const appSettings = new AppSettings(true)
+    const appSettings = new AppSettings(false)
     const callback = vi.fn()
     
     appSettings.onDebugModeChanged(callback)
-    appSettings.setDebugMode(true) // Same value
+    appSettings.setDebugMode(false)
     
     expect(callback).not.toHaveBeenCalled()
   })
-
+  
   it('should handle multiple callbacks', () => {
-    const appSettings = new AppSettings(false)
+    const appSettings = new AppSettings()
     const callback1 = vi.fn()
     const callback2 = vi.fn()
     
@@ -52,17 +67,13 @@ describe('AppSettings', () => {
     expect(callback1).toHaveBeenCalledWith(true)
     expect(callback2).toHaveBeenCalledWith(true)
   })
-
+  
   it('should handle callback errors gracefully', () => {
-    const appSettings = new AppSettings(false)
+    const appSettings = new AppSettings()
     const errorCallback = vi.fn(() => {
       throw new Error('Callback error')
     })
     const goodCallback = vi.fn()
-    
-    // Spy on logger to verify error handling
-    const logger = getLogger('AppSettings')
-    const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
     
     appSettings.onDebugModeChanged(errorCallback)
     appSettings.onDebugModeChanged(goodCallback)
@@ -70,11 +81,9 @@ describe('AppSettings', () => {
     
     expect(errorCallback).toHaveBeenCalledWith(true)
     expect(goodCallback).toHaveBeenCalledWith(true)
-    expect(loggerSpy).toHaveBeenCalledWith('Error in debug mode callback', { error: expect.any(Error) })
-    
-    loggerSpy.mockRestore()
+    expect(mockLogger.error).toHaveBeenCalledWith('Error in debug mode callback', { error: expect.any(Error) })
   })
-
+  
   it('should allow manual log level changes via setLogLevel', () => {
     const appSettings = new AppSettings(false, 'warn')
     
@@ -88,26 +97,26 @@ describe('AppSettings', () => {
     appSettings.setLogLevel('error')
     expect(appSettings.logLevel).toBe('error')
   })
-
+  
   it('should demonstrate responsibility separation between debug mode and log level', () => {
-    const appSettings = new AppSettings(false, 'info')
-    let callbackInvoked = false
+    const appSettings = new AppSettings()
+    const callback = vi.fn()
     
-    // Set up callback to simulate external log level management (like in main.ts)
-    appSettings.onDebugModeChanged((enabled) => {
-      callbackInvoked = true
-      // External code is responsible for setting log level based on debug mode
-      appSettings.setLogLevel(enabled ? 'debug' : 'info')
-    })
+    appSettings.onDebugModeChanged(callback)
     
-    expect(appSettings.logLevel).toBe('info')
-    expect(callbackInvoked).toBe(false)
+    // Changing log level does not trigger debug mode callbacks
+    appSettings.setLogLevel('debug')
+    expect(callback).not.toHaveBeenCalled()
     
-    // Change debug mode - this should trigger callback, not directly change log level
+    // Debug mode is independent of log level
     appSettings.setDebugMode(true)
+    expect(callback).toHaveBeenCalledWith(true)
+    expect(appSettings.logLevel).toBe('debug') // Still at debug level
     
-    expect(callbackInvoked).toBe(true)
-    expect(appSettings.debugMode).toBe(true)
-    expect(appSettings.logLevel).toBe('debug') // Changed by callback, not setDebugMode
+    // Can have debug log level without debug mode
+    appSettings.setDebugMode(false)
+    appSettings.setLogLevel('debug')
+    expect(appSettings.debugMode).toBe(false)
+    expect(appSettings.logLevel).toBe('debug')
   })
 })

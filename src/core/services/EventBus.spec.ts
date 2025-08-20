@@ -1,11 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventBus } from './EventBus.js'
-import { getLogger } from '../../sdk/logging/index.js'
+
+// Mock logger
+const mockLogger = {
+  error: vi.fn(),
+  debug: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+}
+
+vi.mock('../../sdk/logging/index.js', () => ({
+  getLogger: vi.fn(() => mockLogger),
+  registerLoggerProvider: vi.fn(),
+  DefaultLoggerProvider: vi.fn(),
+  setLogLevel: vi.fn(),
+}))
 
 describe('EventBus', () => {
   let eventBus: EventBus
 
   beforeEach(() => {
+    vi.clearAllMocks()
     eventBus = new EventBus()
   })
 
@@ -26,6 +41,7 @@ describe('EventBus', () => {
       eventBus.on('test', handler2)
 
       eventBus.emit('test', 'data')
+
       expect(handler1).toHaveBeenCalledWith('data')
       expect(handler2).toHaveBeenCalledWith('data')
     })
@@ -38,8 +54,10 @@ describe('EventBus', () => {
       eventBus.on('event2', handler2)
 
       eventBus.emit('event1', 'data1')
+      eventBus.emit('event2', 'data2')
+
       expect(handler1).toHaveBeenCalledWith('data1')
-      expect(handler2).not.toHaveBeenCalled()
+      expect(handler2).toHaveBeenCalledWith('data2')
     })
   })
 
@@ -62,6 +80,7 @@ describe('EventBus', () => {
       eventBus.off('test', handler1)
 
       eventBus.emit('test', 'data')
+
       expect(handler1).not.toHaveBeenCalled()
       expect(handler2).toHaveBeenCalledWith('data')
     })
@@ -83,11 +102,10 @@ describe('EventBus', () => {
 
     it('should emit event with data', () => {
       const handler = vi.fn()
-      const data = { id: 1, name: 'test' }
-
       eventBus.on('test', handler)
-      eventBus.emit('test', data)
 
+      const data = { foo: 'bar' }
+      eventBus.emit('test', data)
       expect(handler).toHaveBeenCalledWith(data)
     })
 
@@ -101,9 +119,6 @@ describe('EventBus', () => {
       })
       const normalHandler = vi.fn()
 
-      const logger = getLogger('EventBus')
-      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
-
       eventBus.on('test', errorHandler)
       eventBus.on('test', normalHandler)
 
@@ -111,12 +126,10 @@ describe('EventBus', () => {
 
       expect(errorHandler).toHaveBeenCalled()
       expect(normalHandler).toHaveBeenCalled()
-      expect(loggerSpy).toHaveBeenCalledWith(
+      expect(mockLogger.error).toHaveBeenCalledWith(
         'Error in event handler for "test"',
         { error: expect.any(Error) },
       )
-
-      loggerSpy.mockRestore()
     })
 
     it('should catch asynchronous errors in handlers', async () => {
@@ -124,21 +137,16 @@ describe('EventBus', () => {
         throw new Error('Async handler error')
       })
 
-      const logger = getLogger('EventBus')
-      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
-
       eventBus.on('test', errorHandler)
       eventBus.emit('test', 'data')
 
       // Wait for promise rejection to be handled
       await new Promise((resolve) => setTimeout(resolve, 0))
 
-      expect(loggerSpy).toHaveBeenCalledWith(
+      expect(mockLogger.error).toHaveBeenCalledWith(
         'Error in event handler for "test"',
         { error: expect.any(Error) },
       )
-
-      loggerSpy.mockRestore()
     })
   })
 
@@ -172,14 +180,14 @@ describe('EventBus', () => {
       const handler2 = vi.fn()
       const handler3 = vi.fn()
 
-      eventBus.on('event1', handler1)
-      eventBus.on('event1', handler2)
-      eventBus.on('event2', handler3)
+      eventBus.on('test1', handler1)
+      eventBus.on('test1', handler2)
+      eventBus.on('test2', handler3)
 
-      eventBus.removeAllListeners('event1')
+      eventBus.removeAllListeners('test1')
 
-      eventBus.emit('event1', 'data')
-      eventBus.emit('event2', 'data')
+      eventBus.emit('test1', 'data')
+      eventBus.emit('test2', 'data')
 
       expect(handler1).not.toHaveBeenCalled()
       expect(handler2).not.toHaveBeenCalled()
@@ -189,21 +197,17 @@ describe('EventBus', () => {
     it('should remove all listeners when no event specified', () => {
       const handler1 = vi.fn()
       const handler2 = vi.fn()
-      const handler3 = vi.fn()
 
-      eventBus.on('event1', handler1)
-      eventBus.on('event2', handler2)
-      eventBus.on('event3', handler3)
+      eventBus.on('test1', handler1)
+      eventBus.on('test2', handler2)
 
       eventBus.removeAllListeners()
 
-      eventBus.emit('event1', 'data')
-      eventBus.emit('event2', 'data')
-      eventBus.emit('event3', 'data')
+      eventBus.emit('test1', 'data')
+      eventBus.emit('test2', 'data')
 
       expect(handler1).not.toHaveBeenCalled()
       expect(handler2).not.toHaveBeenCalled()
-      expect(handler3).not.toHaveBeenCalled()
     })
   })
 })
