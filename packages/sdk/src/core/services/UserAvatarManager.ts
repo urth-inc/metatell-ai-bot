@@ -143,12 +143,46 @@ export class UserAvatarManager implements IUserAvatarManager {
     }
 
     // PresenceManagerから詳細なユーザー情報を取得
-    const presenceUser = this.presenceManager.getUser(networkId)
+    let presenceUser = this.presenceManager.getUser(networkId)
     let nickname = presenceUser?.profile.displayName
 
-    // PresenceManagerにユーザー情報がない場合は、Unknownを使用
+    // networkIdで見つからない場合、すべてのPresenceユーザーから検索
+    if (!nickname) {
+      const allPresenceUsers = this.presenceManager.getUsers()
+      this.logger.debug(
+        `[NAF] No presence user for networkId ${networkId}, searching in ${allPresenceUsers.length} users`,
+        { 
+          networkId,
+          creator: data.creator,
+          owner: data.owner,
+          allUsers: allPresenceUsers.map(u => ({ id: u.id, name: u.profile.displayName })) 
+        }
+      )
+      
+      // 他の方法でマッチングを試す（例：creatorやownerフィールドを使用）
+      // または部分的なIDマッチング
+      presenceUser = allPresenceUsers.find(user => 
+        user.id === data.creator || 
+        user.id === data.owner ||
+        networkId.includes(user.id.substring(0, 8)) ||
+        user.id.includes(networkId.substring(0, 8))
+      )
+      
+      nickname = presenceUser?.profile.displayName
+      
+      if (nickname) {
+        this.logger.debug(
+          `[NAF] Found user through alternative matching: ${nickname} (${presenceUser?.id})`
+        )
+      }
+    }
+
+    // まだニックネームが見つからない場合はUnknownを使用
     if (!nickname) {
       nickname = 'Unknown'
+      this.logger.debug(
+        `[NAF] Could not find displayName for networkId: ${networkId}, creator: ${data.creator}, owner: ${data.owner}`
+      )
     }
 
     // 既存のユーザー情報を取得または新規作成
