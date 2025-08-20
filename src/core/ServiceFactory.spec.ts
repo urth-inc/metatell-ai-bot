@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MetatellBot } from '../bots/MetatellBot.js'
+import { registerLoggerProvider, DefaultLoggerProvider } from '../sdk/logging/index.js'
 import type { MockServiceContainer, ServiceFactory as ServiceFactoryType } from '../test-utils/service-mocks.js'
 import { findRegisterCall } from '../test-utils/service-mocks.js'
 import type { BotConfiguration } from './interfaces/IConfigurationProvider.js'
@@ -14,6 +15,9 @@ import { MessageService } from './services/MessageService.js'
 import { PresenceManager } from './services/PresenceManager.js'
 import { RateLimiter } from './services/RateLimiter.js'
 import { WebSocketConnectionManager } from './services/WebSocketConnectionManager.js'
+
+// Register logger provider for tests
+registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
 
 // Mock all service modules
 vi.mock('./ServiceContainer')

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { registerLoggerProvider, DefaultLoggerProvider } from '../../sdk/logging/index.js'
 import { noop } from '../../test-utils/helpers.js'
 import { findMockCall } from '../../test-utils/mocks.js'
 import type { IEventBus } from '../interfaces/IEventBus.js'
@@ -6,6 +7,9 @@ import { SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
 import type { IPresenceManager } from '../interfaces/IPresenceManager.js'
 import { UserAvatarManager } from './UserAvatarManager.js'
+
+// Register logger provider for tests
+registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
 
 describe('UserAvatarManager', () => {
   let userAvatarManager: UserAvatarManager
