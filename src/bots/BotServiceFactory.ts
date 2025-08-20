@@ -2,25 +2,25 @@
  * Bot Service Factory - Application Layer Service Factory
  * Extends CoreServiceFactory and adds application-specific services like MetatellBot
  */
-import { MetatellBot } from '../bots/MetatellBot.js'
+import { MetatellBot } from './MetatellBot.js'
+import { CoreServiceFactory } from '../core/CoreServiceFactory.js'
+import type { ServiceContainer } from '../core/ServiceContainer.js'
 import type {
   BotConfiguration,
   IConfigurationProvider,
-} from './interfaces/IConfigurationProvider.js'
-import type { IConnectionManager } from './interfaces/IConnectionManager.js'
-import type { IAvatarController } from './interfaces/IAvatarController.js'
-import type { IPresenceManager } from './interfaces/IPresenceManager.js'
-import type { IMessageService } from './interfaces/IMessageService.js'
-import type { IUserAvatarManager } from './interfaces/IUserAvatarManager.js'
-import type { IAppSettings } from './interfaces/IAppSettings.js'
-import { CoreServiceFactory } from './CoreServiceFactory.js'
-import type { ServiceContainer } from './ServiceContainer.js'
+} from '../core/interfaces/IConfigurationProvider.js'
+import type { IConnectionManager } from '../core/interfaces/IConnectionManager.js'
+import type { IAvatarController } from '../core/interfaces/IAvatarController.js'
+import type { IPresenceManager } from '../core/interfaces/IPresenceManager.js'
+import type { IMessageService } from '../core/interfaces/IMessageService.js'
+import type { IUserAvatarManager } from '../core/interfaces/IUserAvatarManager.js'
+import type { IAppSettings } from '../core/interfaces/IAppSettings.js'
 
 /**
  * Application layer service factory that extends CoreServiceFactory
  * This includes all core services plus application-specific services like MetatellBot
  */
-export class ServiceFactory extends CoreServiceFactory {
+export class BotServiceFactory extends CoreServiceFactory {
   constructor(config?: BotConfiguration) {
     super(config)
     this.registerBotServices()

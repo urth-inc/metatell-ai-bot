@@ -1,39 +1,39 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { MetatellBot } from '../bots/MetatellBot.js'
+import { MetatellBot } from './MetatellBot.js'
 import { registerLoggerProvider, DefaultLoggerProvider } from '../sdk/logging/index.js'
 import type { MockServiceContainer, ServiceFactory as ServiceFactoryType } from '../test-utils/service-mocks.js'
 import { findRegisterCall } from '../test-utils/service-mocks.js'
-import type { BotConfiguration } from './interfaces/IConfigurationProvider.js'
-import { ServiceContainer } from './ServiceContainer.js'
-import { ServiceFactory } from './ServiceFactory.js'
-import { AppSettings } from './services/AppSettings.js'
-import { AuthenticationService } from './services/AuthenticationService.js'
-import { AvatarController } from './services/AvatarController.js'
-import { ConfigurationProvider } from './services/ConfigurationProvider.js'
-import { EventBus } from './services/EventBus.js'
-import { MessageService } from './services/MessageService.js'
-import { PresenceManager } from './services/PresenceManager.js'
-import { RateLimiter } from './services/RateLimiter.js'
-import { WebSocketConnectionManager } from './services/WebSocketConnectionManager.js'
+import type { BotConfiguration } from '../core/interfaces/IConfigurationProvider.js'
+import { ServiceContainer } from '../core/ServiceContainer.js'
+import { BotServiceFactory } from './BotServiceFactory.js'
+import { AppSettings } from '../core/services/AppSettings.js'
+import { AuthenticationService } from '../core/services/AuthenticationService.js'
+import { AvatarController } from '../core/services/AvatarController.js'
+import { ConfigurationProvider } from '../core/services/ConfigurationProvider.js'
+import { EventBus } from '../core/services/EventBus.js'
+import { MessageService } from '../core/services/MessageService.js'
+import { PresenceManager } from '../core/services/PresenceManager.js'
+import { RateLimiter } from '../core/services/RateLimiter.js'
+import { WebSocketConnectionManager } from '../core/services/WebSocketConnectionManager.js'
 
 // Register logger provider for tests
 registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
 
 // Mock all service modules
-vi.mock('./ServiceContainer')
-vi.mock('./services/AppSettings')
-vi.mock('./services/EventBus')
-vi.mock('./services/ConfigurationProvider')
-vi.mock('./services/RateLimiter')
-vi.mock('./services/AuthenticationService')
-vi.mock('./services/WebSocketConnectionManager')
-vi.mock('./services/MessageService')
-vi.mock('./services/AvatarController')
-vi.mock('./services/PresenceManager')
-vi.mock('../bots/MetatellBot')
+vi.mock('../core/ServiceContainer')
+vi.mock('../core/services/AppSettings')
+vi.mock('../core/services/EventBus')
+vi.mock('../core/services/ConfigurationProvider')
+vi.mock('../core/services/RateLimiter')
+vi.mock('../core/services/AuthenticationService')
+vi.mock('../core/services/WebSocketConnectionManager')
+vi.mock('../core/services/MessageService')
+vi.mock('../core/services/AvatarController')
+vi.mock('../core/services/PresenceManager')
+vi.mock('./MetatellBot')
 
-describe('ServiceFactory', () => {
-  let serviceFactory: ServiceFactory
+describe('BotServiceFactory', () => {
+  let serviceFactory: BotServiceFactory
   let mockContainer: MockServiceContainer
 
   beforeEach(() => {
@@ -56,13 +56,13 @@ describe('ServiceFactory', () => {
 
   describe('constructor', () => {
     it('should create a ServiceContainer', () => {
-      const factory = new ServiceFactory()
+      const factory = new BotServiceFactory()
       expect(ServiceContainer).toHaveBeenCalled()
       expect(factory).toBeDefined()
     })
 
     it('should register all services', () => {
-      const _factory = new ServiceFactory()
+      const _factory = new BotServiceFactory()
       const registeredServices = [
         'IAppSettings',
         'IEventBus',
@@ -89,7 +89,7 @@ describe('ServiceFactory', () => {
   describe('service registrations', () => {
     beforeEach(() => {
       // Create factory for service registration tests
-      serviceFactory = new ServiceFactory()
+      serviceFactory = new BotServiceFactory()
     })
 
     it('should register all services as singletons', () => {
@@ -324,7 +324,7 @@ describe('ServiceFactory', () => {
       mockContainer.get.mockReturnValue(mockBot)
 
       // Create new factory with config - this triggers constructor registrations
-      const factory = new ServiceFactory(config)
+      const factory = new BotServiceFactory(config)
 
       // Get the registration call for ConfigurationProvider
       const configProviderCall = mockContainer.register.mock.calls.find(
@@ -361,7 +361,7 @@ describe('ServiceFactory', () => {
       mockContainer.get.mockReturnValue(mockBot)
 
       // Factory without config uses defaults
-      const factory = new ServiceFactory()
+      const factory = new BotServiceFactory()
 
       // Get the registration call for ConfigurationProvider
       const configProviderCall = mockContainer.register.mock.calls.find(
@@ -397,7 +397,7 @@ describe('ServiceFactory', () => {
   describe('utility methods', () => {
     beforeEach(() => {
       // Create factory for utility method tests
-      serviceFactory = new ServiceFactory()
+      serviceFactory = new BotServiceFactory()
     })
 
     it('should return container', () => {
