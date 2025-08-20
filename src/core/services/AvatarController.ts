@@ -8,6 +8,7 @@ import type {
 import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
+import { NafMessageBuilder, NafComponentId } from '../builders/NafMessageBuilder.js'
 
 export class AvatarController implements IAvatarController {
   private state: AvatarState | null = null
@@ -212,15 +213,15 @@ export class AvatarController implements IAvatarController {
 
     this.state = { ...this.state, ...state }
 
-    const components: Record<string, unknown> = {}
+    const components: Partial<Record<NafComponentId, unknown>> = {}
 
     if (state.position) {
-      components['0'] = { isVector3: true, ...state.position }
+      components[NafComponentId.Position] = { isVector3: true, ...state.position }
     }
 
     if (state.rotation) {
       const euler = this.quaternionToEuler(state.rotation)
-      components['14'] = {
+      components[NafComponentId.BodyRotation] = {
         x: euler.x,
         y: euler.y,
         z: euler.z,
@@ -228,7 +229,7 @@ export class AvatarController implements IAvatarController {
     }
 
     if (state.avatarSrc || state.avatarId) {
-      components['3'] = {
+      components[NafComponentId.Avatar] = {
         avatarSrc: this.state.avatarSrc,
         avatarType: 'skinnable',
         muted: false,
@@ -237,7 +238,7 @@ export class AvatarController implements IAvatarController {
     }
 
     const nafData = {
-      dataType: 'um',
+      dataType: 'um' as const,
       data: {
         d: [
           {
@@ -272,47 +273,39 @@ export class AvatarController implements IAvatarController {
       throw new Error('Avatar not spawned')
     }
 
-    const timestamp = Date.now()
-
-    // 既存のアバター状態を isFirstSync: true で再送信
-    const nafMessage = {
-      dataType: 'u',
-      data: {
-        networkId: this.state.networkId,
-        owner: this.sessionId,
-        creator: this.sessionId,
-        lastOwnerTime: timestamp,
-        template: '#remote-avatar',
-        persistent: false,
-        isFirstSync: true,  // 重要: 新規ユーザーに対して初回同期フラグを設定
-        forceRender: false,
-        megaphone: false,
-        temporaryMegaphone: false,
-        parent: null,
-        components: {
-          '0': { isVector3: true, ...this.state.position },
-          '1': { x: 0, y: 0, z: 0 },
-          '2': { x: 1, y: 1, z: 1 },
-          '3': {
-            avatarSrc: this.state.avatarSrc,
-            avatarType: 'skinnable',
-            muted: false,
-            isSharingAvatarCamera: false,
-          },
-          '4': { x: 0, y: 0, z: 0, w: 1 },
-          '5': { x: 0, y: 0, z: 0, w: 1 },
-          '6': { x: 0, y: 0, z: 0, w: 1 },
-          '7': { x: 0, y: 0, z: 0 },
-          '8': { x: 0, y: 0, z: 0 },
-          '9': false,
-          '10': { x: 0, y: 0, z: 0 },
-          '11': { x: 1, y: 1, z: 1 },
-          '12': false,
-          '13': null,
-          '14': { x: 0, y: 0, z: 0 },
-        },
-      },
-    }
+    // Build NAF message using the builder pattern
+    const nafMessage = new NafMessageBuilder()
+      .withDataType('u')
+      .withNetworkId(this.state.networkId)
+      .withOwner(this.sessionId)
+      .withCreator(this.sessionId)
+      .withLastOwnerTime()
+      .withTemplate('#remote-avatar')
+      .withPersistent(false)
+      .withFirstSync(true)  // Important: Set first sync flag for new users
+      .withPosition(this.state.position)
+      .withVelocity({ x: 0, y: 0, z: 0 })
+      .withScale({ x: 1, y: 1, z: 1 })
+      .withAvatar({
+        avatarSrc: this.state.avatarSrc || '',
+        avatarType: 'skinnable',
+        muted: false,
+        isSharingAvatarCamera: false,
+      })
+      .withHeadRotation({ x: 0, y: 0, z: 0, w: 1 })
+      .withLeftHandRotation({ x: 0, y: 0, z: 0, w: 1 })
+      .withRightHandRotation({ x: 0, y: 0, z: 0, w: 1 })
+      .withLeftHandPosition({ x: 0, y: 0, z: 0 })
+      .withRightHandPosition({ x: 0, y: 0, z: 0 })
+      .withHandRaised(false)
+      .withPinPosition({ x: 0, y: 0, z: 0 })
+      .withPinScale({ x: 1, y: 1, z: 1 })
+      .withFaceSnapshotEnabled(false)
+      .withFaceSnapshot(null)
+      .withBodyRotation({ x: 0, y: 0, z: 0 })
+      .withMegaphone(false)
+      .withTemporaryMegaphone(false)
+      .build()
     
     await this.messageService.sendNAF(nafMessage)
     
