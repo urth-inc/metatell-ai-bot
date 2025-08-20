@@ -51,15 +51,18 @@ describe('ServiceFactory', () => {
     const MockedServiceContainer = ServiceContainer as unknown as { new (): MockServiceContainer }
     vi.mocked(MockedServiceContainer).mockImplementation(() => mockContainer)
 
-    serviceFactory = new ServiceFactory()
+    // Don't create serviceFactory here, let each test create it with/without config
   })
 
   describe('constructor', () => {
     it('should create a ServiceContainer', () => {
+      const factory = new ServiceFactory()
       expect(ServiceContainer).toHaveBeenCalled()
+      expect(factory).toBeDefined()
     })
 
     it('should register all services', () => {
+      const factory = new ServiceFactory()
       const registeredServices = [
         'IAppSettings',
         'IEventBus',
@@ -84,6 +87,11 @@ describe('ServiceFactory', () => {
   })
 
   describe('service registrations', () => {
+    beforeEach(() => {
+      // Create factory for service registration tests
+      serviceFactory = new ServiceFactory()
+    })
+
     it('should register all services as singletons', () => {
       const singletonServices = [
         'IAppSettings',
@@ -301,7 +309,7 @@ describe('ServiceFactory', () => {
   })
 
   describe('createBot', () => {
-    it('should create bot with configuration', () => {
+    it('should create bot when factory initialized with configuration', () => {
       const config: BotConfiguration = {
         authUrl: 'https://test.auth',
         hubUrl: 'https://test.hub',
@@ -311,28 +319,74 @@ describe('ServiceFactory', () => {
         debug: true,
       }
 
+      // Mock the bot return
       const mockBot = {}
       mockContainer.get.mockReturnValue(mockBot)
 
-      const bot = serviceFactory.createBot(config)
+      // Create new factory with config - this triggers constructor registrations
+      const factory = new ServiceFactory(config)
 
-      // Verify ConfigurationProvider was created with config
-      expect(ConfigurationProvider).toHaveBeenCalledWith(config)
+      // Get the registration call for ConfigurationProvider
+      const configProviderCall = mockContainer.register.mock.calls.find(
+        call => call[0] === 'IConfigurationProvider'
+      )
       
-      // Verify AppSettings was created with debug mode from config
-      expect(AppSettings).toHaveBeenCalledWith(true)
-
-      // Find the registrations that happen in createBot
-      const configRegistrations = mockContainer.register.mock.calls.filter(
-        (call) => call[0] === 'IConfigurationProvider',
-      )
-      const appSettingsRegistrations = mockContainer.register.mock.calls.filter(
-        (call) => call[0] === 'IAppSettings',
+      // Get the registration call for AppSettings  
+      const appSettingsCall = mockContainer.register.mock.calls.find(
+        call => call[0] === 'IAppSettings'
       )
 
-      // Should have 2 registrations: one in constructor, one in createBot
-      expect(configRegistrations).toHaveLength(2)
-      expect(appSettingsRegistrations).toHaveLength(2)
+      // Call the factory functions to verify they were configured correctly
+      if (configProviderCall && configProviderCall[1]) {
+        const factory = configProviderCall[1] as () => unknown
+        factory()
+        expect(ConfigurationProvider).toHaveBeenCalledWith(config)
+      }
+
+      if (appSettingsCall && appSettingsCall[1]) {
+        const factory = appSettingsCall[1] as () => unknown
+        factory()
+        expect(AppSettings).toHaveBeenCalledWith(true)
+      }
+
+      const bot = factory.createBot()
+
+      // Get bot from container
+      expect(mockContainer.get).toHaveBeenCalledWith('MetatellBot')
+      expect(bot).toBe(mockBot)
+    })
+
+    it('should create bot when factory initialized without configuration', () => {
+      const mockBot = {}
+      mockContainer.get.mockReturnValue(mockBot)
+
+      // Factory without config uses defaults
+      const factory = new ServiceFactory()
+
+      // Get the registration call for ConfigurationProvider
+      const configProviderCall = mockContainer.register.mock.calls.find(
+        call => call[0] === 'IConfigurationProvider'
+      )
+      
+      // Get the registration call for AppSettings
+      const appSettingsCall = mockContainer.register.mock.calls.find(
+        call => call[0] === 'IAppSettings'
+      )
+
+      // Call the factory functions to verify they were configured correctly
+      if (configProviderCall && configProviderCall[1]) {
+        const factory = configProviderCall[1] as () => unknown
+        factory()
+        expect(ConfigurationProvider).toHaveBeenCalledWith({})
+      }
+
+      if (appSettingsCall && appSettingsCall[1]) {
+        const factory = appSettingsCall[1] as () => unknown
+        factory()
+        expect(AppSettings).toHaveBeenCalledWith(false)
+      }
+
+      const bot = factory.createBot()
 
       // Get bot from container
       expect(mockContainer.get).toHaveBeenCalledWith('MetatellBot')
@@ -341,6 +395,11 @@ describe('ServiceFactory', () => {
   })
 
   describe('utility methods', () => {
+    beforeEach(() => {
+      // Create factory for utility method tests
+      serviceFactory = new ServiceFactory()
+    })
+
     it('should return container', () => {
       const container = serviceFactory.getContainer()
       expect(container).toBe(mockContainer)

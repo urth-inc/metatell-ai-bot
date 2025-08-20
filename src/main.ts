@@ -85,8 +85,7 @@ async function main() {
     process.exit(1)
   }
 
-  // Create bot using factory
-  const factory = new ServiceFactory()
+  // Create bot configuration
   const botConfig: BotConfiguration = {
     authUrl: socketUrl,
     hubUrl: metatellUrl,
@@ -103,8 +102,8 @@ async function main() {
     debug: config.debug,
   }
 
-  // ボットを作成（AppSettingsも初期化される）
-  factory.createBot(botConfig)
+  // Initialize ServiceFactory with configuration (no runtime re-registration)
+  const factory = new ServiceFactory(botConfig)
   
   // AppSettingsを取得してLoggingシステムを設定
   const appSettings = factory.getService<import('./core/interfaces/IAppSettings.js').IAppSettings>('IAppSettings')

@@ -27,25 +27,26 @@ import { WebSocketConnectionManager } from './services/WebSocketConnectionManage
 export class ServiceFactory {
   private container: ServiceContainer
 
-  constructor() {
+  constructor(config?: BotConfiguration) {
     this.container = new ServiceContainer()
-    this.registerServices()
+    this.registerServices(config)
   }
 
-  private registerServices(): void {
-    // Register AppSettings (singleton)
-    this.container.register<IAppSettings>('IAppSettings', () => new AppSettings(), { singleton: true })
+  private registerServices(config?: BotConfiguration): void {
+    // Register AppSettings (singleton) - initialized with config if provided
+    this.container.register<IAppSettings>(
+      'IAppSettings', 
+      () => new AppSettings(config?.debug || false), 
+      { singleton: true }
+    )
 
     // Register EventBus (singleton)
     this.container.register<IEventBus>('IEventBus', () => new EventBus(), { singleton: true })
 
-    // Register ConfigurationProvider (singleton)
+    // Register ConfigurationProvider (singleton) - initialized with config if provided
     this.container.register<IConfigurationProvider>(
       'IConfigurationProvider',
-      (container) => {
-        // This will be initialized with actual config
-        return container.get<IConfigurationProvider>('IConfigurationProvider')
-      },
+      () => new ConfigurationProvider(config || {} as BotConfiguration),
       { singleton: true },
     )
 
@@ -140,24 +141,8 @@ export class ServiceFactory {
     )
   }
 
-  public createBot(config: BotConfiguration): MetatellBot {
-    // Initialize configuration
-    const configProvider = new ConfigurationProvider(config)
-    this.container.register<IConfigurationProvider>(
-      'IConfigurationProvider',
-      () => configProvider,
-      { singleton: true },
-    )
-
-    // Initialize app settings with debug mode from config
-    const appSettings = new AppSettings(config.debug || false)
-    this.container.register<IAppSettings>(
-      'IAppSettings',
-      () => appSettings,
-      { singleton: true },
-    )
-
-    // Return bot instance
+  public createBot(): MetatellBot {
+    // Simply return the bot instance, configuration is already set during construction
     return this.container.get<MetatellBot>('MetatellBot')
   }
 
