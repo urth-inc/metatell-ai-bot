@@ -28,9 +28,24 @@ describe('MetatellBot', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // Mock channel
+    // Mock channel with Phoenix Channel-like behavior
     mockChannel = {
-      push: vi.fn(),
+      push: vi.fn().mockReturnValue({
+        receive: vi.fn((status, callback) => {
+          if (status === 'ok') {
+            // Simulate immediate success for tests
+            setTimeout(() => callback?.(), 0)
+          }
+          return {
+            receive: vi.fn((nextStatus, _nextCallback) => {
+              if (nextStatus === 'error' || nextStatus === 'timeout') {
+                // Don't call error/timeout callbacks in successful tests
+              }
+              return { receive: vi.fn() }
+            })
+          }
+        })
+      }),
       on: vi.fn(),
       leave: vi.fn(),
       join: vi.fn().mockReturnValue({ receive: vi.fn().mockReturnThis() }),

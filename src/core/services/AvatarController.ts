@@ -8,7 +8,7 @@ import type {
 import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
-import { NafMessageBuilder, NafComponentId } from '../builders/NafMessageBuilder.js'
+import { NafMessageBuilder } from '../builders/NafMessageBuilder.js'
 
 export class AvatarController implements IAvatarController {
   private state: AvatarState | null = null
@@ -46,77 +46,40 @@ export class AvatarController implements IAvatarController {
       displayName: config.profile.displayName,
     }
 
-    // Send initial NAF message (dataType: 'u')
-    const nafMessage = {
-      dataType: 'u',
-      data: {
-        networkId,
-        owner: this.sessionId,
-        creator: this.sessionId,
-        lastOwnerTime: timestamp,
-        template: '#remote-avatar',
-        persistent: false,
-        isFirstSync: true,
-        forceRender: false,
-        megaphone: false,
-        temporaryMegaphone: false,
-        parent: null,
-        components: {
-          '0': { isVector3: true, ...spawnPosition }, // position
-          '1': { x: 0, y: 0, z: 0 }, // rotation
-          '2': { x: 1, y: 1, z: 1 }, // scale
-          '3': {
-            // player-info
-            avatarSrc: this.state.avatarSrc,
-            avatarType: 'skinnable',
-            muted: false,
-            isSharingAvatarCamera: false,
-          },
-          '4': { x: 0, y: 0, z: 0, w: 1 }, // head quaternion
-          '5': { x: 0, y: 0, z: 0, w: 1 }, // left hand quaternion
-          '6': { x: 0, y: 0, z: 0, w: 1 }, // right hand quaternion
-          '7': { x: 0, y: 0, z: 0 }, // head position
-          '8': { x: 0, y: 0, z: 0 }, // left hand position
-          '9': false, // pinned
-          '10': { x: 0, y: 0, z: 0 }, // right hand position
-          '11': { x: 1, y: 1, z: 1 }, // scale
-          '12': false, // visible
-          '13': null, // media-loader
-          '14': { x: 0, y: 0, z: 0 }, // networked-avatar
-        },
-      },
-    }
+    // Send initial NAF message using builder pattern
+    const nafMessage = new NafMessageBuilder()
+      .withDataType('u')
+      .withNetworkId(networkId)
+      .withOwner(this.sessionId)
+      .withCreator(this.sessionId)
+      .withFirstSync(true)
+      .withPosition(spawnPosition)
+      .withAvatar({
+        avatarSrc: this.state.avatarSrc || '',
+        avatarType: 'skinnable',
+        muted: false,
+        isSharingAvatarCamera: false,
+      })
+      .build()
+
     await this.messageService.sendNAF(nafMessage)
 
-    // Send NAFR message (dataType: 'um') for updates
-    const nafrData = {
-      dataType: 'um',
-      data: {
-        d: [
-          {
-            networkId,
-            owner: this.sessionId,
-            creator: this.sessionId,
-            lastOwnerTime: timestamp,
-            template: '#remote-avatar',
-            persistent: false,
-            parent: null,
-            components: {
-              '0': { isVector3: true, ...spawnPosition },
-              '1': { x: 0, y: 0, z: 0 },
-              '3': {
-                avatarSrc: this.state.avatarSrc,
-                avatarType: 'skinnable',
-                muted: false,
-                isSharingAvatarCamera: false,
-              },
-              '14': { x: 0, y: 0, z: 0 },
-            },
-          },
-        ],
-      },
-    }
-    await this.messageService.sendNAFR(nafrData)
+    // Send NAFR message using builder pattern
+    const nafrMessage = new NafMessageBuilder()
+      .withDataType('um')
+      .withNetworkId(networkId)
+      .withOwner(this.sessionId)
+      .withCreator(this.sessionId)
+      .withPosition(spawnPosition)
+      .withAvatar({
+        avatarSrc: this.state.avatarSrc || '',
+        avatarType: 'skinnable',
+        muted: false,
+        isSharingAvatarCamera: false,
+      })
+      .build()
+
+    await this.messageService.sendNAFR(nafrMessage)
 
     // Emit event
     this.eventBus.emit(SystemEvents.AVATAR_SPAWNED, this.state)
@@ -130,27 +93,15 @@ export class AvatarController implements IAvatarController {
 
     this.state.position = position
 
-    const nafData = {
-      dataType: 'um',
-      data: {
-        d: [
-          {
-            networkId: this.state.networkId,
-            owner: this.sessionId,
-            creator: this.sessionId,
-            lastOwnerTime: Date.now(),
-            template: '#remote-avatar',
-            persistent: false,
-            parent: null,
-            components: {
-              '0': { isVector3: true, ...position },
-            },
-          },
-        ],
-      },
-    }
+    const nafMessage = new NafMessageBuilder()
+      .withDataType('um')
+      .withNetworkId(this.state.networkId)
+      .withOwner(this.sessionId)
+      .withCreator(this.sessionId)
+      .withPosition(position)
+      .build()
 
-    await this.messageService.sendNAFR(nafData)
+    await this.messageService.sendNAFR(nafMessage)
     this.eventBus.emit(SystemEvents.AVATAR_MOVED, this.state)
     this.logger.debug(`Avatar moved to position (${position.x}, ${position.y}, ${position.z})`)
   }
@@ -165,27 +116,15 @@ export class AvatarController implements IAvatarController {
     // クォータニオンをオイラー角（度数）に変換
     const euler = this.quaternionToEuler(rotation)
 
-    const nafData = {
-      dataType: 'um',
-      data: {
-        d: [
-          {
-            networkId: this.state.networkId,
-            owner: this.sessionId,
-            creator: this.sessionId,
-            lastOwnerTime: Date.now(),
-            template: '#remote-avatar',
-            persistent: false,
-            parent: null,
-            components: {
-              '14': { x: euler.x, y: euler.y, z: euler.z }, // ブラウザクライアント準拠（オイラー角、度数）
-            },
-          },
-        ],
-      },
-    }
+    const nafMessage = new NafMessageBuilder()
+      .withDataType('um')
+      .withNetworkId(this.state.networkId)
+      .withOwner(this.sessionId)
+      .withCreator(this.sessionId)
+      .withBodyRotation(euler) // ブラウザクライアント準拠（オイラー角、度数）
+      .build()
 
-    await this.messageService.sendNAFR(nafData)
+    await this.messageService.sendNAFR(nafMessage)
     this.eventBus.emit(SystemEvents.AVATAR_UPDATED, this.state)
   }
 
@@ -213,49 +152,33 @@ export class AvatarController implements IAvatarController {
 
     this.state = { ...this.state, ...state }
 
-    const components: Partial<Record<NafComponentId, unknown>> = {}
+    // Use builder pattern for consistent NAF message construction
+    let builder = new NafMessageBuilder()
+      .withDataType('um')
+      .withNetworkId(this.state.networkId)
+      .withOwner(this.sessionId)
+      .withCreator(this.sessionId)
 
     if (state.position) {
-      components[NafComponentId.Position] = { isVector3: true, ...state.position }
+      builder = builder.withPosition(state.position)
     }
 
     if (state.rotation) {
       const euler = this.quaternionToEuler(state.rotation)
-      components[NafComponentId.BodyRotation] = {
-        x: euler.x,
-        y: euler.y,
-        z: euler.z,
-      }
+      builder = builder.withBodyRotation(euler)
     }
 
     if (state.avatarSrc || state.avatarId) {
-      components[NafComponentId.Avatar] = {
-        avatarSrc: this.state.avatarSrc,
+      builder = builder.withAvatar({
+        avatarSrc: this.state.avatarSrc || '',
         avatarType: 'skinnable',
         muted: false,
         isSharingAvatarCamera: false,
-      }
+      })
     }
 
-    const nafData = {
-      dataType: 'um' as const,
-      data: {
-        d: [
-          {
-            networkId: this.state.networkId,
-            owner: this.sessionId,
-            creator: this.sessionId,
-            lastOwnerTime: Date.now(),
-            template: '#remote-avatar',
-            persistent: false,
-            parent: null,
-            components,
-          },
-        ],
-      },
-    }
-
-    await this.messageService.sendNAFR(nafData)
+    const nafMessage = builder.build()
+    await this.messageService.sendNAFR(nafMessage)
     this.eventBus.emit(SystemEvents.AVATAR_UPDATED, this.state)
   }
 

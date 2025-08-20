@@ -5,7 +5,7 @@ import { Command } from 'commander'
 import { ConfigManager } from './cli/config/config.js'
 import { startInkCli } from './cli/startInkCli.js'
 import type { BotConfiguration } from './core/interfaces/IConfigurationProvider.js'
-import { ServiceFactory } from './core/ServiceFactory.js'
+import { CoreServiceFactory } from './core/CoreServiceFactory.js'
 import { createAgentClient } from './sdk/AgentClient.js'
 import { registerLoggerProvider, getLogger, DefaultLoggerProvider } from './sdk/logging/index.js'
 
@@ -102,8 +102,8 @@ async function main() {
     debug: config.debug,
   }
 
-  // Initialize ServiceFactory with configuration (no runtime re-registration)
-  const factory = new ServiceFactory(botConfig)
+  // Initialize CoreServiceFactory with configuration (SDK core services only)
+  const factory = new CoreServiceFactory(botConfig)
   
   // AppSettingsを取得してLoggingシステムを設定
   const appSettings = factory.getService<import('./core/interfaces/IAppSettings.js').IAppSettings>('IAppSettings')

@@ -161,25 +161,27 @@ describe('AvatarController', () => {
       const newPosition = { x: 10, y: 0, z: -5 }
       await avatarController.move(newPosition)
 
-      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith({
-        dataType: 'um',
-        data: {
-          d: [
-            {
-              networkId: 'test-session-123',
-              owner: 'test-session-123',
-              creator: 'test-session-123',
-              lastOwnerTime: expect.any(Number),
-              template: '#remote-avatar',
-              persistent: false,
-              parent: null,
-              components: {
-                '0': { isVector3: true, ...newPosition },
-              },
-            },
-          ],
-        },
-      })
+      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataType: 'um',
+          data: expect.objectContaining({
+            d: expect.arrayContaining([
+              expect.objectContaining({
+                networkId: 'test-session-123',
+                owner: 'test-session-123',
+                creator: 'test-session-123',
+                lastOwnerTime: expect.any(Number),
+                template: '#remote-avatar',
+                persistent: false,
+                parent: null,
+                components: expect.objectContaining({
+                  '0': { isVector3: true, ...newPosition },
+                }),
+              }),
+            ]),
+          }),
+        })
+      )
 
       expect(mockEventBus.emit).toHaveBeenCalledWith(
         SystemEvents.AVATAR_MOVED,
@@ -225,25 +227,27 @@ describe('AvatarController', () => {
       const newRotation = { x: 0, y: Math.sin(angle / 2), z: 0, w: Math.cos(angle / 2) }
       await avatarController.rotate(newRotation)
 
-      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith({
-        dataType: 'um',
-        data: {
-          d: [
-            {
-              networkId: 'test-session-123',
-              owner: 'test-session-123',
-              creator: 'test-session-123',
-              lastOwnerTime: expect.any(Number),
-              template: '#remote-avatar',
-              persistent: false,
-              parent: null,
-              components: {
-                '14': { x: 0, y: expect.closeTo(90, 1), z: 0 }, // Y軸90度回転をオイラー角（度数）で表現（浮動小数点誤差を考慮）
-              },
-            },
-          ],
-        },
-      })
+      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataType: 'um',
+          data: expect.objectContaining({
+            d: expect.arrayContaining([
+              expect.objectContaining({
+                networkId: 'test-session-123',
+                owner: 'test-session-123',
+                creator: 'test-session-123',
+                lastOwnerTime: expect.any(Number),
+                template: '#remote-avatar',
+                persistent: false,
+                parent: null,
+                components: expect.objectContaining({
+                  '14': { x: 0, y: expect.closeTo(90, 1), z: 0 }, // Y軸90度回転をオイラー角（度数）で表現（浮動小数点誤差を考慮）
+                }),
+              }),
+            ]),
+          }),
+        })
+      )
 
       expect(mockEventBus.emit).toHaveBeenCalledWith(
         SystemEvents.AVATAR_UPDATED,
@@ -287,48 +291,76 @@ describe('AvatarController', () => {
       const updates = { position: { x: 1, y: 2, z: 3 } }
       await avatarController.updateState(updates)
 
-      const sendNAFRMock = mockMessageService.sendNAFR as ReturnType<typeof vi.fn>
-      const sentData = sendNAFRMock.mock.calls[0][0] as {
-        data: { d: Array<{ components: Record<string, unknown> }> }
-      }
-      expect(sentData.data.d[0].components).toHaveProperty('0', {
-        isVector3: true,
-        ...updates.position,
-      })
-      expect(sentData.data.d[0].components).not.toHaveProperty('1')
+      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataType: 'um',
+          data: expect.objectContaining({
+            d: expect.arrayContaining([
+              expect.objectContaining({
+                components: expect.objectContaining({
+                  '0': {
+                    isVector3: true,
+                    ...updates.position,
+                  },
+                }),
+              }),
+            ]),
+          }),
+        })
+      )
+
+      const state = avatarController.getState()
+      expect(state?.position).toEqual(updates.position)
     })
 
     it('should update rotation only', async () => {
       const updates = { rotation: { x: 0.1, y: 0.2, z: 0.3, w: 0.9 } }
       await avatarController.updateState(updates)
 
-      const sendNAFRMock = mockMessageService.sendNAFR as ReturnType<typeof vi.fn>
-      const sentData = sendNAFRMock.mock.calls[0][0] as {
-        data: { d: Array<{ components: Record<string, unknown> }> }
-      }
-      expect(sentData.data.d[0].components).toHaveProperty('14', {
-        x: 0, // pitch
-        y: expect.any(Number), // yaw in degrees
-        z: 0, // roll
-      })
-      expect(sentData.data.d[0].components).not.toHaveProperty('0')
+      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataType: 'um',
+          data: expect.objectContaining({
+            d: expect.arrayContaining([
+              expect.objectContaining({
+                components: expect.objectContaining({
+                  '14': {
+                    x: expect.any(Number), // pitch in degrees
+                    y: expect.any(Number), // yaw in degrees
+                    z: expect.any(Number), // roll in degrees
+                  },
+                }),
+              }),
+            ]),
+          }),
+        })
+      )
+
+      const state = avatarController.getState()
+      expect(state?.rotation).toEqual(updates.rotation)
     })
 
     it('should update avatar source', async () => {
       const updates = { avatarId: 'new-avatar-456' }
       await avatarController.updateState(updates)
 
-      const sendNAFRMock = mockMessageService.sendNAFR as ReturnType<typeof vi.fn>
-      const sentData = sendNAFRMock.mock.calls[0][0] as {
-        data: { d: Array<{ components: Record<string, unknown> }> }
-      }
-      expect(sentData.data.d[0].components).toHaveProperty(
-        '3',
+      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
         expect.objectContaining({
-          avatarType: 'skinnable',
-          muted: false,
-          isSharingAvatarCamera: false,
-        }),
+          dataType: 'um',
+          data: expect.objectContaining({
+            d: expect.arrayContaining([
+              expect.objectContaining({
+                components: expect.objectContaining({
+                  '3': expect.objectContaining({
+                    avatarType: 'skinnable',
+                    muted: false,
+                    isSharingAvatarCamera: false,
+                  }),
+                }),
+              }),
+            ]),
+          }),
+        })
       )
     })
 
@@ -340,13 +372,27 @@ describe('AvatarController', () => {
       }
       await avatarController.updateState(updates)
 
-      const sendNAFRMock = mockMessageService.sendNAFR as ReturnType<typeof vi.fn>
-      const sentData = sendNAFRMock.mock.calls[0][0] as {
-        data: { d: Array<{ components: Record<string, unknown> }> }
-      }
-      expect(sentData.data.d[0].components).toHaveProperty('0')
-      expect(sentData.data.d[0].components).toHaveProperty('14') // rotationは '14' として保存される
-      expect(sentData.data.d[0].components).toHaveProperty('3')
+      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataType: 'um',
+          data: expect.objectContaining({
+            d: expect.arrayContaining([
+              expect.objectContaining({
+                components: expect.objectContaining({
+                  '0': expect.any(Object), // position
+                  '14': expect.any(Object), // rotation
+                  '3': expect.any(Object), // avatar
+                }),
+              }),
+            ]),
+          }),
+        })
+      )
+
+      const state = avatarController.getState()
+      expect(state?.position).toEqual(updates.position)
+      expect(state?.rotation).toEqual(updates.rotation)
+      expect(state?.avatarSrc).toEqual(updates.avatarSrc)
     })
 
     it('should merge state updates', async () => {

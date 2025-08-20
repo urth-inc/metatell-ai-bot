@@ -2,13 +2,47 @@
  * Agent Client - facade for CLI/SDK usage
  */
 
-import type { MetatellBot } from '../bots/MetatellBot.js'
+import type { IAvatarController } from '../core/interfaces/IAvatarController.js'
 import type { IConnectionManager } from '../core/interfaces/IConnectionManager.js'
 import type { IEventBus } from '../core/interfaces/IEventBus.js'
+import type { IMessageService } from '../core/interfaces/IMessageService.js'
 import type { IUserAvatarManager, UserAvatar } from '../core/interfaces/IUserAvatarManager.js'
-import type { ServiceFactory } from '../core/ServiceFactory.js'
+import type { CoreServiceFactory } from '../core/CoreServiceFactory.js'
 import { getLogger } from './logging/index.js'
 import { RateLimitedQueue } from './rate.js'
+
+/**
+ * Type-safe event definitions for AgentClient
+ * Maps event names to their handler signatures
+ */
+export interface AgentClientEvents {
+  // Connection events
+  'connection:established': () => void
+  'connection:lost': () => void
+  'connection:error': (error: Error) => void
+  
+  // Room events
+  'room:joined': (data: { session_id: string }) => void
+  'room:left': () => void
+  
+  // User events
+  'user:joined': (user: UserAvatar) => void
+  'user:left': (user: UserAvatar) => void
+  'user:updated': (user: UserAvatar) => void
+  'user:moved': (user: UserAvatar) => void
+  
+  // Message events
+  'message:received': (data: { body: string; session_id: string }) => void
+  'message:sent': (message: string) => void
+  
+  // Avatar events
+  'avatar:spawned': (state: { networkId: string; position: { x: number; y: number; z: number } }) => void
+  'avatar:moved': (state: { position: { x: number; y: number; z: number } }) => void
+  'avatar:updated': (state: unknown) => void
+  
+  // Error events
+  'error': (error: Error) => void
+}
 
 export interface ConnectionOptions {
   url: string
@@ -60,9 +94,9 @@ export interface AgentClient {
   getUser(id: string): UserAvatar | undefined
   getUsersNearby(radius: number): UserAvatar[]
 
-  // Event handling
-  on(event: string, handler: (...args: unknown[]) => void): void
-  off(event: string, handler: (...args: unknown[]) => void): void
+  // Event handling (type-safe)
+  on<E extends keyof AgentClientEvents>(event: E, handler: AgentClientEvents[E]): void
+  off<E extends keyof AgentClientEvents>(event: E, handler: AgentClientEvents[E]): void
 
   // Utilities
   setRateLimit(key: 'messages' | 'moves' | 'looks', perSecond: number): void
@@ -73,8 +107,10 @@ export interface AgentClient {
  * Default implementation using existing services
  */
 export class DefaultAgentClient implements AgentClient {
-  private bot: MetatellBot
+  private avatarController: IAvatarController
+  private messageService: IMessageService
   private userAvatarManager: IUserAvatarManager
+  private connectionManager: IConnectionManager
   private eventBus: IEventBus
   private rateLimiter = new RateLimitedQueue()
   private logger = getLogger('AgentClient')
@@ -85,12 +121,14 @@ export class DefaultAgentClient implements AgentClient {
   }
 
   constructor(
-    private factory: ServiceFactory,
+    factory: CoreServiceFactory,
     config: AgentClientConfig = {},
   ) {
-    // 既存のサービスを取得
-    this.bot = factory.getService('MetatellBot') as MetatellBot
+    // コアサービスインターフェースのみに依存
+    this.avatarController = factory.getService('IAvatarController') as IAvatarController
+    this.messageService = factory.getService('IMessageService') as IMessageService
     this.userAvatarManager = factory.getService('IUserAvatarManager') as IUserAvatarManager
+    this.connectionManager = factory.getService('IConnectionManager') as IConnectionManager
     this.eventBus = factory.getService('IEventBus') as IEventBus
 
     // レート制限の設定
@@ -137,16 +175,14 @@ export class DefaultAgentClient implements AgentClient {
         }
       }
 
-      // Pass connection info directly to bot.start()
-      await this.bot.start({
+      // Connect through connection manager directly
+      await this.connectionManager.connect({
         authUrl,
         hubId,
-        authToken: options.token,
       })
 
       // セッションIDを取得
-      const connectionManager = this.factory.getService('IConnectionManager') as IConnectionManager
-      const sessionId = connectionManager.getSessionId()
+      const sessionId = this.connectionManager.getSessionId()
       this.status.sessionId = sessionId || undefined
 
       this.status.connected = true
@@ -166,7 +202,7 @@ export class DefaultAgentClient implements AgentClient {
 
   async disconnect(): Promise<void> {
     this.logger.info('Disconnecting from server')
-    await this.bot.stop()
+    await this.connectionManager.disconnect()
     this.status.connected = false
     this.status.room = undefined
     this.status.sessionId = undefined
@@ -191,14 +227,14 @@ export class DefaultAgentClient implements AgentClient {
   async send(message: string): Promise<void> {
     return this.rateLimiter.execute('messages', async () => {
       this.logger.debug('Sending message', { message })
-      await this.bot.sendMessage(message)
+      await this.messageService.sendMessage(message)
     })
   }
 
   async move(position: { x: number; y: number; z: number }): Promise<void> {
     return this.rateLimiter.execute('moves', async () => {
       this.logger.debug('Moving avatar', position)
-      await this.bot.moveAvatar(position)
+      await this.avatarController.move(position)
     })
   }
 
@@ -206,10 +242,14 @@ export class DefaultAgentClient implements AgentClient {
     return this.rateLimiter.execute('looks', async () => {
       if ('userId' in target) {
         this.logger.debug('Looking at user', { userId: target.userId })
-        await this.bot.lookAtUser(target.userId)
+        const user = this.userAvatarManager.getUser(target.userId)
+        if (!user) {
+          throw new Error(`User not found: ${target.userId}`)
+        }
+        await this.lookAtPosition(user.position)
       } else {
         this.logger.debug('Looking at position', target)
-        await this.bot.lookAt(target)
+        await this.lookAtPosition(target)
       }
     })
   }
@@ -217,8 +257,40 @@ export class DefaultAgentClient implements AgentClient {
   async lookAtNearest(): Promise<void> {
     return this.rateLimiter.execute('looks', async () => {
       this.logger.debug('Looking at nearest user')
-      await this.bot.lookAtNearestUser()
+      const currentState = this.avatarController.getState()
+      if (!currentState) {
+        throw new Error('Avatar not spawned')
+      }
+
+      const nearestUser = this.userAvatarManager.getNearestUser(currentState.position)
+      if (!nearestUser) {
+        throw new Error('No users found')
+      }
+
+      await this.lookAtPosition(nearestUser.position)
     })
+  }
+
+  private async lookAtPosition(target: { x: number; y: number; z: number }): Promise<void> {
+    const currentState = this.avatarController.getState()
+    if (!currentState) {
+      throw new Error('Avatar not spawned')
+    }
+
+    // 向く方向を計算（Y軸回転のみ）
+    const dx = target.x - currentState.position.x
+    const dz = target.z - currentState.position.z
+    const angle = Math.atan2(dx, dz)
+
+    // クォータニオンに変換（Y軸回転）
+    const rotation = {
+      x: 0,
+      y: Math.sin(angle / 2),
+      z: 0,
+      w: Math.cos(angle / 2),
+    }
+
+    await this.avatarController.rotate(rotation)
   }
 
   getUsers(): UserAvatar[] {
@@ -230,19 +302,19 @@ export class DefaultAgentClient implements AgentClient {
   }
 
   getUsersNearby(radius: number): UserAvatar[] {
-    const botState = this.bot.getAvatarState()
-    if (!botState) return []
-    return this.userAvatarManager.getUsersInRange(botState.position, radius)
+    const avatarState = this.avatarController.getState()
+    if (!avatarState) return []
+    return this.userAvatarManager.getUsersInRange(avatarState.position, radius)
   }
 
-  on(event: string, handler: (...args: unknown[]) => void): void {
-    // Proxy to internal event bus
-    this.eventBus.on(event, handler)
+  on<E extends keyof AgentClientEvents>(event: E, handler: AgentClientEvents[E]): void {
+    // Proxy to internal event bus (cast needed for compatibility with existing EventBus interface)
+    this.eventBus.on(event as string, handler as (...args: unknown[]) => void)
   }
 
-  off(event: string, handler: (...args: unknown[]) => void): void {
-    // Proxy to internal event bus
-    this.eventBus.off(event, handler)
+  off<E extends keyof AgentClientEvents>(event: E, handler: AgentClientEvents[E]): void {
+    // Proxy to internal event bus (cast needed for compatibility with existing EventBus interface)
+    this.eventBus.off(event as string, handler as (...args: unknown[]) => void)
   }
 
   setRateLimit(key: 'messages' | 'moves' | 'looks', perSecond: number): void {
@@ -258,7 +330,7 @@ export class DefaultAgentClient implements AgentClient {
  * Factory function to create agent client
  */
 export function createAgentClient(
-  factory: ServiceFactory,
+  factory: CoreServiceFactory,
   config?: AgentClientConfig,
 ): AgentClient {
   return new DefaultAgentClient(factory, config)

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createAgentClient } from './AgentClient.js'
-import { ServiceFactory } from '../core/ServiceFactory.js'
+import { CoreServiceFactory } from '../core/CoreServiceFactory.js'
 import type { BotConfiguration } from '../core/interfaces/IConfigurationProvider.js'
 
 describe('AgentClient', () => {
-  let factory: ServiceFactory
+  let factory: CoreServiceFactory
   let botConfig: BotConfiguration
 
   beforeEach(() => {
@@ -24,7 +24,7 @@ describe('AgentClient', () => {
       debug: false,
     }
     
-    factory = new ServiceFactory(botConfig)
+    factory = new CoreServiceFactory(botConfig)
   })
 
   describe('event handling', () => {

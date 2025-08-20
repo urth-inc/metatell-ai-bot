@@ -311,14 +311,31 @@ export class MetatellBot {
       throw new Error('Not connected to hub')
     }
 
-    // Send entering event
+    // Send entering event and wait for server confirmation
     this.logger.info('Sending entering event...')
-    channel.push('events:entering', {})
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const push = channel.push('events:entering', {})
+        push
+          .receive('ok', () => {
+            this.logger.debug('Entering event acknowledged by server')
+            resolve()
+          })
+          .receive('error', (error) => {
+            this.logger.error('Entering event failed:', error)
+            reject(new Error(`Entering event failed: ${JSON.stringify(error)}`))
+          })
+          .receive('timeout', () => {
+            this.logger.error('Entering event timed out')
+            reject(new Error('Entering event timed out'))
+          })
+      })
+    } catch (error) {
+      this.logger.error('Failed to send entering event:', error)
+      throw error
+    }
 
-    // Wait a bit
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // Send entered event
+    // Send entered event and wait for confirmation
     const enteredPayload = {
       initialOccupantCount: 0,
       isNewDaily: true,
@@ -330,8 +347,28 @@ export class MetatellBot {
     }
 
     this.logger.info('Sending entered event...', enteredPayload)
-    channel.push('events:entered', enteredPayload)
-    this.logger.info('✅ Entered room')
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const push = channel.push('events:entered', enteredPayload)
+        push
+          .receive('ok', () => {
+            this.logger.debug('Entered event acknowledged by server')
+            resolve()
+          })
+          .receive('error', (error) => {
+            this.logger.error('Entered event failed:', error)
+            reject(new Error(`Entered event failed: ${JSON.stringify(error)}`))
+          })
+          .receive('timeout', () => {
+            this.logger.error('Entered event timed out')
+            reject(new Error('Entered event timed out'))
+          })
+      })
+      this.logger.info('✅ Entered room successfully')
+    } catch (error) {
+      this.logger.error('Failed to enter room:', error)
+      throw error
+    }
   }
 
   public isActive(): boolean {

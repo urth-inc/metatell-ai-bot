@@ -1,5 +1,6 @@
 import { logger } from '../../utils/logger.js'
 import { createRetry } from '../../utils/retry.js'
+import { NafComponentId } from '../builders/NafMessageBuilder.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
 import type { IPresenceManager } from '../interfaces/IPresenceManager.js'
@@ -14,12 +15,7 @@ interface NAFComponent {
   owner: string
   creator: string
   template: string
-  components: {
-    '0'?: { x: number; y: number; z: number; isVector3?: boolean } // Position
-    '1'?: { x: number; y: number; z: number } // Rotation (quaternion without w)
-    '3'?: { avatarSrc?: string; avatarType?: string } // Avatar info
-    '14'?: { x: number; y: number; z: number } // Rotation (euler angles in degrees)
-  }
+  components: Record<string, unknown>
 }
 
 interface NAFMessage {
@@ -158,7 +154,7 @@ export class UserAvatarManager implements IUserAvatarManager {
     const isNewUser = !existingUser
 
     // 位置情報を取得
-    const positionComponent = data.components['0']
+    const positionComponent = data.components[NafComponentId.Position] as { x: number; y: number; z: number; isVector3?: boolean } | undefined
     const position = positionComponent || existingUser?.position
 
     // 位置情報がない場合は処理をスキップ（デフォルト値を設定しない）
@@ -174,23 +170,26 @@ export class UserAvatarManager implements IUserAvatarManager {
       )
     }
 
-    // 回転情報を取得（コンポーネント'14'はオイラー角、'1'はクォータニオン）
+    // 回転情報を取得（オイラー角またはクォータニオン）
     let rotation = existingUser?.rotation
-    if (data.components['14']) {
+    if (data.components[NafComponentId.BodyRotation]) {
       // オイラー角（度数）からクォータニオンに変換
-      const { x, y, z } = data.components['14']
+      const eulerRotation = data.components[NafComponentId.BodyRotation] as { x: number; y: number; z: number }
+      const { x, y, z } = eulerRotation
       rotation = this.eulerToQuaternion(x, y, z)
-    } else if (data.components['1']) {
+    } else if (data.components[NafComponentId.Velocity]) {
       // 従来のクォータニオン形式（後方互換性）
-      const { x, y, z } = data.components['1']
+      const velocityRotation = data.components[NafComponentId.Velocity] as { x: number; y: number; z: number }
+      const { x, y, z } = velocityRotation
       // クォータニオンの w を計算（正規化されていると仮定）
       const w = Math.sqrt(Math.max(0, 1 - x * x - y * y - z * z))
       rotation = { x, y, z, w }
     }
 
     // アバターID を取得
-    const avatarId = data.components['3']?.avatarSrc
-      ? this.extractAvatarId(data.components['3'].avatarSrc)
+    const avatarComponent = data.components[NafComponentId.Avatar] as { avatarSrc?: string } | undefined
+    const avatarId = avatarComponent?.avatarSrc
+      ? this.extractAvatarId(avatarComponent.avatarSrc)
       : existingUser?.avatarId
 
     const userAvatar: UserAvatar = {
