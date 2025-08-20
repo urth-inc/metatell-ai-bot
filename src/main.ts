@@ -108,6 +108,29 @@ async function main() {
   // AppSettingsを取得してLoggingシステムを設定
   const appSettings = factory.getService<import('./core/interfaces/IAppSettings.js').IAppSettings>('IAppSettings')
   const provider = new DefaultLoggerProvider()
+  
+  // デバッグモード変更時のログレベル制御をここで行う（責務の分離）
+  appSettings.onDebugModeChanged((enabled) => {
+    // ログレベルをデバッグモードに応じて設定
+    appSettings.setLogLevel(enabled ? 'debug' : 'info')
+    
+    if (enabled) {
+      console.log('🔍 Debug mode enabled via AppSettings')
+      console.log('🔍 Bot configuration:', {
+        authUrl: socketUrl,
+        hubUrl: metatellUrl,
+        hubId: hubId,
+        botName: botName,
+        avatarId: avatarId,
+        debug: enabled
+      })
+      provider.enableConsole(true)
+    } else {
+      provider.enableConsole(false)
+    }
+  })
+  
+  // 初期状態でデバッグモードが有効な場合も処理
   if (appSettings.debugMode) {
     console.log('🔍 Debug mode enabled via AppSettings')
     console.log('🔍 Bot configuration:', {

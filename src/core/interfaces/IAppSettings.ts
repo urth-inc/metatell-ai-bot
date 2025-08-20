@@ -5,4 +5,5 @@ export interface IAppSettings {
   // 設定変更の通知
   onDebugModeChanged(callback: (enabled: boolean) => void): void
   setDebugMode(enabled: boolean): void
+  setLogLevel(level: 'debug' | 'info' | 'warn' | 'error'): void
 }

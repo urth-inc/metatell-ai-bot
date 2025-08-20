@@ -25,7 +25,8 @@ describe('AppSettings', () => {
     
     expect(callback).toHaveBeenCalledWith(true)
     expect(appSettings.debugMode).toBe(true)
-    expect(appSettings.logLevel).toBe('debug')
+    // setDebugMode no longer changes logLevel directly (responsibility separation)
+    expect(appSettings.logLevel).toBe('info')
   })
 
   it('should not notify when debug mode value is the same', () => {
@@ -72,15 +73,39 @@ describe('AppSettings', () => {
     consoleSpy.mockRestore()
   })
 
-  it('should update log level when debug mode changes', () => {
+  it('should allow manual log level changes via setLogLevel', () => {
     const appSettings = new AppSettings(false, 'warn')
     
     expect(appSettings.logLevel).toBe('warn')
     
-    appSettings.setDebugMode(true)
+    // Log level can now be changed independently of debug mode
+    appSettings.setLogLevel('debug')
     expect(appSettings.logLevel).toBe('debug')
+    expect(appSettings.debugMode).toBe(false) // Debug mode unchanged
     
-    appSettings.setDebugMode(false)
+    appSettings.setLogLevel('error')
+    expect(appSettings.logLevel).toBe('error')
+  })
+
+  it('should demonstrate responsibility separation between debug mode and log level', () => {
+    const appSettings = new AppSettings(false, 'info')
+    let callbackInvoked = false
+    
+    // Set up callback to simulate external log level management (like in main.ts)
+    appSettings.onDebugModeChanged((enabled) => {
+      callbackInvoked = true
+      // External code is responsible for setting log level based on debug mode
+      appSettings.setLogLevel(enabled ? 'debug' : 'info')
+    })
+    
     expect(appSettings.logLevel).toBe('info')
+    expect(callbackInvoked).toBe(false)
+    
+    // Change debug mode - this should trigger callback, not directly change log level
+    appSettings.setDebugMode(true)
+    
+    expect(callbackInvoked).toBe(true)
+    expect(appSettings.debugMode).toBe(true)
+    expect(appSettings.logLevel).toBe('debug') // Changed by callback, not setDebugMode
   })
 })

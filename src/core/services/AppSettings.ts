@@ -25,7 +25,6 @@ export class AppSettings implements IAppSettings {
   setDebugMode(enabled: boolean): void {
     if (this._debugMode !== enabled) {
       this._debugMode = enabled
-      this._logLevel = enabled ? 'debug' : 'info'
       
       // 全てのコールバックに通知
       for (const callback of this.debugCallbacks) {
@@ -36,5 +35,9 @@ export class AppSettings implements IAppSettings {
         }
       }
     }
+  }
+
+  setLogLevel(level: 'debug' | 'info' | 'warn' | 'error'): void {
+    this._logLevel = level
   }
 }

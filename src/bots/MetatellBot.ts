@@ -208,18 +208,16 @@ export class MetatellBot {
         this.logger.debug('Welcome message error:', { error })
       })
 
-      // 重要: 新規ユーザーに対して既存のアバター情報を再送信
+      // 重要: 新規ユーザーに対して既存のアバター情報を即座に送信
+      // joinイベントが発火した時点で、ユーザーのクライアントは初期化済み
       const currentState = this.avatarController.getState()
       if (currentState) {
-        // 少し遅延を入れて、新規ユーザーの初期化が完了するのを待つ
-        setTimeout(async () => {
-          try {
-            await this.avatarController.resyncAvatar()
-            this.logger.debug(`Resynced avatar for new user: ${displayName}`)
-          } catch (error) {
-            this.logger.error('Failed to resync avatar:', error)
-          }
-        }, 1000) // 1秒の遅延
+        try {
+          await this.avatarController.resyncAvatar()
+          this.logger.debug(`Resynced avatar for new user: ${displayName}`)
+        } catch (error) {
+          this.logger.error('Failed to resync avatar:', { error, user: displayName })
+        }
       }
     }
   }

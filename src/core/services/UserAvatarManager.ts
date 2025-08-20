@@ -1,4 +1,5 @@
 import { logger } from '../../utils/logger.js'
+import { createRetry } from '../../utils/retry.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
 import type { IPresenceManager } from '../interfaces/IPresenceManager.js'
@@ -66,21 +67,37 @@ export class UserAvatarManager implements IUserAvatarManager {
     })
   }
 
-  private validateUsersAfterReconnection(): void {
+  private async validateUsersAfterReconnection(): Promise<void> {
     const userCount = this.users.size
-    if (userCount > 0) {
-      logger.debug(`[UserAvatarManager] Validating ${userCount} users after reconnection`)
-      // 5秒後にPresenceManagerと同期をチェック
-      setTimeout(() => {
+    if (userCount === 0) return
+
+    logger.debug(`[UserAvatarManager] Validating ${userCount} users after reconnection`)
+
+    // ネットワーク再接続後の状態同期用にカスタム設定
+    const networkRetry = createRetry({
+      maxAttempts: 10,
+      initialDelayMs: 1000,
+      maxDelayMs: 32000,
+      backoffMultiplier: 2,
+    })
+
+    try {
+      await networkRetry.waitUntil(() => {
         const presenceUsers = this.presenceManager.getUsers()
         logger.debug(
-          `[UserAvatarManager] Post-reconnection: ${presenceUsers.length} presence users, ${this.users.size} avatar users`,
+          `[UserAvatarManager] Post-reconnection check: ${presenceUsers.length} presence users, ${this.users.size} avatar users`,
         )
-
-        if (presenceUsers.length > 0 && this.users.size === 0) {
-          logger.debug('[UserAvatarManager] WARNING: Users lost after reconnection!')
-        }
-      }, 5000)
+        
+        // ユーザーリストが回復していれば成功
+        return this.users.size > 0
+      })
+      
+      logger.debug('[UserAvatarManager] User list validated after reconnection')
+    } catch {
+      const presenceUsers = this.presenceManager.getUsers()
+      if (presenceUsers.length > 0 && this.users.size === 0) {
+        logger.error('[UserAvatarManager] All users were lost after reconnection and did not recover after retries!')
+      }
     }
   }
 
