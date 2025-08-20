@@ -8,12 +8,12 @@ import type {
 import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
-import { NafMessageBuilder, NafComponentId } from '../builders/NafMessageBuilder.js'
+import { NafMessageBuilder } from '../builders/NafMessageBuilder.js'
 
 // Constants for default values
 const DEFAULT_TEMPLATE = '#remote-avatar'
 const DEFAULT_AVATAR_TYPE = 'skinnable'
-const USER_AGENT = 'MetatellBot/1.0'
+const _USER_AGENT = 'MetatellBot/1.0'
 
 export class AvatarController implements IAvatarController {
   private state: AvatarState | null = null
