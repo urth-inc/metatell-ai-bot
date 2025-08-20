@@ -32,8 +32,10 @@ export class UserAvatarManager implements IUserAvatarManager {
     private presenceManager: IPresenceManager,
     private eventBus: IEventBus,
   ) {
+    this.logger.info('[UserAvatarManager] Initializing...')
     this.setupEventListeners()
     this.setupConnectionMonitoring()
+    this.logger.info('[UserAvatarManager] Initialized')
   }
 
   private setupEventListeners(): void {
@@ -123,21 +125,20 @@ export class UserAvatarManager implements IUserAvatarManager {
     const networkId = data.networkId
     if (!networkId) return
 
-    // デバッグ: NAFメッセージの構造をログ出力（最初の10回のみ）
+    // デバッグ: NAFメッセージの構造をログ出力（最初の10回）
     const debugCounter = '_UserAvatarManager_debugCount'
     const globalState = globalThis as unknown as Record<string, number>
     if (!(debugCounter in globalState)) globalState[debugCounter] = 0
-    if (globalState[debugCounter] < 3) {
+    if (globalState[debugCounter] < 10) {
       this.logger.debug(
-        `[DEBUG] NAF message for ${networkId}:`,
-        JSON.stringify(
-          {
-            networkId,
-            components: data.components,
-          },
-          null,
-          2,
-        ),
+        `[DEBUG] NAF message #${globalState[debugCounter] + 1} for ${networkId}:`,
+        {
+          networkId,
+          creator: data.creator,
+          owner: data.owner,
+          template: data.template,
+          componentsKeys: Object.keys(data.components || {}),
+        }
       )
       globalState[debugCounter]++
     }

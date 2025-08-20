@@ -12,6 +12,7 @@ import {
   getLogger,
   DefaultLoggerProvider,
 } from '@metatell/sdk'
+import { FileLogger } from './utils/logging/file-logger.js'
 
 // Register default logger provider at startup
 // Allow overwrite in case tests already registered one
@@ -114,12 +115,21 @@ async function main() {
   const appSettings = factory.getService<import('@metatell/sdk').IAppSettings>('IAppSettings')
   const provider = new DefaultLoggerProvider()
   
-  // デバッグモードでコンソールログを有効化
+  // デバッグモードでファイルログを有効化
   if (config.debug) {
     appSettings.setDebugMode(true)
     appSettings.setLogLevel('debug')
-    provider.enableConsole(true)
-    mainLogger.info('Debug mode enabled via CLI flag')
+    
+    // ファイルロガーを追加
+    const fileLogger = new FileLogger()
+    provider.registerSink(fileLogger)
+    
+    // CLIモードではコンソールログを無効化（CLIインターフェースと競合するため）
+    provider.enableConsole(false)
+    
+    mainLogger.info('Debug mode enabled with file logging', { 
+      logFile: fileLogger.getFilePath() 
+    })
   }
   
   // デバッグモード変更時のログレベル制御をここで行う（責務の分離）
