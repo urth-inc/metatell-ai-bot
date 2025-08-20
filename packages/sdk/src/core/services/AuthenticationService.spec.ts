@@ -48,7 +48,7 @@ describe('AuthenticationService', () => {
     it('should generate mock token when no token provided', async () => {
       const authToken = await authService.authenticate({})
 
-      expect(authToken.token).toMatch(/^mock-token-\d+$/)
+      expect(authToken.token).toMatch(/^mock-token-\d+-test-hub$/)
       expect(authToken.expiresAt).toBeGreaterThan(Date.now())
     })
 
@@ -82,7 +82,7 @@ describe('AuthenticationService', () => {
       const refreshedToken = await authService.refreshToken()
 
       expect(refreshedToken.token).not.toBe(firstTokenValue)
-      expect(refreshedToken.token).toMatch(/^mock-token-\d+$/)
+      expect(refreshedToken.token).toMatch(/^mock-token-\d+-test-hub$/)
     })
 
     it('should update stored token', async () => {

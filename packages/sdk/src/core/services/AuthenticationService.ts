@@ -7,10 +7,10 @@ import type { IConfigurationProvider } from '../interfaces/IConfigurationProvide
 
 export class AuthenticationService implements IAuthenticationService {
   private token: AuthToken | null = null
+  private configProvider: IConfigurationProvider
 
-  constructor(_configProvider: IConfigurationProvider) {
-    // Keep reference for potential future use
-    // Currently unused but may be needed for fetching auth configuration
+  constructor(configProvider: IConfigurationProvider) {
+    this.configProvider = configProvider
   }
 
   async authenticate(credentials: AuthCredentials): Promise<AuthToken> {
@@ -23,10 +23,13 @@ export class AuthenticationService implements IAuthenticationService {
       return this.token
     }
 
+    // Get auth configuration from config provider
+    const config = this.configProvider.getConfiguration()
+    
     // For now, generate a mock token since the auth endpoint is not fully implemented
-    // In production, this should make a real API call
+    // In production, this should make a real API call to config.authUrl
     this.token = {
-      token: `mock-token-${Date.now()}`,
+      token: `mock-token-${Date.now()}-${config.hubId || 'default'}`,
       expiresAt: Date.now() + 24 * 60 * 60 * 1000,
     }
 
