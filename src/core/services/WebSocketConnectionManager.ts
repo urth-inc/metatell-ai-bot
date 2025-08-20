@@ -17,7 +17,7 @@ export class WebSocketConnectionManager implements IConnectionManager {
     private appSettings: IAppSettings,
   ) {
     if (this.appSettings.debugMode) {
-      console.log('🔍 WebSocketConnectionManager: Debug mode is ON')
+      this.logger.debug('Debug mode is ON')
     }
   }
 
@@ -115,7 +115,6 @@ export class WebSocketConnectionManager implements IConnectionManager {
 
           debugEvents.forEach(event => {
             this.hubChannel?.on(event, (payload: unknown) => {
-              console.log(`🔍 [WS_RECEIVE] ${event}:`, payload)
               this.logger.debug('[WS_RECEIVE]', { event, payload })
             })
           })

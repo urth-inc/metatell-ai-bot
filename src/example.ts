@@ -4,6 +4,9 @@ import {
   type MetatellConfig,
   type PresenceData,
 } from './metatell-client'
+import { getLogger } from './sdk/logging/index.js'
+
+const logger = getLogger('Example')
 
 // カスタムボットクラスの例
 class MetatellAIBot extends MetatellClient {
@@ -103,7 +106,7 @@ async function main() {
       process.exit(0)
     })
   } catch (error) {
-    console.error('❌ Error:', error)
+    logger.error('Error', { error })
     bot.disconnect()
     process.exit(1)
   }
@@ -132,11 +135,14 @@ async function _authenticatedExample() {
 
     bot.sendMessage('Authenticated bot is ready!')
   } catch (error) {
-    console.error('Authentication error:', error)
+    logger.error('Authentication error', { error })
   }
 }
 
 // エントリーポイント
 if (require.main === module) {
-  main().catch(console.error)
+  main().catch((error) => {
+    logger.error('Fatal error', { error })
+    process.exit(1)
+  })
 }

@@ -1,9 +1,11 @@
 import type { IAppSettings } from '../interfaces/IAppSettings.js'
+import { getLogger } from '../../sdk/logging/index.js'
 
 export class AppSettings implements IAppSettings {
   private _debugMode: boolean
   private _logLevel: 'debug' | 'info' | 'warn' | 'error'
   private debugCallbacks: ((enabled: boolean) => void)[] = []
+  private logger = getLogger('AppSettings')
 
   constructor(debugMode = false, logLevel: 'debug' | 'info' | 'warn' | 'error' = 'info') {
     this._debugMode = debugMode
@@ -31,7 +33,7 @@ export class AppSettings implements IAppSettings {
         try {
           callback(enabled)
         } catch (error) {
-          console.error('Error in debug mode callback:', error)
+          this.logger.error('Error in debug mode callback', { error })
         }
       }
     }

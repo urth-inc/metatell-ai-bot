@@ -1,5 +1,6 @@
 import { logger } from '../../utils/logger.js'
 import { createRetry } from '../../utils/retry.js'
+import { getLogger } from '../../sdk/logging/index.js'
 import { NafComponentId } from '../builders/NafMessageBuilder.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
@@ -26,6 +27,7 @@ interface NAFMessage {
 export class UserAvatarManager implements IUserAvatarManager {
   private users = new Map<string, UserAvatar>()
   private eventHandlers = new Map<UserAvatarEvent, Set<(user: UserAvatar) => void>>()
+  private logger = getLogger('UserAvatarManager')
 
   constructor(
     private messageService: IMessageService,
@@ -306,7 +308,7 @@ export class UserAvatarManager implements IUserAvatarManager {
         try {
           handler(user)
         } catch (error) {
-          console.error(`Error in ${event} handler:`, error)
+          this.logger.error(`Error in ${event} handler`, { error })
         }
       }
     }

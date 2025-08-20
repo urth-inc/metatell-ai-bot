@@ -14,7 +14,7 @@ export class MessageService implements IMessageService {
     private appSettings: IAppSettings,
   ) {
     if (this.appSettings.debugMode) {
-      console.log('🔍 MessageService: Debug mode is ON')
+      this.logger.debug('Debug mode is ON')
     }
     this.setupChannelListeners()
   }
@@ -30,8 +30,7 @@ export class MessageService implements IMessageService {
       // Setup message listener
       channel.on('message', (payload: unknown) => {
         if (this.appSettings.debugMode) {
-          console.log('🔍 📥 [MESSAGE RECEIVED]', payload)
-          this.logger.debug('📥 [MESSAGE RECEIVED]', payload)
+          this.logger.debug('[MESSAGE RECEIVED]', payload)
         }
         this.handleIncomingMessage('message', payload)
         this.eventBus.emit(SystemEvents.MESSAGE_RECEIVED, payload)
@@ -40,8 +39,7 @@ export class MessageService implements IMessageService {
       // Setup NAF listener
       channel.on('naf', (payload: unknown) => {
         if (this.appSettings.debugMode) {
-          console.log('🔍 📥 [NAF RECEIVED]', payload)
-          this.logger.debug('📥 [NAF RECEIVED]', payload)
+          this.logger.debug('[NAF RECEIVED]', payload)
         }
         this.handleIncomingMessage('naf', payload)
         this.eventBus.emit(SystemEvents.NAF_RECEIVED, payload)
@@ -50,8 +48,7 @@ export class MessageService implements IMessageService {
       // Setup NAFR listener
       channel.on('nafr', (payload: unknown) => {
         if (this.appSettings.debugMode) {
-          console.log('🔍 📥 [NAFR RECEIVED]', payload)
-          this.logger.debug('📥 [NAFR RECEIVED]', payload)
+          this.logger.debug('[NAFR RECEIVED]', payload)
         }
         this.handleIncomingMessage('nafr', payload)
         this.eventBus.emit(SystemEvents.NAFR_RECEIVED, payload)
@@ -80,8 +77,7 @@ export class MessageService implements IMessageService {
 
     const messageData = { body: message, type: 'chat' }
     if (this.appSettings.debugMode) {
-      console.log('🔍 📤 [MESSAGE SENT]', messageData)
-      this.logger.debug('📤 [MESSAGE SENT]', messageData)
+      this.logger.debug('[MESSAGE SENT]', messageData)
     }
 
     // Fire and forget - don't wait for response
@@ -96,8 +92,7 @@ export class MessageService implements IMessageService {
     }
 
     if (this.appSettings.debugMode) {
-      console.log('🔍 📤 [NAF SENT]', data)
-      this.logger.debug('📤 [NAF SENT]', data)
+      this.logger.debug('[NAF SENT]', data)
     }
 
     // Fire and forget - don't wait for response
@@ -112,8 +107,7 @@ export class MessageService implements IMessageService {
 
     const nafrData = { naf: JSON.stringify(data) }
     if (this.appSettings.debugMode) {
-      console.log('🔍 📤 [NAFR SENT]', nafrData)
-      this.logger.debug('📤 [NAFR SENT]', nafrData)
+      this.logger.debug('[NAFR SENT]', nafrData)
     }
 
     // Fire and forget - don't wait for response

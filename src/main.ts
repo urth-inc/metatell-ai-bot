@@ -43,10 +43,11 @@ async function main() {
   const [url] = program.args
   
   // デバッグモードの場合、パース結果を表示
+  const mainLogger = getLogger('Main')
   if (options.debug) {
-    console.log('🔍 Debug mode enabled via CLI')
-    console.log('🔍 Parsed options:', options)
-    console.log('🔍 URL:', url)
+    mainLogger.debug('Debug mode enabled via CLI')
+    mainLogger.debug('Parsed options', options)
+    mainLogger.debug('URL', { url })
   }
 
   // フラグをConfigManager用の形式に変換
@@ -81,7 +82,7 @@ async function main() {
     // Use WebSocket protocol for Socket connection
     socketUrl = `wss://${url.hostname}`
   } catch (_error) {
-    console.error(`Error: Invalid URL format - ${metatellUrl}`)
+    mainLogger.error('Invalid URL format', { url: metatellUrl })
     process.exit(1)
   }
 
@@ -115,8 +116,8 @@ async function main() {
     appSettings.setLogLevel(enabled ? 'debug' : 'info')
     
     if (enabled) {
-      console.log('🔍 Debug mode enabled via AppSettings')
-      console.log('🔍 Bot configuration:', {
+      mainLogger.debug('Debug mode enabled via AppSettings')
+      mainLogger.debug('Bot configuration', {
         authUrl: socketUrl,
         hubUrl: metatellUrl,
         hubId: hubId,
@@ -132,8 +133,8 @@ async function main() {
   
   // 初期状態でデバッグモードが有効な場合も処理
   if (appSettings.debugMode) {
-    console.log('🔍 Debug mode enabled via AppSettings')
-    console.log('🔍 Bot configuration:', {
+    mainLogger.debug('Debug mode enabled via AppSettings')
+    mainLogger.debug('Bot configuration', {
       authUrl: socketUrl,
       hubUrl: metatellUrl,
       hubId: hubId,

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventBus } from './EventBus.js'
+import { getLogger } from '../../sdk/logging/index.js'
 
 describe('EventBus', () => {
   let eventBus: EventBus
@@ -100,7 +101,8 @@ describe('EventBus', () => {
       })
       const normalHandler = vi.fn()
 
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      const logger = getLogger('EventBus')
+      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
 
       eventBus.on('test', errorHandler)
       eventBus.on('test', normalHandler)
@@ -109,12 +111,12 @@ describe('EventBus', () => {
 
       expect(errorHandler).toHaveBeenCalled()
       expect(normalHandler).toHaveBeenCalled()
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error in event handler for "test":',
-        expect.any(Error),
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Error in event handler for "test"',
+        { error: expect.any(Error) },
       )
 
-      consoleErrorSpy.mockRestore()
+      loggerSpy.mockRestore()
     })
 
     it('should catch asynchronous errors in handlers', async () => {
@@ -122,7 +124,8 @@ describe('EventBus', () => {
         throw new Error('Async handler error')
       })
 
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      const logger = getLogger('EventBus')
+      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
 
       eventBus.on('test', errorHandler)
       eventBus.emit('test', 'data')
@@ -130,12 +133,12 @@ describe('EventBus', () => {
       // Wait for promise rejection to be handled
       await new Promise((resolve) => setTimeout(resolve, 0))
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error in event handler for "test":',
-        expect.any(Error),
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Error in event handler for "test"',
+        { error: expect.any(Error) },
       )
 
-      consoleErrorSpy.mockRestore()
+      loggerSpy.mockRestore()
     })
   })
 

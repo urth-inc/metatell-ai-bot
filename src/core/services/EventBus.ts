@@ -1,7 +1,9 @@
 import type { EventHandler, IEventBus } from '../interfaces/IEventBus.js'
+import { getLogger } from '../../sdk/logging/index.js'
 
 export class EventBus implements IEventBus {
   private events = new Map<string, Set<EventHandler>>()
+  private logger = getLogger('EventBus')
 
   on<T = unknown>(event: string, handler: EventHandler<T>): void {
     if (!this.events.has(event)) {
@@ -28,11 +30,11 @@ export class EventBus implements IEventBus {
           const result = handler(data)
           if (result instanceof Promise) {
             result.catch((error) => {
-              console.error(`Error in event handler for "${event}":`, error)
+              this.logger.error(`Error in event handler for "${event}"`, { error })
             })
           }
         } catch (error) {
-          console.error(`Error in event handler for "${event}":`, error)
+          this.logger.error(`Error in event handler for "${event}"`, { error })
         }
       }
     }

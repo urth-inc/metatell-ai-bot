@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { AppSettings } from './AppSettings.js'
+import { getLogger } from '../../sdk/logging/index.js'
 
 describe('AppSettings', () => {
   it('should initialize with default values', () => {
@@ -59,8 +60,9 @@ describe('AppSettings', () => {
     })
     const goodCallback = vi.fn()
     
-    // Spy on console.error to verify error handling
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    // Spy on logger to verify error handling
+    const logger = getLogger('AppSettings')
+    const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
     
     appSettings.onDebugModeChanged(errorCallback)
     appSettings.onDebugModeChanged(goodCallback)
@@ -68,9 +70,9 @@ describe('AppSettings', () => {
     
     expect(errorCallback).toHaveBeenCalledWith(true)
     expect(goodCallback).toHaveBeenCalledWith(true)
-    expect(consoleSpy).toHaveBeenCalledWith('Error in debug mode callback:', expect.any(Error))
+    expect(loggerSpy).toHaveBeenCalledWith('Error in debug mode callback', { error: expect.any(Error) })
     
-    consoleSpy.mockRestore()
+    loggerSpy.mockRestore()
   })
 
   it('should allow manual log level changes via setLogLevel', () => {

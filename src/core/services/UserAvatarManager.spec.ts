@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { registerLoggerProvider, DefaultLoggerProvider } from '../../sdk/logging/index.js'
-import { noop } from '../../test-utils/helpers.js'
+import { registerLoggerProvider, DefaultLoggerProvider, getLogger } from '../../sdk/logging/index.js'
 import { findMockCall } from '../../test-utils/mocks.js'
 import type { IEventBus } from '../interfaces/IEventBus.js'
 import { SystemEvents } from '../interfaces/IEventBus.js'
@@ -499,7 +498,8 @@ describe('UserAvatarManager', () => {
     })
 
     it('should handle errors in event handlers', () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(noop)
+      const logger = getLogger('UserAvatarManager')
+      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
       const errorHandler = vi.fn(() => {
         throw new Error('Handler error')
       })
@@ -528,12 +528,12 @@ describe('UserAvatarManager', () => {
 
       expect(errorHandler).toHaveBeenCalled()
       expect(normalHandler).toHaveBeenCalled()
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error in userJoined handler:',
-        expect.any(Error),
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'Error in userJoined handler',
+        { error: expect.any(Error) },
       )
 
-      consoleErrorSpy.mockRestore()
+      loggerSpy.mockRestore()
     })
   })
 
