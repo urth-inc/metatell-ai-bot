@@ -63,7 +63,7 @@ export interface PhoenixSocketOptions {
   heartbeatIntervalMs?: number
   reconnectAfterMs?: (tries: number) => number
   timeout?: number
-  transport?: any // WebSocket or compatible transport
+  transport?: unknown // WebSocket or compatible transport
 }
 
 export interface PhoenixChannelParams {

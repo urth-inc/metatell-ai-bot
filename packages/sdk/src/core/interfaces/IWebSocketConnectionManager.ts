@@ -9,6 +9,6 @@ export interface IWebSocketConnectionManager {
   disconnect(): void;
   isConnected(): boolean;
   getState(): WebSocketState;
-  on(event: string, handler: (...args: any[]) => void): void;
-  off(event: string, handler: (...args: any[]) => void): void;
+  on(event: string, handler: (...args: unknown[]) => void): void;
+  off(event: string, handler: (...args: unknown[]) => void): void;
 }

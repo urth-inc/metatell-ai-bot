@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { MetatellBot } from './MetatellBot.js'
 import { registerLoggerProvider, DefaultLoggerProvider, type BotConfiguration } from '@metatell/sdk'
 import { BotServiceFactory } from './BotServiceFactory.js'

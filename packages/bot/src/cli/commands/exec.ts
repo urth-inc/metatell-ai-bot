@@ -2,7 +2,7 @@
  * Command execution engine
  */
 
-import type { AgentClient } from '@metatell/sdk'
+import type { AgentClient, UserAvatar } from '@metatell/sdk'
 import { getLogger } from '@metatell/sdk'
 import type { CommandPlan } from './plan.js'
 import { COMMANDS } from './plan.js'
@@ -121,7 +121,7 @@ export class CommandExecutor {
     }
 
     const lines = [`Users within ${radius} units (${users.length}):`]
-    users.forEach((user: any) => {
+    users.forEach((user: UserAvatar) => {
       const distance = Math.sqrt(user.position.x ** 2 + user.position.y ** 2 + user.position.z ** 2)
       lines.push(`  ${user.nickname} - ${distance.toFixed(1)} units away`)
     })
@@ -143,7 +143,7 @@ export class CommandExecutor {
     }
 
     const lines = [`Users in room (${users.length}):`]
-    users.forEach((user: any) => {
+    users.forEach((user: UserAvatar) => {
       lines.push(`  ${user.nickname} (${user.id})`)
       const pos = user.position
       lines.push(

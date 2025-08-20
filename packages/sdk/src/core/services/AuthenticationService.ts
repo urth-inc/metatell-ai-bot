@@ -8,8 +8,9 @@ import type { IConfigurationProvider } from '../interfaces/IConfigurationProvide
 export class AuthenticationService implements IAuthenticationService {
   private token: AuthToken | null = null
 
-  constructor(private readonly _configProvider: IConfigurationProvider) {
+  constructor(_configProvider: IConfigurationProvider) {
     // Keep reference for potential future use
+    // Currently unused but may be needed for fetching auth configuration
   }
 
   async authenticate(credentials: AuthCredentials): Promise<AuthToken> {
