@@ -1,0 +1,27 @@
+{
+  "name": "@metatell/sdk",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "phoenix": "^1.7.7",
+    "ws": "^8.16.0"
+  },
+  "peerDependencies": {
+    "@types/node": "*",
+    "@types/ws": "*"
+  },
+  "license": "MIT"
+}
