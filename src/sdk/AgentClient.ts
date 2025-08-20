@@ -3,6 +3,7 @@
  */
 
 import type { IAvatarController } from '../core/interfaces/IAvatarController.js'
+import type { IConfigurationProvider } from '../core/interfaces/IConfigurationProvider.js'
 import type { IConnectionManager } from '../core/interfaces/IConnectionManager.js'
 import type { IEventBus } from '../core/interfaces/IEventBus.js'
 import type { IMessageService } from '../core/interfaces/IMessageService.js'
@@ -114,6 +115,7 @@ export class DefaultAgentClient implements AgentClient {
   private eventBus: IEventBus
   private rateLimiter = new RateLimitedQueue()
   private logger = getLogger('AgentClient')
+  private factory: CoreServiceFactory
   private status: ConnectionStatus = {
     connected: false,
     connecting: false,
@@ -124,12 +126,16 @@ export class DefaultAgentClient implements AgentClient {
     factory: CoreServiceFactory,
     config: AgentClientConfig = {},
   ) {
+    this.factory = factory
     // コアサービスインターフェースのみに依存
     this.avatarController = factory.getService('IAvatarController') as IAvatarController
     this.messageService = factory.getService('IMessageService') as IMessageService
     this.userAvatarManager = factory.getService('IUserAvatarManager') as IUserAvatarManager
     this.connectionManager = factory.getService('IConnectionManager') as IConnectionManager
     this.eventBus = factory.getService('IEventBus') as IEventBus
+    
+    // Setup event handlers for user join
+    this.setupEventHandlers()
 
     // レート制限の設定
     if (config.rateLimit?.messages) {
@@ -184,6 +190,29 @@ export class DefaultAgentClient implements AgentClient {
       // セッションIDを取得
       const sessionId = this.connectionManager.getSessionId()
       this.status.sessionId = sessionId || undefined
+
+      // Send room entry events
+      const channel = this.connectionManager.getHubChannel()
+      if (channel) {
+        channel.push('events:entering', {})
+        channel.push('events:entered', {
+          initialOccupantCount: 0,
+          isNewDaily: true,
+          isNewMonthly: true,
+          isNewDayWindow: true,
+          isNewMonthWindow: true,
+          entryDisplayType: 'Bot',
+          userAgent: 'MetatellBot/1.0',
+        })
+      }
+
+      // Get avatar configuration and spawn
+      const configProvider = this.factory.getService('IConfigurationProvider') as IConfigurationProvider
+      const config = configProvider.getConfiguration()
+      
+      if (config.profile.avatarId) {
+        await this.avatarController.spawn(config.profile.avatarId)
+      }
 
       this.status.connected = true
       this.status.connecting = false
@@ -323,6 +352,22 @@ export class DefaultAgentClient implements AgentClient {
 
   getRateLimit(key: 'messages' | 'moves' | 'looks'): number | undefined {
     return this.rateLimiter.getRate(key)
+  }
+
+  private setupEventHandlers(): void {
+    // Listen for user join events to resync avatar
+    this.userAvatarManager.on('userJoined', async (user) => {
+      // Resync avatar for new users so they can see the bot
+      const currentState = this.avatarController.getState()
+      if (currentState) {
+        try {
+          await this.avatarController.resyncAvatar()
+          this.logger.debug(`Resynced avatar for new user: ${user.nickname}`)
+        } catch (error) {
+          this.logger.error('Failed to resync avatar:', { error, user: user.nickname })
+        }
+      }
+    })
   }
 }
 
