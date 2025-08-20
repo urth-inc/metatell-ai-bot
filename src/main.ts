@@ -7,7 +7,11 @@ import { startInkCli } from './cli/startInkCli.js'
 import type { BotConfiguration } from './core/interfaces/IConfigurationProvider.js'
 import { ServiceFactory } from './core/ServiceFactory.js'
 import { createAgentClient } from './sdk/AgentClient.js'
-import { createLogger, enableConsole } from './utils/logging/logger-factory.js'
+import { registerLoggerProvider, getLogger, DefaultLoggerProvider } from './sdk/logging/index.js'
+
+// Register default logger provider at startup
+// Allow overwrite in case tests already registered one
+registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
 
 /**
  * Extract hub ID from Metatell URL
@@ -104,6 +108,7 @@ async function main() {
   
   // AppSettingsを取得してLoggingシステムを設定
   const appSettings = factory.getService<import('./core/interfaces/IAppSettings.js').IAppSettings>('IAppSettings')
+  const provider = new DefaultLoggerProvider()
   if (appSettings.debugMode) {
     console.log('🔍 Debug mode enabled via AppSettings')
     console.log('🔍 Bot configuration:', {
@@ -114,7 +119,7 @@ async function main() {
       avatarId: avatarId,
       debug: appSettings.debugMode
     })
-    enableConsole(true)
+    provider.enableConsole(true)
   }
 
   // AgentClient を作成
@@ -149,13 +154,13 @@ async function main() {
 
     // CLI起動完了を通知
     if (!config.debug) {
-      enableConsole(false)
+      provider.enableConsole(false)
     }
     const { logger } = await import('./utils/logger.js')
     logger.notifyCliStarted?.()
 
     // 自動接続
-    createLogger('Main').info('Connecting to', { url: metatellUrl })
+    getLogger('Main').info('Connecting to', { url: metatellUrl })
     await client.connect({
       url: metatellUrl,
       token: authToken,

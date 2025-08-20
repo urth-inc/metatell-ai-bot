@@ -3,7 +3,7 @@
  */
 
 import type { AgentClient } from '../../sdk/AgentClient.js'
-import { createLogger } from '../../utils/logging/logger-factory.js'
+import { getLogger } from '../../sdk/logging/index.js'
 import type { CommandPlan } from './plan.js'
 import { COMMANDS } from './plan.js'
 
@@ -15,7 +15,7 @@ export interface CommandResult {
 }
 
 export class CommandExecutor {
-  private logger = createLogger('CommandExecutor')
+  private logger = getLogger('CommandExecutor')
 
   constructor(private client: AgentClient) {}
 

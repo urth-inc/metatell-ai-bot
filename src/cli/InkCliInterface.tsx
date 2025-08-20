@@ -1,8 +1,8 @@
 import { Box, useApp, useInput, useStdout } from 'ink'
 import type React from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useMemo } from 'react'
 import type { AgentClient } from '../sdk/AgentClient.js'
-import { createLogger, getRingBuffer, type LogRecord } from '../utils/logging/logger-factory.js'
+import { getLogger, getRingBuffer, type CoreLogRecord as LogRecord, type RingBufferLike } from '../sdk/logging/index.js'
 import { CommandExecutor } from './commands/exec.js'
 import { COMMANDS, type CommandPlan, parseCommand } from './commands/plan.js'
 import { Footer } from './components/Footer.js'
@@ -50,28 +50,34 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
     searchQuery: '',
   })
 
-  const logger = createLogger('CLI')
+  const logger = getLogger('CLI')
   const executor = new CommandExecutor(client)
 
-  // イベントキューでバッチ更新
-  const eventQueue = new EventQueue<Partial<UIState>>((updates) => {
-    setState((prev) => {
-      let next = { ...prev }
-      for (const update of updates) {
-        next = { ...next, ...update }
-      }
-      return next
-    })
-  })
+  // イベントキューでバッチ更新（useMemoで安定化）
+  const eventQueue = useMemo(
+    () =>
+      new EventQueue<Partial<UIState>>((updates) => {
+        setState((prev) => {
+          let next = { ...prev }
+          for (const update of updates) {
+            next = { ...next, ...update }
+          }
+          return next
+        })
+      }),
+    []
+  )
 
   // 初期化：バッファされたログを取得
   useEffect(() => {
-    const logs = getRingBuffer().drain()
+    const rb = getRingBuffer() as RingBufferLike
+    const logs = rb.drainNew ? rb.drainNew() : rb.drain()
     eventQueue.push({ logs })
 
     // ログシステムのリスナー設定
     const interval = setInterval(() => {
-      const newLogs = getRingBuffer().drain()
+      const rb = getRingBuffer() as RingBufferLike
+      const newLogs = rb.drainNew ? rb.drainNew() : rb.drain()
       if (newLogs.length > 0) {
         setState((prev) => ({
           ...prev,
@@ -81,7 +87,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
     }, 100)
 
     return () => clearInterval(interval)
-  }, [eventQueue.push])
+  }, [eventQueue]) // EventQueueはuseMemoで安定参照
 
   // 高さ計算
   const terminalHeight = stdout?.rows || 24
@@ -101,7 +107,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
     } else if (!state.isSearching) {
       eventQueue.push({ suggestions: [], selectedSuggestionIndex: 0 })
     }
-  }, [state.input, state.isSearching, eventQueue.push])
+  }, [state.input, state.isSearching, eventQueue])
 
   // ログコマンドの処理
   const handleLogsCommand = useCallback(
@@ -131,7 +137,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
           break
       }
     },
-    [logger, eventQueue.push],
+    [logger, eventQueue],
   )
 
   // コマンド実行
@@ -179,7 +185,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
         logger.error(`Command failed: ${error}`)
       }
     },
-    [state.commandHistory, executor, exit, logger, eventQueue.push, handleLogsCommand],
+    [state.commandHistory, executor, exit, logger, eventQueue, handleLogsCommand],
   )
 
   // キーボード入力処理
