@@ -62,7 +62,7 @@ describe('ServiceFactory', () => {
     })
 
     it('should register all services', () => {
-      const factory = new ServiceFactory()
+      const _factory = new ServiceFactory()
       const registeredServices = [
         'IAppSettings',
         'IEventBus',
@@ -337,13 +337,13 @@ describe('ServiceFactory', () => {
       )
 
       // Call the factory functions to verify they were configured correctly
-      if (configProviderCall && configProviderCall[1]) {
+      if (configProviderCall?.[1]) {
         const factory = configProviderCall[1] as () => unknown
         factory()
         expect(ConfigurationProvider).toHaveBeenCalledWith(config)
       }
 
-      if (appSettingsCall && appSettingsCall[1]) {
+      if (appSettingsCall?.[1]) {
         const factory = appSettingsCall[1] as () => unknown
         factory()
         expect(AppSettings).toHaveBeenCalledWith(true)
@@ -374,13 +374,13 @@ describe('ServiceFactory', () => {
       )
 
       // Call the factory functions to verify they were configured correctly
-      if (configProviderCall && configProviderCall[1]) {
+      if (configProviderCall?.[1]) {
         const factory = configProviderCall[1] as () => unknown
         factory()
         expect(ConfigurationProvider).toHaveBeenCalledWith({})
       }
 
-      if (appSettingsCall && appSettingsCall[1]) {
+      if (appSettingsCall?.[1]) {
         const factory = appSettingsCall[1] as () => unknown
         factory()
         expect(AppSettings).toHaveBeenCalledWith(false)

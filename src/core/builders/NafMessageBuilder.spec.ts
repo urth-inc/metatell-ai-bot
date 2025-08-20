@@ -105,7 +105,7 @@ describe('NafMessageBuilder', () => {
       .withOwner('owner')
       .withCreator('creator')
       .withBodyRotation({ x: 90, y: 180, z: 0 })
-      .withHeadRotation({ x: 0, y: 0.7071, z: 0, w: 0.7071 })
+      .withHeadRotation({ x: 0, y: Math.SQRT1_2, z: 0, w: Math.SQRT1_2 })
       .withLeftHandRotation({ x: 0.5, y: 0.5, z: 0.5, w: 0.5 })
       .withRightHandRotation({ x: 0, y: 1, z: 0, w: 0 })
       .build()
@@ -117,9 +117,9 @@ describe('NafMessageBuilder', () => {
     })
     expect(message.data.components?.[NafComponentId.HeadRotation]).toEqual({
       x: 0,
-      y: 0.7071,
+      y: Math.SQRT1_2,
       z: 0,
-      w: 0.7071,
+      w: Math.SQRT1_2,
     })
   })
 

@@ -3,7 +3,6 @@
  */
 
 import type { MetatellBot } from '../bots/MetatellBot.js'
-import type { IConfigurationProvider } from '../core/interfaces/IConfigurationProvider.js'
 import type { IConnectionManager } from '../core/interfaces/IConnectionManager.js'
 import type { IUserAvatarManager, UserAvatar } from '../core/interfaces/IUserAvatarManager.js'
 import type { ServiceFactory } from '../core/ServiceFactory.js'
@@ -109,13 +108,13 @@ export class DefaultAgentClient implements AgentClient {
 
     try {
       let authUrl: string
-      let hubUrl: string
+      let _hubUrl: string
       let hubId: string
 
       // Use provided values or parse from URL
       if (options.authUrl && options.hubUrl && options.hubId) {
         authUrl = options.authUrl
-        hubUrl = options.hubUrl
+        _hubUrl = options.hubUrl
         hubId = options.hubId
       } else {
         // URLを解析してauthUrlとhubIdを取得
@@ -124,7 +123,7 @@ export class DefaultAgentClient implements AgentClient {
         // HTTPSからWSSに変換
         const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
         authUrl = `${protocol}//${url.host}`
-        hubUrl = options.url
+        _hubUrl = options.url
 
         // hubIdを取得（パスから'/'を除去）
         const pathParts = url.pathname.split('/').filter(Boolean)
