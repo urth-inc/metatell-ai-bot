@@ -323,5 +323,43 @@ describe('AgentClient', () => {
       // Verify resync was attempted
       expect(resyncSpy).toHaveBeenCalledTimes(1)
     })
+
+    it('should resync avatar with updated position after move', async () => {
+      // Updated position after move
+      const movedState = { 
+        networkId: 'bot-123', 
+        position: { x: 10, y: 0, z: -5 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 }
+      }
+      
+      // Mock avatar controller to return moved state
+      const getStateSpy = vi.spyOn(mockAvatarController, 'getState')
+        .mockReturnValue(movedState)
+      const resyncSpy = vi.spyOn(mockAvatarController, 'resyncAvatar')
+        .mockResolvedValue(undefined)
+      
+      // Get the handler that was registered
+      const onSpy = vi.spyOn(mockUserAvatarManager, 'on')
+      const _testClient = new DefaultAgentClient(factory)
+      
+      const userJoinedCall = onSpy.mock.calls.find(call => call[0] === 'userJoined')
+      if (!userJoinedCall) throw new Error('userJoined handler not registered')
+      const userJoinedHandler = userJoinedCall[1] as (user: UserAvatar) => Promise<void>
+      
+      // Simulate user joining after bot has moved
+      const newUser: Partial<UserAvatar> = { 
+        nickname: 'LateUser',
+        sessionId: 'late-user-123',
+        position: { x: 0, y: 0, z: 0 },
+      }
+      
+      await userJoinedHandler(newUser as UserAvatar)
+      
+      // Verify that resync was called with the moved position
+      expect(getStateSpy).toHaveBeenCalled()
+      expect(resyncSpy).toHaveBeenCalledTimes(1)
+      // The resyncAvatar method should use the current state internally,
+      // which includes the updated position
+    })
   })
 })

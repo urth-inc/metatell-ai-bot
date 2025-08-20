@@ -420,6 +420,73 @@ describe('AvatarController', () => {
     })
   })
 
+  describe('resyncAvatar', () => {
+    beforeEach(async () => {
+      // Setup: join room and spawn avatar
+      const roomJoinedCall = findEventBusCall(mockEventBus.on, SystemEvents.ROOM_JOINED)
+      const roomJoinedHandler = roomJoinedCall?.[1]
+      roomJoinedHandler?.({ session_id: 'test-session-123' })
+      await avatarController.spawn('avatar-123')
+      vi.clearAllMocks()
+    })
+
+    it('should resync avatar with current state', async () => {
+      await avatarController.resyncAvatar()
+
+      expect(mockMessageService.sendNAF).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataType: 'u',
+          data: expect.objectContaining({
+            networkId: 'test-session-123',
+            owner: 'test-session-123',
+            creator: 'test-session-123',
+            template: '#remote-avatar',
+            persistent: false,
+            isFirstSync: true,
+            components: expect.objectContaining({
+              '0': expect.objectContaining({ x: 0, y: 0.2, z: 0 }), // position (y is slightly adjusted for avatar height)
+            }),
+          }),
+        }),
+      )
+    })
+
+    it('should resync avatar with updated position after move', async () => {
+      // Move avatar to new position
+      const newPosition = { x: 10, y: 0, z: -5 }
+      await avatarController.move(newPosition)
+      vi.clearAllMocks()
+
+      // Resync avatar
+      await avatarController.resyncAvatar()
+
+      // Verify that resync includes the new position
+      expect(mockMessageService.sendNAF).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataType: 'u',
+          data: expect.objectContaining({
+            networkId: 'test-session-123',
+            isFirstSync: true,
+            components: expect.objectContaining({
+              '0': expect.objectContaining(newPosition), // Updated position should be included
+            }),
+          }),
+        }),
+      )
+    })
+
+    it('should throw error when avatar not spawned', async () => {
+      const newController = new AvatarController(
+        mockMessageService,
+        mockConfigProvider,
+        mockEventBus,
+      )
+
+      await expect(newController.resyncAvatar()).rejects.toThrow('Avatar not spawned')
+      expect(mockMessageService.sendNAF).not.toHaveBeenCalled()
+    })
+  })
+
   describe('getState', () => {
     it('should return null when avatar not spawned', () => {
       expect(avatarController.getState()).toBeNull()
