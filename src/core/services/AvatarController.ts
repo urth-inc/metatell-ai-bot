@@ -8,7 +8,12 @@ import type {
 import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
-import { NafMessageBuilder } from '../builders/NafMessageBuilder.js'
+import { NafMessageBuilder, NafComponentId } from '../builders/NafMessageBuilder.js'
+
+// Constants for default values
+const DEFAULT_TEMPLATE = '#remote-avatar'
+const DEFAULT_AVATAR_TYPE = 'skinnable'
+const USER_AGENT = 'MetatellBot/1.0'
 
 export class AvatarController implements IAvatarController {
   private state: AvatarState | null = null
@@ -56,7 +61,7 @@ export class AvatarController implements IAvatarController {
       .withPosition(spawnPosition)
       .withAvatar({
         avatarSrc: this.state.avatarSrc || '',
-        avatarType: 'skinnable',
+        avatarType: DEFAULT_AVATAR_TYPE,
         muted: false,
         isSharingAvatarCamera: false,
       })
@@ -73,7 +78,7 @@ export class AvatarController implements IAvatarController {
       .withPosition(spawnPosition)
       .withAvatar({
         avatarSrc: this.state.avatarSrc || '',
-        avatarType: 'skinnable',
+        avatarType: DEFAULT_AVATAR_TYPE,
         muted: false,
         isSharingAvatarCamera: false,
       })
@@ -203,7 +208,7 @@ export class AvatarController implements IAvatarController {
       .withOwner(this.sessionId)
       .withCreator(this.sessionId)
       .withLastOwnerTime()
-      .withTemplate('#remote-avatar')
+      .withTemplate(DEFAULT_TEMPLATE)
       .withPersistent(false)
       .withFirstSync(true)  // Important: Set first sync flag for new users
       .withPosition(this.state.position)
@@ -211,7 +216,7 @@ export class AvatarController implements IAvatarController {
       .withScale({ x: 1, y: 1, z: 1 })
       .withAvatar({
         avatarSrc: this.state.avatarSrc || '',
-        avatarType: 'skinnable',
+        avatarType: DEFAULT_AVATAR_TYPE,
         muted: false,
         isSharingAvatarCamera: false,
       })
