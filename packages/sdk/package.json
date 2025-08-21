@@ -16,8 +16,8 @@
     "test": "vitest"
   },
   "dependencies": {
-    "phoenix": "^1.7.7",
-    "ws": "^8.16.0"
+    "phoenix": "1.8.0",
+    "ws": "8.18.3"
   },
   "peerDependencies": {
     "@types/node": "*",
