@@ -40,10 +40,12 @@ export class UserAvatarManager implements IUserAvatarManager {
 
   private setupEventListeners(): void {
     // NAFメッセージを監視してアバターの位置情報を追跡
+    this.logger.debug('[UserAvatarManager] Setting up NAF message listeners')
     this.messageService.on('naf', (data: unknown) => this.handleNAFMessage(data as NAFMessage))
     this.messageService.on('nafr', (data: unknown) => this.handleNAFRMessage(data as NAFMessage))
 
     // PresenceManagerからユーザー情報を同期
+    this.logger.debug('[UserAvatarManager] Setting up Presence listeners')
     this.presenceManager.on('join', this.handleUserJoin.bind(this))
     this.presenceManager.on('leave', this.handleUserLeave.bind(this))
 
@@ -102,6 +104,7 @@ export class UserAvatarManager implements IUserAvatarManager {
   }
 
   private handleNAFMessage(message: NAFMessage): void {
+    this.logger.debug('[NAF] Received NAF message', { dataType: message.dataType })
     if (message.dataType === 'u') {
       // 新規アバター作成
       const data = message.data as NAFComponent
@@ -110,10 +113,12 @@ export class UserAvatarManager implements IUserAvatarManager {
   }
 
   private handleNAFRMessage(message: NAFMessage): void {
+    this.logger.debug('[NAF] Received NAFR message', { dataType: message.dataType })
     if (message.dataType === 'um') {
       // アバター更新
       const data = message.data as { d: NAFComponent[] }
       if (data.d && Array.isArray(data.d)) {
+        this.logger.debug('[NAF] Processing NAFR updates', { count: data.d.length })
         for (const component of data.d) {
           this.updateUserFromNAF(component)
         }
@@ -294,6 +299,7 @@ export class UserAvatarManager implements IUserAvatarManager {
   }
 
   private handleUserJoin(user: { id: string; profile: { displayName?: string } }): void {
+    this.logger.debug('[Presence] User joined', { id: user.id, name: user.profile.displayName })
     // PresenceManagerからのユーザー参加イベントを処理
     if (!this.users.has(user.id)) {
       const userAvatar: UserAvatar = {

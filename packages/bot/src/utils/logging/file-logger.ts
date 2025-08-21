@@ -26,7 +26,7 @@ export class FileLogger implements LogSink {
       ts: Date.now(),
       level: 'info',
       module: 'FileLogger',
-      msg: `=== Log session started at ${timestamp} ===`
+      message: `=== Log session started at ${timestamp} ===`
     })
     
     console.log(`📝 Debug logging enabled: ${this.filePath}`)
@@ -37,7 +37,7 @@ export class FileLogger implements LogSink {
     const level = event.level.toUpperCase().padEnd(5)
     const module = event.module.padEnd(25)
     
-    let line = `[${timestamp}] [${level}] [${module}] ${event.msg}`
+    let line = `[${timestamp}] [${level}] [${module}] ${event.message}`
     
     if (event.attributes !== undefined) {
       try {
