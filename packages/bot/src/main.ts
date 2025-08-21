@@ -12,6 +12,7 @@ import {
   getLogger,
   DefaultLoggerProvider,
 } from '@metatell/sdk'
+import { FileLogger } from './utils/logging/file-logger.js'
 
 // Register default logger provider at startup
 // Allow overwrite in case tests already registered one
@@ -112,14 +113,31 @@ async function main() {
   
   // AppSettingsを取得してLoggingシステムを設定
   const appSettings = factory.getService<import('@metatell/sdk').IAppSettings>('IAppSettings')
-  const provider = new DefaultLoggerProvider()
   
-  // デバッグモードでコンソールログを有効化
+  // デバッグモードでファイルログを有効化
+  let debugLogPath: string | undefined
+  
   if (config.debug) {
     appSettings.setDebugMode(true)
     appSettings.setLogLevel('debug')
-    provider.enableConsole(true)
-    mainLogger.info('Debug mode enabled via CLI flag')
+    
+    // 新しいプロバイダーを作成してファイルロガーを追加
+    const provider = new DefaultLoggerProvider()
+    provider.setLogLevel('debug')  // デバッグレベルを設定
+    const fileLogger = new FileLogger()
+    provider.registerSink(fileLogger)
+    debugLogPath = fileLogger.getFilePath()
+    
+    // CLIモードではコンソールログを無効化（CLIインターフェースと競合するため）
+    provider.enableConsole(false)
+    
+    // グローバルプロバイダーを再登録
+    registerLoggerProvider(provider, { allowOverwrite: true })
+    
+    const mainLogger = getLogger('Main')
+    mainLogger.info('Debug mode enabled with file logging', { 
+      logFile: fileLogger.getFilePath() 
+    })
   }
   
   // デバッグモード変更時のログレベル制御をここで行う（責務の分離）
@@ -127,7 +145,9 @@ async function main() {
     // ログレベルをデバッグモードに応じて設定
     appSettings.setLogLevel(enabled ? 'debug' : 'info')
     
-    if (enabled) {
+    if (enabled && !config.debug) {
+      // 動的にデバッグモードが有効になった場合（CLIコマンドから）
+      const mainLogger = getLogger('Main')
       mainLogger.debug('Debug mode enabled via AppSettings')
       mainLogger.debug('Bot configuration', {
         authUrl: socketUrl,
@@ -137,25 +157,8 @@ async function main() {
         avatarId: avatarId,
         debug: enabled
       })
-      provider.enableConsole(true)
-    } else {
-      provider.enableConsole(false)
     }
   })
-  
-  // 初期状態でデバッグモードが有効な場合も処理
-  if (appSettings.debugMode) {
-    mainLogger.debug('Debug mode enabled via AppSettings')
-    mainLogger.debug('Bot configuration', {
-      authUrl: socketUrl,
-      hubUrl: metatellUrl,
-      hubId: hubId,
-      botName: botName,
-      avatarId: avatarId,
-      debug: appSettings.debugMode
-    })
-    provider.enableConsole(true)
-  }
 
   // AgentClient を作成
   const client = createAgentClient(factory, {
@@ -188,14 +191,20 @@ async function main() {
     const _cliApp = startInkCli(client)
 
     // CLI起動完了を通知
-    if (!config.debug) {
-      provider.enableConsole(false)
-    }
-    const { logger } = await import('./utils/logger.js')
-    logger.notifyCliStarted?.()
+    const { logger: cliLogger } = await import('./utils/logger.js')
+    cliLogger.notifyCliStarted?.()
 
-    // 自動接続
-    getLogger('Main').info('Connecting to', { url: metatellUrl })
+    // デバッグモードの場合、ログファイルパスを表示（CLIのloggerを使用）
+    if (debugLogPath) {
+      cliLogger.log('📝 Debug logging enabled: ' + debugLogPath)
+      // 少し待ってからも表示（CLIが安定してから）
+      setTimeout(() => {
+        cliLogger.log('Debug logs are being written to: ' + debugLogPath)
+      }, 1000)
+    }
+
+    // 自動接続（CLIのloggerを使用）
+    cliLogger.log('Connecting to: ' + metatellUrl)
     await client.connect({
       url: metatellUrl,
       token: authToken,
