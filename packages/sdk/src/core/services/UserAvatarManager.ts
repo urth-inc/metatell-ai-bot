@@ -32,16 +32,20 @@ export class UserAvatarManager implements IUserAvatarManager {
     private presenceManager: IPresenceManager,
     private eventBus: IEventBus,
   ) {
+    this.logger.info('[UserAvatarManager] Initializing...')
     this.setupEventListeners()
     this.setupConnectionMonitoring()
+    this.logger.info('[UserAvatarManager] Initialized')
   }
 
   private setupEventListeners(): void {
     // NAFメッセージを監視してアバターの位置情報を追跡
+    this.logger.debug('[UserAvatarManager] Setting up NAF message listeners')
     this.messageService.on('naf', (data: unknown) => this.handleNAFMessage(data as NAFMessage))
     this.messageService.on('nafr', (data: unknown) => this.handleNAFRMessage(data as NAFMessage))
 
     // PresenceManagerからユーザー情報を同期
+    this.logger.debug('[UserAvatarManager] Setting up Presence listeners')
     this.presenceManager.on('join', this.handleUserJoin.bind(this))
     this.presenceManager.on('leave', this.handleUserLeave.bind(this))
 
@@ -100,6 +104,7 @@ export class UserAvatarManager implements IUserAvatarManager {
   }
 
   private handleNAFMessage(message: NAFMessage): void {
+    this.logger.debug('[NAF] Received NAF message', { dataType: message.dataType })
     if (message.dataType === 'u') {
       // 新規アバター作成
       const data = message.data as NAFComponent
@@ -108,10 +113,12 @@ export class UserAvatarManager implements IUserAvatarManager {
   }
 
   private handleNAFRMessage(message: NAFMessage): void {
+    this.logger.debug('[NAF] Received NAFR message', { dataType: message.dataType })
     if (message.dataType === 'um') {
       // アバター更新
       const data = message.data as { d: NAFComponent[] }
       if (data.d && Array.isArray(data.d)) {
+        this.logger.debug('[NAF] Processing NAFR updates', { count: data.d.length })
         for (const component of data.d) {
           this.updateUserFromNAF(component)
         }
@@ -123,21 +130,20 @@ export class UserAvatarManager implements IUserAvatarManager {
     const networkId = data.networkId
     if (!networkId) return
 
-    // デバッグ: NAFメッセージの構造をログ出力（最初の10回のみ）
+    // デバッグ: NAFメッセージの構造をログ出力（最初の10回）
     const debugCounter = '_UserAvatarManager_debugCount'
     const globalState = globalThis as unknown as Record<string, number>
     if (!(debugCounter in globalState)) globalState[debugCounter] = 0
-    if (globalState[debugCounter] < 3) {
+    if (globalState[debugCounter] < 10) {
       this.logger.debug(
-        `[DEBUG] NAF message for ${networkId}:`,
-        JSON.stringify(
-          {
-            networkId,
-            components: data.components,
-          },
-          null,
-          2,
-        ),
+        `[DEBUG] NAF message #${globalState[debugCounter] + 1} for ${networkId}:`,
+        {
+          networkId,
+          creator: data.creator,
+          owner: data.owner,
+          template: data.template,
+          componentsKeys: Object.keys(data.components || {}),
+        }
       )
       globalState[debugCounter]++
     }
@@ -293,6 +299,7 @@ export class UserAvatarManager implements IUserAvatarManager {
   }
 
   private handleUserJoin(user: { id: string; profile: { displayName?: string } }): void {
+    this.logger.debug('[Presence] User joined', { id: user.id, name: user.profile.displayName })
     // PresenceManagerからのユーザー参加イベントを処理
     if (!this.users.has(user.id)) {
       const userAvatar: UserAvatar = {
