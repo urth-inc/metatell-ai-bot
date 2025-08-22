@@ -5,6 +5,7 @@ import type {
   IMessageService,
 } from '@metatell/sdk'
 import { getLogger } from '@metatell/sdk'
+import { pushPromise } from '../../utils/phoenixUtils.js'
 
 export interface BotLifecycleOptions {
   connectionManager: IConnectionManager
@@ -88,65 +89,28 @@ export class BotLifecycleManager {
       throw new Error('No hub channel available')
     }
 
-    // Send entering event first
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Timeout waiting for room entry'))
-      }, 30000)
+    try {
+      // Send entering event
+      await pushPromise(channel, 'events:entering', {})
+      this.logger.debug('Entering event acknowledged')
 
-      channel
-        .push('events:entering', {})
-        .receive('ok', () => {
-          clearTimeout(timeout)
-          this.logger.debug('Entering event acknowledged')
-          resolve()
-        })
-        .receive('error', (resp: unknown) => {
-          clearTimeout(timeout)
-          this.logger.error('Failed to send entering event:', resp)
-          reject(new Error('Failed to send entering event'))
-        })
-        .receive('timeout', () => {
-          clearTimeout(timeout)
-          this.logger.error('Timeout sending entering event')
-          reject(new Error('Timeout sending entering event'))
-        })
-    })
+      // Send entered event with metadata
+      const enteredPayload = {
+        initialOccupantCount: 0,
+        isNewDaily: true,
+        isNewMonthly: true,
+        isNewDayWindow: true,
+        isNewMonthWindow: true,
+        entryDisplayType: 'Bot',
+        userAgent: 'MetatellBot/1.0',
+      }
 
-    // Send entered event with metadata
-    const enteredPayload = {
-      initialOccupantCount: 0,
-      isNewDaily: true,
-      isNewMonthly: true,
-      isNewDayWindow: true,
-      isNewMonthWindow: true,
-      entryDisplayType: 'Bot',
-      userAgent: 'MetatellBot/1.0',
+      await pushPromise(channel, 'events:entered', enteredPayload)
+      this.logger.info('Successfully entered room')
+    } catch (error) {
+      this.logger.error('Failed to enter room:', { error })
+      throw error
     }
-
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Timeout waiting for room entry'))
-      }, 30000)
-
-      channel
-        .push('events:entered', enteredPayload)
-        .receive('ok', () => {
-          clearTimeout(timeout)
-          this.logger.info('Successfully entered room')
-          resolve()
-        })
-        .receive('error', (resp: unknown) => {
-          clearTimeout(timeout)
-          this.logger.error('Failed to enter room:', resp)
-          reject(new Error('Failed to enter room'))
-        })
-        .receive('timeout', () => {
-          clearTimeout(timeout)
-          this.logger.error('Timeout entering room')
-          reject(new Error('Timeout entering room'))
-        })
-    })
   }
 
   private async spawnAvatar(): Promise<void> {
