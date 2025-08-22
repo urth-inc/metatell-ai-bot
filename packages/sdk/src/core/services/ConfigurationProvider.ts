@@ -39,11 +39,9 @@ export class ConfigurationProvider implements IConfigurationProvider {
   }
 
   getConfiguration(): BotConfiguration {
-    // Return a copy to prevent external modifications
-    return {
-      ...this.config,
-      profile: { ...this.config.profile },
-      context: this.config.context ? { ...this.config.context } : undefined,
-    }
+    // Return a deep copy to ensure true immutability
+    // JSON.parse/stringify is the simplest way to create a deep copy
+    // This ensures that even nested objects are completely independent
+    return JSON.parse(JSON.stringify(this.config))
   }
 }

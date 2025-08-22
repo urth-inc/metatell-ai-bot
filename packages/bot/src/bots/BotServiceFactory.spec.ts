@@ -39,19 +39,27 @@ describe('BotServiceFactory', () => {
     })
   })
 
-  describe('createBot', () => {
-    it('should create MetatellBot instance', () => {
-      const bot = factory.createBot()
+  describe('service container', () => {
+    it('should create MetatellBot instance from container', () => {
+      const bot = factory.getService<MetatellBot>('MetatellBot')
 
       expect(bot).toBeDefined()
       expect(bot).toBeInstanceOf(MetatellBot)
     })
 
     it('should create singleton MetatellBot', () => {
-      const bot1 = factory.createBot()
-      const bot2 = factory.createBot()
+      const bot1 = factory.getService<MetatellBot>('MetatellBot')
+      const bot2 = factory.getService<MetatellBot>('MetatellBot')
 
       expect(bot1).toBe(bot2)
+    })
+
+    it('should expose container for main.ts', () => {
+      const container = factory.getContainer()
+      expect(container).toBeDefined()
+      
+      const bot = container.get<MetatellBot>('MetatellBot')
+      expect(bot).toBeInstanceOf(MetatellBot)
     })
   })
 
@@ -64,7 +72,7 @@ describe('BotServiceFactory', () => {
     })
 
     it('should provide bot with all required dependencies', () => {
-      const bot = factory.createBot()
+      const bot = factory.getService<MetatellBot>('MetatellBot')
 
       // Bot should be properly initialized
       // We can't easily test internal dependencies without exposing them,
