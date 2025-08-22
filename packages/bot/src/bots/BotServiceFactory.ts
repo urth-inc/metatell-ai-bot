@@ -1,6 +1,9 @@
 /**
- * Bot Service Factory - Application Layer Service Factory
- * Extends CoreServiceFactory and adds application-specific services like MetatellBot
+ * Bot Service Factory - Application Layer Service Registration
+ * Extends CoreServiceFactory to register application-specific services
+ * 
+ * This factory focuses purely on service registration, delegating
+ * instance creation to the application entry point (main.ts)
  */
 
 import type { IConnectionManager } from '@metatell/sdk'
@@ -19,7 +22,7 @@ import { MetatellBot } from './MetatellBot.js'
 
 /**
  * Application layer service factory that extends CoreServiceFactory
- * This includes all core services plus application-specific services like MetatellBot
+ * Responsible only for registering services, not creating instances
  */
 export class BotServiceFactory extends CoreServiceFactory {
   constructor(config?: BotConfiguration) {
@@ -27,8 +30,12 @@ export class BotServiceFactory extends CoreServiceFactory {
     this.registerBotServices()
   }
 
+  /**
+   * Register application-specific services
+   * This method can be extended to register different types of bots
+   */
   private registerBotServices(): void {
-    // Register MetatellBot (application-specific service)
+    // Register MetatellBot as an application service
     this.container.register<MetatellBot>(
       'MetatellBot',
       (container) =>
@@ -45,15 +52,18 @@ export class BotServiceFactory extends CoreServiceFactory {
     )
   }
 
-  public createBot(): MetatellBot {
-    // Simply return the bot instance, configuration is already set during construction
-    return this.container.get<MetatellBot>('MetatellBot')
-  }
-
+  /**
+   * Get the underlying service container
+   * Main.ts uses this to retrieve services
+   */
   public getContainer(): ServiceContainer {
     return this.container
   }
 
+  /**
+   * Get a service by name
+   * Convenience method for accessing services
+   */
   public getService<T>(name: string): T {
     return this.container.get<T>(name)
   }

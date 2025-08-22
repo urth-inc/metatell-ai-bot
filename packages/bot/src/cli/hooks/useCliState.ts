@@ -27,13 +27,14 @@ export type CliAction =
   | { type: 'ADD_TO_HISTORY'; command: string }
   | { type: 'NAVIGATE_HISTORY'; direction: 'up' | 'down' }
   | { type: 'SET_SUGGESTIONS'; suggestions: Array<{ command: string; description: string }> }
-  | { type: 'SELECT_SUGGESTION'; index: number }
-  | { type: 'SET_FILTER'; regex?: RegExp }
+  | { type: 'SELECT_NEXT_SUGGESTION' }
+  | { type: 'SELECT_PREVIOUS_SUGGESTION' }
+  | { type: 'SET_FILTER'; filterRegex?: RegExp }
+  | { type: 'CLEAR_FILTER' }
   | { type: 'SHOW_MODAL'; title: string; content: string }
   | { type: 'CLOSE_MODAL' }
-  | { type: 'CTRL_C_PRESSED' }
-  | { type: 'START_SEARCH' }
-  | { type: 'STOP_SEARCH' }
+  | { type: 'SET_LAST_CTRL_C'; timestamp: number }
+  | { type: 'SET_SEARCH_MODE'; isSearching: boolean }
   | { type: 'SET_SEARCH_QUERY'; query: string }
   | { type: 'RESET_INPUT' }
 
@@ -102,14 +103,26 @@ export function cliReducer(state: CliState, action: CliAction): CliState {
         selectedSuggestionIndex: 0,
       }
 
-    case 'SELECT_SUGGESTION':
+    case 'SELECT_NEXT_SUGGESTION':
       return {
         ...state,
-        selectedSuggestionIndex: Math.max(0, Math.min(action.index, state.suggestions.length - 1)),
+        selectedSuggestionIndex: Math.min(
+          state.suggestions.length - 1,
+          state.selectedSuggestionIndex + 1
+        ),
+      }
+
+    case 'SELECT_PREVIOUS_SUGGESTION':
+      return {
+        ...state,
+        selectedSuggestionIndex: Math.max(0, state.selectedSuggestionIndex - 1),
       }
 
     case 'SET_FILTER':
-      return { ...state, filterRegex: action.regex }
+      return { ...state, filterRegex: action.filterRegex }
+
+    case 'CLEAR_FILTER':
+      return { ...state, filterRegex: undefined }
 
     case 'SHOW_MODAL':
       return {
@@ -120,14 +133,11 @@ export function cliReducer(state: CliState, action: CliAction): CliState {
     case 'CLOSE_MODAL':
       return { ...state, modalContent: undefined }
 
-    case 'CTRL_C_PRESSED':
-      return { ...state, lastCtrlC: Date.now() }
+    case 'SET_LAST_CTRL_C':
+      return { ...state, lastCtrlC: action.timestamp }
 
-    case 'START_SEARCH':
-      return { ...state, isSearching: true, searchQuery: '' }
-
-    case 'STOP_SEARCH':
-      return { ...state, isSearching: false, searchQuery: '' }
+    case 'SET_SEARCH_MODE':
+      return { ...state, isSearching: action.isSearching, searchQuery: '' }
 
     case 'SET_SEARCH_QUERY':
       return { ...state, searchQuery: action.query }

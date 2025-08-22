@@ -1,36 +1,20 @@
-import type { AgentClient, LogRecord, RingBufferLike } from '@metatell/sdk'
+import type { AgentClient, RingBufferLike } from '@metatell/sdk'
 import { getLogger, getRingBuffer } from '@metatell/sdk'
 import { Box, useApp, useInput, useStdout } from 'ink'
 import type React from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { CommandExecutor } from './commands/exec.js'
 import { COMMANDS, type CommandPlan, parseCommand } from './commands/plan.js'
 import { Footer } from './components/Footer.js'
 import { Header } from './components/Header.js'
 import { LogPane } from './components/LogPane.js'
 import { Modal } from './components/Modal.js'
-import { EventQueue } from './runtime/EventQueue.js'
+import { useCliState } from './hooks/useCliState.js'
 
 interface CliInterfaceProps {
   client: AgentClient
 }
 
-interface UIState {
-  logs: LogRecord[]
-  input: string
-  commandHistory: string[]
-  historyIndex: number
-  suggestions: Array<{ command: string; description: string }>
-  selectedSuggestionIndex: number
-  filterRegex?: RegExp
-  modalContent?: {
-    title: string
-    content: string
-  }
-  lastCtrlC: number
-  isSearching: boolean
-  searchQuery: string
-}
 
 /**
  * Main CLI interface component with 3-pane layout
@@ -38,56 +22,30 @@ interface UIState {
 export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
   const { exit } = useApp()
   const { stdout } = useStdout()
-  const [state, setState] = useState<UIState>({
-    logs: [],
-    input: '',
-    commandHistory: [],
-    historyIndex: -1,
-    suggestions: [],
-    selectedSuggestionIndex: 0,
-    lastCtrlC: 0,
-    isSearching: false,
-    searchQuery: '',
-  })
+  const { state, dispatch, setInput, addLogs, showModal, closeModal } = useCliState()
 
   const logger = getLogger('CLI')
-  const executor = new CommandExecutor(client)
-
-  // イベントキューでバッチ更新（useMemoで安定化）
-  const eventQueue = useMemo(
-    () =>
-      new EventQueue<Partial<UIState>>((updates) => {
-        setState((prev) => {
-          let next = { ...prev }
-          for (const update of updates) {
-            next = { ...next, ...update }
-          }
-          return next
-        })
-      }),
-    [],
-  )
+  const executor = useMemo(() => new CommandExecutor(client), [client])
 
   // 初期化：バッファされたログを取得
   useEffect(() => {
     const rb = getRingBuffer() as RingBufferLike
     const logs = rb.drainNew ? rb.drainNew() : rb.drain()
-    eventQueue.push({ logs })
+    if (logs.length > 0) {
+      addLogs(logs)
+    }
 
     // ログシステムのリスナー設定
     const interval = setInterval(() => {
       const rb = getRingBuffer() as RingBufferLike
       const newLogs = rb.drainNew ? rb.drainNew() : rb.drain()
       if (newLogs.length > 0) {
-        setState((prev) => ({
-          ...prev,
-          logs: [...prev.logs, ...newLogs].slice(-1000), // 最大1000件
-        }))
+        addLogs(newLogs)
       }
     }, 100)
 
     return () => clearInterval(interval)
-  }, [eventQueue]) // EventQueueはuseMemoで安定参照
+  }, [addLogs])
 
   // 高さ計算
   const terminalHeight = stdout?.rows || 24
@@ -103,11 +61,11 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
         command: cmd.command,
         description: cmd.description,
       }))
-      eventQueue.push({ suggestions, selectedSuggestionIndex: 0 })
+      dispatch({ type: 'SET_SUGGESTIONS', suggestions })
     } else if (!state.isSearching) {
-      eventQueue.push({ suggestions: [], selectedSuggestionIndex: 0 })
+      dispatch({ type: 'SET_SUGGESTIONS', suggestions: [] })
     }
-  }, [state.input, state.isSearching, eventQueue])
+  }, [state.input, state.isSearching, dispatch])
 
   // ログコマンドの処理
   const handleLogsCommand = useCallback(
@@ -115,7 +73,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
       switch (plan.subcommand) {
         case 'clear':
           getRingBuffer()?.clear()
-          eventQueue.push({ logs: [] })
+          dispatch({ type: 'SET_LOGS', logs: [] })
           logger.info('Log history cleared')
           break
 
@@ -123,7 +81,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
           if (plan.arg) {
             try {
               const regex = new RegExp(plan.arg)
-              eventQueue.push({ filterRegex: regex })
+              dispatch({ type: 'SET_FILTER', filterRegex: regex })
               logger.info(`Filter applied: /${plan.arg}/`)
             } catch (_error) {
               logger.error(`Invalid regex: ${plan.arg}`)
@@ -136,7 +94,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
           break
       }
     },
-    [logger, eventQueue],
+    [logger, dispatch],
   )
 
   // コマンド実行
@@ -145,8 +103,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
       if (!input.trim()) return
 
       // コマンド履歴に追加
-      const newHistory = [...state.commandHistory, input].slice(-100)
-      eventQueue.push({ commandHistory: newHistory, historyIndex: -1 })
+      dispatch({ type: 'ADD_TO_HISTORY', command: input })
 
       // ログに記録
       logger.info(input, { type: 'command' })
@@ -173,18 +130,13 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
           logger[level](result.message)
         }
         if (result.showModal && result.data) {
-          eventQueue.push({
-            modalContent: {
-              title: input,
-              content: String(result.data),
-            },
-          })
+          showModal(input, String(result.data))
         }
       } catch (error) {
         logger.error(`Command failed: ${error}`)
       }
     },
-    [state.commandHistory, executor, exit, logger, eventQueue, handleLogsCommand],
+    [executor, exit, logger, dispatch, handleLogsCommand, showModal],
   )
 
   // キーボード入力処理
@@ -201,14 +153,8 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
         if (now - state.lastCtrlC < 2000) {
           exit()
         } else {
-          eventQueue.push({
-            input: '',
-            suggestions: [],
-            historyIndex: -1,
-            lastCtrlC: now,
-            isSearching: false,
-            searchQuery: '',
-          })
+          dispatch({ type: 'SET_LAST_CTRL_C', timestamp: now })
+          dispatch({ type: 'RESET_INPUT' })
           logger.info('Press Ctrl+C again to exit')
         }
         return
@@ -216,64 +162,37 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
 
       // Ctrl+R: 履歴検索
       if (key.ctrl && input === 'r') {
-        eventQueue.push({ isSearching: true, searchQuery: '' })
+        dispatch({ type: 'SET_SEARCH_MODE', isSearching: true })
         return
       }
 
       // Esc: フィルタ解除・検索終了
       if (key.escape) {
-        eventQueue.push({
-          filterRegex: undefined,
-          isSearching: false,
-          searchQuery: '',
-          input: '',
-          suggestions: [],
-          historyIndex: -1,
-        })
+        dispatch({ type: 'CLEAR_FILTER' })
+        dispatch({ type: 'SET_SEARCH_MODE', isSearching: false })
+        dispatch({ type: 'RESET_INPUT' })
         return
       }
 
       // 履歴ナビゲーション
       if (key.upArrow) {
         if (state.suggestions.length > 0) {
-          eventQueue.push({
-            selectedSuggestionIndex: Math.max(0, state.selectedSuggestionIndex - 1),
-          })
+          dispatch({ type: 'SELECT_PREVIOUS_SUGGESTION' })
         } else if (state.commandHistory.length > 0 && !state.isSearching) {
-          const newIndex =
-            state.historyIndex === -1
-              ? state.commandHistory.length - 1
-              : Math.max(0, state.historyIndex - 1)
-          eventQueue.push({
-            historyIndex: newIndex,
-            input: state.commandHistory[newIndex] || '',
-          })
+          dispatch({ type: 'NAVIGATE_HISTORY', direction: 'up' })
         }
         return
       }
 
       if (key.downArrow) {
         if (state.suggestions.length > 0) {
-          eventQueue.push({
-            selectedSuggestionIndex: Math.min(
-              state.suggestions.length - 1,
-              state.selectedSuggestionIndex + 1,
-            ),
-          })
+          dispatch({ type: 'SELECT_NEXT_SUGGESTION' })
         } else if (
           state.commandHistory.length > 0 &&
           state.historyIndex !== -1 &&
           !state.isSearching
         ) {
-          const newIndex = state.historyIndex + 1
-          if (newIndex >= state.commandHistory.length) {
-            eventQueue.push({ historyIndex: -1, input: '' })
-          } else {
-            eventQueue.push({
-              historyIndex: newIndex,
-              input: state.commandHistory[newIndex] || '',
-            })
-          }
+          dispatch({ type: 'NAVIGATE_HISTORY', direction: 'down' })
         }
         return
       }
@@ -282,12 +201,8 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
       if (key.tab && state.suggestions.length > 0) {
         const selected = state.suggestions[state.selectedSuggestionIndex]
         if (selected) {
-          eventQueue.push({
-            input: `${selected.command} `,
-            suggestions: [],
-            selectedSuggestionIndex: 0,
-            historyIndex: -1,
-          })
+          dispatch({ type: 'SET_INPUT', input: `${selected.command} ` })
+          dispatch({ type: 'SET_SUGGESTIONS', suggestions: [] })
         }
         return
       }
@@ -322,10 +237,10 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
 
       <Footer
         input={state.input}
-        onChange={(value) => eventQueue.push({ input: value, historyIndex: -1 })}
+        onChange={(value) => setInput(value)}
         onSubmit={async (value) => {
           await handleCommand(value)
-          eventQueue.push({ input: '', historyIndex: -1, suggestions: [] })
+          dispatch({ type: 'RESET_INPUT' })
         }}
         suggestions={state.suggestions}
         selectedSuggestionIndex={state.selectedSuggestionIndex}
@@ -335,7 +250,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
         <Modal
           title={state.modalContent.title}
           content={state.modalContent.content}
-          onClose={() => eventQueue.push({ modalContent: undefined })}
+          onClose={closeModal}
         />
       )}
     </Box>
