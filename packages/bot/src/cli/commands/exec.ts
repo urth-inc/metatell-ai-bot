@@ -2,17 +2,21 @@
  * Command execution engine using unified commands
  */
 
-import type { AgentClient } from '@metatell/sdk'
+import type { AgentClient, CoreServiceFactory } from '@metatell/sdk'
 import { getLogger } from '@metatell/sdk'
-import type { CommandPlan } from './plan.js'
-import { CommandRegistry, type CommandContext } from '../../bots/commands/BotCommand.js'
+import { type CommandContext, CommandRegistry } from '../../bots/commands/BotCommand.js'
 import { unifiedCommands } from '../../bots/commands/unifiedCommands.js'
+import type { CommandPlan } from './plan.js'
 
 export interface CommandResult {
   success: boolean
   message?: string
   data?: unknown
   showModal?: boolean
+}
+
+interface ClientWithFactory extends AgentClient {
+  factory: CoreServiceFactory
 }
 
 export class CommandExecutor {
@@ -26,7 +30,7 @@ export class CommandExecutor {
     this.commandRegistry.registerAll(unifiedCommands)
 
     // Create command context from client services
-    const factory = (this.client as any).factory
+    const factory = (this.client as ClientWithFactory).factory
     this.context = {
       avatarController: factory.getService('IAvatarController'),
       userAvatarManager: factory.getService('IUserAvatarManager'),
@@ -40,27 +44,21 @@ export class CommandExecutor {
     this.logger.debug('Executing command', { plan })
 
     try {
-      // Handle special cases that don't map to unified commands
-      switch (plan.kind) {
-        case 'quit':
-          return { success: true, message: 'Goodbye!' }
-        
-        case 'error':
-          return { success: false, message: plan.message }
-        
-        case 'logs':
-          return this.executeLogs(plan)
+      // Handle special cases
+      if (plan.kind === 'error') {
+        return { success: false, message: plan.message }
       }
 
-      // Map plan.kind to command name
-      const commandName = this.mapPlanKindToCommandName(plan.kind)
-      
-      // Extract arguments from plan
-      const args = this.extractArgumentsFromPlan(plan)
-      
-      // Execute using unified command registry
+      if (plan.kind === 'quit') {
+        return { success: true, message: 'Goodbye! 👋' }
+      }
+
+      // Convert plan to command name and args
+      const { commandName, args } = this.planToCommandArgs(plan)
+
+      // Delegate all execution to CommandRegistry
       const result = await this.commandRegistry.executeCLI(commandName, args, this.context)
-      
+
       // Special handling for help command to show in modal
       if (plan.kind === 'help') {
         return {
@@ -68,7 +66,7 @@ export class CommandExecutor {
           showModal: true,
         }
       }
-      
+
       return result
     } catch (error) {
       this.logger.error('Command execution failed', { error })
@@ -79,61 +77,62 @@ export class CommandExecutor {
     }
   }
 
-  private mapPlanKindToCommandName(kind: string): string {
-    // Map plan kinds to unified command names
-    const mapping: Record<string, string> = {
+  private planToCommandArgs(plan: CommandPlan): { commandName: string; args: string[] } {
+    // Map plan kinds to command names
+    const commandMapping: Record<string, string> = {
       status: 'info',
       say: 'say',
-      move: 'move', 
+      move: 'move',
       look: 'nearby',
       nearby: 'nearby',
       users: 'users',
       help: 'help',
+      logs: 'logs',
     }
-    return mapping[kind] || kind
-  }
 
-  private extractArgumentsFromPlan(plan: CommandPlan): string[] {
+    const commandName = commandMapping[plan.kind] || plan.kind
+
+    // Extract arguments based on plan type
+    let args: string[] = []
+
     switch (plan.kind) {
       case 'say':
-        return [(plan as any).message || '']
-      
-      case 'move':
-        const movePlan = plan as any
-        return [
-          movePlan.position?.x?.toString() || '0',
-          movePlan.position?.y?.toString() || '0', 
-          movePlan.position?.z?.toString() || '0'
-        ]
-      
-      case 'look':
-      case 'nearby':
-        const nearbyPlan = plan as any
-        return nearbyPlan.radius ? [nearbyPlan.radius.toString()] : []
-      
-      default:
-        return []
-    }
-  }
+        if (plan.kind === 'say') {
+          args = [plan.message || '']
+        }
+        break
 
-  private async executeLogs(plan: CommandPlan): Promise<CommandResult> {
-    // Logs command is CLI-specific and not in unified commands
-    return {
-      success: true,
-      message: 'Logs functionality not yet implemented',
+      case 'move': {
+        if (plan.kind === 'move') {
+          args = [plan.x?.toString() || '0', plan.y?.toString() || '0', plan.z?.toString() || '0']
+        }
+        break
+      }
+
+      case 'look':
+      case 'nearby': {
+        if (plan.kind === 'nearby') {
+          args = plan.radius ? [plan.radius.toString()] : []
+        }
+        break
+      }
+
+      default:
+        args = []
     }
+
+    return { commandName, args }
   }
 
   /**
    * Get available commands for help display
    */
   getAvailableCommands(): string[] {
-    return this.commandRegistry.getAll()
-      .filter(cmd => cmd.cliHandler)
-      .map(cmd => {
-        const aliases = cmd.cliAliases?.length 
-          ? ` (${cmd.cliAliases.join(', ')})` 
-          : ''
+    return this.commandRegistry
+      .getAll()
+      .filter((cmd) => cmd.cliHandler)
+      .map((cmd) => {
+        const aliases = cmd.cliAliases?.length ? ` (${cmd.cliAliases.join(', ')})` : ''
         return `/${cmd.name}${aliases} - ${cmd.description}`
       })
   }

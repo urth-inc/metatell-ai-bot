@@ -12,13 +12,11 @@ export function pushPromise(
 ): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const push: Push = channel.push(event, payload)
-    
+
     push
       .receive('ok', (response) => resolve(response))
       .receive('error', (error) => {
-        const errorMessage = typeof error === 'string' 
-          ? error 
-          : JSON.stringify(error)
+        const errorMessage = typeof error === 'string' ? error : JSON.stringify(error)
         reject(new Error(`Push '${event}' failed: ${errorMessage}`))
       })
       .receive('timeout', () => {
@@ -40,13 +38,8 @@ export async function pushSequence(
   }>,
 ): Promise<void> {
   for (const op of operations) {
-    const response = await pushPromise(
-      channel,
-      op.event,
-      op.payload,
-      op.timeoutMs,
-    )
-    
+    const response = await pushPromise(channel, op.event, op.payload, op.timeoutMs)
+
     if (op.onSuccess) {
       op.onSuccess(response)
     }

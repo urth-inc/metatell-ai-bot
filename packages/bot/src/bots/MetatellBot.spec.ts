@@ -222,7 +222,9 @@ describe('MetatellBot', () => {
       await messageHandler({ body: '@TestBot move 10 0 -5', session_id: 'user-123' })
 
       expect(mockAvatarController.move).toHaveBeenCalledWith({ x: 10, y: 0, z: -5 })
-      expect(mockMessageService.sendMessage).toHaveBeenCalledWith('Moving to position (10, 0, -5) 🚶')
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
+        'Moving to position (10, 0, -5) 🚶',
+      )
     })
 
     it('should ignore invalid move command', async () => {

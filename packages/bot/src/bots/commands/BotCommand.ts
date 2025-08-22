@@ -91,7 +91,9 @@ export class CommandRegistry {
    * Register multiple commands at once
    */
   registerAll(commands: (UnifiedCommand | BotCommand)[]): void {
-    commands.forEach(cmd => this.register(cmd))
+    commands.forEach((cmd) => {
+      this.register(cmd)
+    })
   }
 
   /**
@@ -105,9 +107,8 @@ export class CommandRegistry {
    * Find command by name or CLI alias
    */
   findCommand(nameOrAlias: string): UnifiedCommand | undefined {
-    return this.commands.find(cmd => 
-      cmd.name === nameOrAlias || 
-      cmd.cliAliases?.includes(nameOrAlias)
+    return this.commands.find(
+      (cmd) => cmd.name === nameOrAlias || cmd.cliAliases?.includes(nameOrAlias),
     )
   }
 
@@ -121,7 +122,7 @@ export class CommandRegistry {
   ): Promise<string | null> {
     for (const command of this.commands) {
       if (!command.pattern) continue
-      
+
       const match = message.match(command.pattern)
       if (match) {
         try {
@@ -147,7 +148,7 @@ export class CommandRegistry {
     context: CommandContext,
   ): Promise<{ success: boolean; message?: string }> {
     const command = this.findCommand(commandName)
-    
+
     if (!command) {
       return { success: false, message: `Unknown command: ${commandName}` }
     }
@@ -160,9 +161,9 @@ export class CommandRegistry {
       return await command.cliHandler(args, context)
     } catch (error) {
       context.logger.error(`CLI command ${commandName} failed:`, error)
-      return { 
-        success: false, 
-        message: `Error executing ${commandName}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      return {
+        success: false,
+        message: `Error executing ${commandName}: ${error instanceof Error ? error.message : 'Unknown error'}`,
       }
     }
   }
@@ -171,16 +172,15 @@ export class CommandRegistry {
    * Generate help text for all commands
    */
   getHelpText(forCLI = false): string {
-    const relevantCommands = this.commands.filter(cmd => 
-      forCLI ? cmd.cliHandler : cmd.botHandler || (cmd as any).handler
+    const relevantCommands = this.commands.filter((cmd) =>
+      forCLI ? cmd.cliHandler : cmd.botHandler || ('handler' in cmd && cmd.handler),
     )
 
     const commandHelp = relevantCommands
       .filter((cmd) => cmd.usage)
       .map((cmd) => {
-        const aliases = forCLI && cmd.cliAliases?.length 
-          ? ` (aliases: ${cmd.cliAliases.join(', ')})` 
-          : ''
+        const aliases =
+          forCLI && cmd.cliAliases?.length ? ` (aliases: ${cmd.cliAliases.join(', ')})` : ''
         return `  • ${cmd.usage}${aliases} - ${cmd.description}`
       })
       .join('\n')

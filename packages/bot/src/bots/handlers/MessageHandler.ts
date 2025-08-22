@@ -5,6 +5,7 @@ import type {
   IMessageService,
 } from '@metatell/sdk'
 import { getLogger } from '@metatell/sdk'
+import { parseMention } from '../../utils/mentionParser.js'
 import type { CommandContext, CommandRegistry } from '../commands/BotCommand.js'
 
 export type MessageHandlerCallback = (
@@ -39,53 +40,23 @@ export class MessageHandler {
     }
 
     const config = this.options.configProvider.getConfiguration()
-    this.logMessageDetails(body, session_id, config.profile.displayName)
+    const botName = config.profile.displayName
 
-    if (!this.isMentioned(body, config.profile.displayName)) {
+    this.logMessageDetails(body, session_id, botName)
+
+    // Use utility function for mention parsing
+    const commandText = parseMention(body, botName)
+
+    if (commandText === null) {
       this.logger.debug('[MENTION_NOT_FOUND] Ignoring message')
       return
     }
 
-    const cleanedMessage = this.extractMessageContent(body, config.profile.displayName)
-    await this.processMessage(cleanedMessage, session_id)
+    await this.processMessage(commandText, session_id)
   }
 
   private shouldProcessMessage(sessionId: string): boolean {
     return sessionId !== this.options.connectionManager.getSessionId()
-  }
-
-  private isMentioned(body: string, botName: string): boolean {
-    const escapedBotName = botName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const mentionPattern = new RegExp(`@${escapedBotName}(?:\\s|$)`, 'i')
-
-    const hasMatch = mentionPattern.test(body)
-
-    this.logger.debug('[MENTION_CHECK]', {
-      botName,
-      escapedBotName,
-      pattern: mentionPattern.toString(),
-      body,
-      hasMatch,
-      bodyCharCodes: Array.from(body).map((c) => `${c}(${c.charCodeAt(0)})`),
-    })
-
-    return hasMatch
-  }
-
-  private extractMessageContent(body: string, botName: string): string {
-    const escapedBotName = botName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const mentionPattern = new RegExp(`@${escapedBotName}(?:\\s|$)`, 'i')
-    const cleanedMessage = body.replace(mentionPattern, '').trim()
-
-    this.logger.debug('[MENTION_PROCESSED]', {
-      original: body,
-      cleaned: cleanedMessage,
-      cleanedQuoted: `"${cleanedMessage}"`,
-      length: cleanedMessage.length,
-      charCodes: Array.from(cleanedMessage).map((c) => c.charCodeAt(0)),
-    })
-
-    return cleanedMessage
   }
 
   private async processMessage(message: string, sessionId: string): Promise<void> {
