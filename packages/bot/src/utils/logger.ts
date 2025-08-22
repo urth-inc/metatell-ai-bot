@@ -1,4 +1,10 @@
-import { getLogger, getLoggerProvider, getRingBuffer, type CoreLogRecord, type RingBufferLike } from '@metatell/sdk'
+import {
+  type CoreLogRecord,
+  getLogger,
+  getLoggerProvider,
+  getRingBuffer,
+  type RingBufferLike,
+} from '@metatell/sdk'
 
 /**
  * ログレベル
@@ -95,7 +101,7 @@ export class ConsoleLogger implements Logger {
     const levelMap: Record<string, LogLevel> = {
       debug: LogLevel.DEBUG,
       info: LogLevel.LOG,
-      warn: LogLevel.LOG,   // WARNをERRORに昇格させない
+      warn: LogLevel.LOG, // WARNをERRORに昇格させない
       error: LogLevel.ERROR,
     }
     return {

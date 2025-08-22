@@ -126,10 +126,9 @@ describe('EventBus', () => {
 
       expect(errorHandler).toHaveBeenCalled()
       expect(normalHandler).toHaveBeenCalled()
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        'Error in event handler for "test"',
-        { error: expect.any(Error) },
-      )
+      expect(mockLogger.error).toHaveBeenCalledWith('Error in event handler for "test"', {
+        error: expect.any(Error),
+      })
     })
 
     it('should catch asynchronous errors in handlers', async () => {
@@ -143,10 +142,9 @@ describe('EventBus', () => {
       // Wait for promise rejection to be handled
       await new Promise((resolve) => setTimeout(resolve, 0))
 
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        'Error in event handler for "test"',
-        { error: expect.any(Error) },
-      )
+      expect(mockLogger.error).toHaveBeenCalledWith('Error in event handler for "test"', {
+        error: expect.any(Error),
+      })
     })
   })
 

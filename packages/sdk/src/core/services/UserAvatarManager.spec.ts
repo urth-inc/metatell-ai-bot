@@ -29,7 +29,7 @@ describe('UserAvatarManager', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     // Mock message service
     mockMessageService = {
       sendMessage: vi.fn(),
@@ -539,10 +539,9 @@ describe('UserAvatarManager', () => {
 
       expect(errorHandler).toHaveBeenCalled()
       expect(normalHandler).toHaveBeenCalled()
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        'Error in userJoined handler',
-        { error: expect.any(Error) },
-      )
+      expect(mockLogger.error).toHaveBeenCalledWith('Error in userJoined handler', {
+        error: expect.any(Error),
+      })
     })
   })
 

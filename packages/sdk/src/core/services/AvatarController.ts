@@ -1,4 +1,5 @@
 import { getLogger } from '../../sdk/logging/index.js'
+import { NafMessageBuilder } from '../builders/NafMessageBuilder.js'
 import type {
   AvatarState,
   IAvatarController,
@@ -8,7 +9,6 @@ import type {
 import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
-import { NafMessageBuilder } from '../builders/NafMessageBuilder.js'
 
 // Constants for default values
 const DEFAULT_TEMPLATE = '#remote-avatar'
@@ -209,7 +209,7 @@ export class AvatarController implements IAvatarController {
       .withLastOwnerTime()
       .withTemplate(DEFAULT_TEMPLATE)
       .withPersistent(false)
-      .withFirstSync(true)  // Important: Set first sync flag for new users
+      .withFirstSync(true) // Important: Set first sync flag for new users
       .withPosition(this.state.position)
       .withVelocity({ x: 0, y: 0, z: 0 })
       .withScale({ x: 1, y: 1, z: 1 })
@@ -233,9 +233,9 @@ export class AvatarController implements IAvatarController {
       .withMegaphone(false)
       .withTemporaryMegaphone(false)
       .build()
-    
+
     await this.messageService.sendNAF(nafMessage)
-    
+
     this.logger.debug(`✅ Avatar resynced for new user`)
   }
 }

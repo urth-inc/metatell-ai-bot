@@ -57,7 +57,9 @@ export const Modal: React.FC<ModalProps> = ({ content, onClose, title }) => {
       {/* コンテンツ */}
       <Box flexDirection="column" flexGrow={1} paddingX={1}>
         {visibleLines.map((line, index) => (
-          <Text key={`line-${scrollOffset + index}-${line?.slice(0, 10) || 'empty'}`}>{line || ' '}</Text>
+          <Text key={`line-${scrollOffset + index}-${line?.slice(0, 10) || 'empty'}`}>
+            {line || ' '}
+          </Text>
         ))}
       </Box>
 

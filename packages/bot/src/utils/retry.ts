@@ -36,7 +36,7 @@ export function createRetry(config: Partial<RetryConfig> = {}) {
 
       for (let attempt = 1; attempt <= finalConfig.maxAttempts; attempt++) {
         const result = await operation()
-        
+
         if (isSuccess(result)) {
           return result
         }
@@ -45,7 +45,7 @@ export function createRetry(config: Partial<RetryConfig> = {}) {
           return result
         }
 
-        await new Promise(resolve => setTimeout(resolve, delay))
+        await new Promise((resolve) => setTimeout(resolve, delay))
         delay = Math.min(delay * finalConfig.backoffMultiplier, finalConfig.maxDelayMs)
       }
 
@@ -57,7 +57,7 @@ export function createRetry(config: Partial<RetryConfig> = {}) {
      * Wait for a condition to become true
      */
     async waitUntil(condition: () => Promise<boolean> | boolean): Promise<void> {
-      await this.retryUntilSuccess(condition, result => result === true)
+      await this.retryUntilSuccess(condition, (result) => result === true)
     },
   }
 }
@@ -73,6 +73,6 @@ export const retry = createRetry()
 export const retryUntilSuccess = retry.retryUntilSuccess.bind(retry)
 
 /**
- * Convenience function using default configuration  
+ * Convenience function using default configuration
  */
 export const waitUntil = retry.waitUntil.bind(retry)

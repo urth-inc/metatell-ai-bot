@@ -25,7 +25,7 @@ export class AuthenticationService implements IAuthenticationService {
 
     // Get auth configuration from config provider
     const config = this.configProvider.getConfiguration()
-    
+
     // For now, generate a mock token since the auth endpoint is not fully implemented
     // In production, this should make a real API call to config.authUrl
     this.token = {

@@ -2,13 +2,13 @@
  * Agent Client - facade for CLI/SDK usage
  */
 
+import type { CoreServiceFactory } from '../core/CoreServiceFactory.js'
 import type { IAvatarController } from '../core/interfaces/IAvatarController.js'
 import type { IConfigurationProvider } from '../core/interfaces/IConfigurationProvider.js'
 import type { IConnectionManager } from '../core/interfaces/IConnectionManager.js'
 import type { IEventBus } from '../core/interfaces/IEventBus.js'
 import type { IMessageService } from '../core/interfaces/IMessageService.js'
 import type { IUserAvatarManager, UserAvatar } from '../core/interfaces/IUserAvatarManager.js'
-import type { CoreServiceFactory } from '../core/CoreServiceFactory.js'
 import { getLogger } from './logging/index.js'
 import { RateLimitedQueue } from './rate.js'
 
@@ -21,36 +21,39 @@ export interface AgentClientEvents {
   'connection:established': () => void
   'connection:lost': () => void
   'connection:error': (error: Error) => void
-  
+
   // Room events
   'room:joined': (data: { session_id: string }) => void
   'room:left': () => void
-  
+
   // User events
   'user:joined': (user: UserAvatar) => void
   'user:left': (user: UserAvatar) => void
   'user:updated': (user: UserAvatar) => void
   'user:moved': (user: UserAvatar) => void
-  
+
   // Message events
   'message:received': (data: { body: string; session_id: string }) => void
   'message:sent': (message: string) => void
-  
+
   // Avatar events
-  'avatar:spawned': (state: { networkId: string; position: { x: number; y: number; z: number } }) => void
+  'avatar:spawned': (state: {
+    networkId: string
+    position: { x: number; y: number; z: number }
+  }) => void
   'avatar:moved': (state: { position: { x: number; y: number; z: number } }) => void
   'avatar:updated': (state: unknown) => void
-  
+
   // Error events
-  'error': (error: Error) => void
+  error: (error: Error) => void
 }
 
 export interface ConnectionOptions {
   url: string
   token?: string
-  authUrl?: string  // Allow passing authUrl directly
-  hubUrl?: string   // Allow passing hubUrl directly
-  hubId?: string    // Allow passing hubId directly
+  authUrl?: string // Allow passing authUrl directly
+  hubUrl?: string // Allow passing hubUrl directly
+  hubId?: string // Allow passing hubId directly
 }
 
 export interface AgentClientConfig {
@@ -122,10 +125,7 @@ export class DefaultAgentClient implements AgentClient {
     retries: 0,
   }
 
-  constructor(
-    factory: CoreServiceFactory,
-    config: AgentClientConfig = {},
-  ) {
+  constructor(factory: CoreServiceFactory, config: AgentClientConfig = {}) {
     this.factory = factory
     // コアサービスインターフェースのみに依存
     this.avatarController = factory.getService('IAvatarController') as IAvatarController
@@ -133,7 +133,7 @@ export class DefaultAgentClient implements AgentClient {
     this.userAvatarManager = factory.getService('IUserAvatarManager') as IUserAvatarManager
     this.connectionManager = factory.getService('IConnectionManager') as IConnectionManager
     this.eventBus = factory.getService('IEventBus') as IEventBus
-    
+
     // Setup event handlers for user join
     this.setupEventHandlers()
 
@@ -204,9 +204,11 @@ export class DefaultAgentClient implements AgentClient {
       }
 
       // Get avatar configuration and spawn
-      const configProvider = this.factory.getService('IConfigurationProvider') as IConfigurationProvider
+      const configProvider = this.factory.getService(
+        'IConfigurationProvider',
+      ) as IConfigurationProvider
       const config = configProvider.getConfiguration()
-      
+
       if (config.profile.avatarId) {
         await this.avatarController.spawn(config.profile.avatarId)
       }
@@ -256,7 +258,7 @@ export class DefaultAgentClient implements AgentClient {
       await this.messageService.sendMessage(message)
     })
   }
-  
+
   // Alias for send
   async say(message: string): Promise<void> {
     return this.send(message)

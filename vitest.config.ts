@@ -1,5 +1,5 @@
-import { defineConfig } from 'vitest/config'
 import path from 'node:path'
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
@@ -18,18 +18,15 @@ export default defineConfig({
         '**/*.d.ts',
         'packages/bot/src/example.ts',
         'packages/bot/src/main.ts',
-        'packages/bot/src/websocket-polyfill.ts'
-      ]
+        'packages/bot/src/websocket-polyfill.ts',
+      ],
     },
-    include: [
-      'packages/*/src/**/*.{test,spec}.{js,ts}',
-      'test-utils/**/*.{test,spec}.{js,ts}'
-    ]
+    include: ['packages/*/src/**/*.{test,spec}.{js,ts}', 'test-utils/**/*.{test,spec}.{js,ts}'],
   },
   resolve: {
     alias: {
       '@metatell/sdk': path.resolve(__dirname, './packages/sdk/src'),
-      '@metatell/bot': path.resolve(__dirname, './packages/bot/src')
-    }
-  }
+      '@metatell/bot': path.resolve(__dirname, './packages/bot/src'),
+    },
+  },
 })

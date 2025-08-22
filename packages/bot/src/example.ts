@@ -2,12 +2,12 @@
 
 import './websocket-polyfill.js'
 import {
+  type ConnectionOptions,
   CoreServiceFactory,
   createAgentClient,
-  type ConnectionOptions,
+  DefaultLoggerProvider,
   getLogger,
   registerLoggerProvider,
-  DefaultLoggerProvider,
 } from '@metatell/sdk'
 
 // Register logger provider
@@ -29,7 +29,7 @@ async function main() {
   const url = new URL(roomUrl)
   const hubId = url.pathname.split('/')[1]
   const authUrl = `wss://${url.host}`
-  
+
   // Create service factory with configuration
   const factory = new CoreServiceFactory({
     authUrl: authUrl,

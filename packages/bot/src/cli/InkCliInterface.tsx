@@ -1,8 +1,8 @@
-import { Box, useApp, useInput, useStdout } from 'ink'
-import type React from 'react'
-import { useCallback, useEffect, useState, useMemo } from 'react'
 import type { AgentClient, CoreLogRecord as LogRecord, RingBufferLike } from '@metatell/sdk'
 import { getLogger, getRingBuffer } from '@metatell/sdk'
+import { Box, useApp, useInput, useStdout } from 'ink'
+import type React from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CommandExecutor } from './commands/exec.js'
 import { COMMANDS, type CommandPlan, parseCommand } from './commands/plan.js'
 import { Footer } from './components/Footer.js'
@@ -65,7 +65,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
           return next
         })
       }),
-    []
+    [],
   )
 
   // 初期化：バッファされたログを取得
@@ -130,7 +130,6 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
             }
           }
           break
-
 
         case 'tail':
           // デフォルト動作

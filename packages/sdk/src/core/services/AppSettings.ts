@@ -1,5 +1,5 @@
-import type { IAppSettings } from '../interfaces/IAppSettings.js'
 import { getLogger } from '../../sdk/logging/index.js'
+import type { IAppSettings } from '../interfaces/IAppSettings.js'
 
 export class AppSettings implements IAppSettings {
   private _debugMode: boolean
@@ -27,7 +27,7 @@ export class AppSettings implements IAppSettings {
   setDebugMode(enabled: boolean): void {
     if (this._debugMode !== enabled) {
       this._debugMode = enabled
-      
+
       // 全てのコールバックに通知
       for (const callback of this.debugCallbacks) {
         try {

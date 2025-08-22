@@ -1,5 +1,5 @@
-import type { EventHandler, IEventBus } from '../interfaces/IEventBus.js'
 import { getLogger } from '../../sdk/logging/index.js'
+import type { EventHandler, IEventBus } from '../interfaces/IEventBus.js'
 
 export class EventBus implements IEventBus {
   private events = new Map<string, Set<EventHandler>>()

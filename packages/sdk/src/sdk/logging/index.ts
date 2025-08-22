@@ -2,11 +2,10 @@
  * SDK Logging module - SPI and default implementation
  */
 
-// Export SPI interfaces and registration functions
-export * from './spi.js'
-
 // Export default provider and CLI compatibility functions
 export { DefaultLoggerProvider, getRingBuffer } from './providers/default.js'
+// Export SPI interfaces and registration functions
+export * from './spi.js'
 
 // Core logging types
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'

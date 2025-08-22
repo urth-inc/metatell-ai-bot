@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { registerLoggerProvider, DefaultLoggerProvider } from '../../sdk/logging/index.js'
+import { DefaultLoggerProvider, registerLoggerProvider } from '../../sdk/logging/index.js'
 
 // Register logger provider for tests
 registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
+
 import { findEventBusCall } from '../../../../../test-utils/mocks.js'
 import type {
   BotConfiguration,
@@ -184,7 +185,7 @@ describe('AvatarController', () => {
               }),
             ]),
           }),
-        })
+        }),
       )
 
       expect(mockEventBus.emit).toHaveBeenCalledWith(
@@ -250,7 +251,7 @@ describe('AvatarController', () => {
               }),
             ]),
           }),
-        })
+        }),
       )
 
       expect(mockEventBus.emit).toHaveBeenCalledWith(
@@ -310,7 +311,7 @@ describe('AvatarController', () => {
               }),
             ]),
           }),
-        })
+        }),
       )
 
       const state = avatarController.getState()
@@ -337,7 +338,7 @@ describe('AvatarController', () => {
               }),
             ]),
           }),
-        })
+        }),
       )
 
       const state = avatarController.getState()
@@ -364,7 +365,7 @@ describe('AvatarController', () => {
               }),
             ]),
           }),
-        })
+        }),
       )
     })
 
@@ -390,7 +391,7 @@ describe('AvatarController', () => {
               }),
             ]),
           }),
-        })
+        }),
       )
 
       const state = avatarController.getState()
