@@ -178,7 +178,7 @@ describe('MetatellBot', () => {
       await messageHandler({ body: '@TestBot info', session_id: 'user-123' })
 
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
-        expect.stringContaining('Room Information:'),
+        expect.stringContaining('Room Info:'),
       )
     })
 
@@ -222,7 +222,7 @@ describe('MetatellBot', () => {
       await messageHandler({ body: '@TestBot move 10 0 -5', session_id: 'user-123' })
 
       expect(mockAvatarController.move).toHaveBeenCalledWith({ x: 10, y: 0, z: -5 })
-      expect(mockMessageService.sendMessage).toHaveBeenCalledWith('Moving to position (10, 0, -5)')
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith('Moving to position (10, 0, -5) 🚶')
     })
 
     it('should ignore invalid move command', async () => {
@@ -489,7 +489,7 @@ describe('MetatellBot', () => {
       await messageHandler({ body: '@TestBot info', session_id: 'user-123' })
 
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
-        expect.stringContaining('Unknown'),
+        expect.stringContaining('Connected users: None'),
       )
     })
   })
@@ -519,13 +519,13 @@ describe('MetatellBot', () => {
       await messageHandler({ body: '@TestBot users', session_id: 'user-123' })
 
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
-        expect.stringContaining('👥 Users in room (2):'),
+        expect.stringContaining('Users in room:'),
       )
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
-        expect.stringContaining('Alice (user-123...') && expect.stringContaining('10.5, 0.2, -5.3'),
+        expect.stringContaining('Alice at (10.5, 0.2, -5.3)'),
       )
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
-        expect.stringContaining('Bob (user-456...') && expect.stringContaining('-3.2, 0.0, 7.8'),
+        expect.stringContaining('Bob at (-3.2, 0.0, 7.8)'),
       )
     })
 
@@ -536,7 +536,7 @@ describe('MetatellBot', () => {
       const messageHandler = onCalls[0][1] as MessageHandler
       await messageHandler({ body: '@TestBot users', session_id: 'user-123' })
 
-      expect(mockMessageService.sendMessage).toHaveBeenCalledWith('No users currently in the room')
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith('No users in the room')
     })
   })
 
@@ -571,10 +571,10 @@ describe('MetatellBot', () => {
 
       expect(mockUserAvatarManager.getUsersInRange).toHaveBeenCalledWith({ x: 0, y: 0, z: 0 }, 10)
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
-        expect.stringContaining('📍 Users within 10 units (1):'),
+        expect.stringContaining('Users within 10 units:'),
       )
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
-        expect.stringContaining('NearUser - 5.0 units away'),
+        expect.stringContaining('NearUser (5.0 units away)'),
       )
     })
 
@@ -595,7 +595,7 @@ describe('MetatellBot', () => {
       const messageHandler = onCalls[0][1] as MessageHandler
       await messageHandler({ body: '@TestBot nearby 10', session_id: 'user-123' })
 
-      expect(mockMessageService.sendMessage).toHaveBeenCalledWith('Bot avatar not spawned yet')
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith('Bot avatar not spawned')
     })
 
     it('should ignore invalid nearby command', async () => {
