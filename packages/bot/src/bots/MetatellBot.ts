@@ -34,7 +34,7 @@ export class MetatellBot {
     private appSettings: IAppSettings,
   ) {
     this.setupCommands()
-    
+
     // Initialize handlers directly in constructor
     const commandContext: CommandContext = {
       avatarController: this.avatarController,
@@ -65,7 +65,7 @@ export class MetatellBot {
       avatarController: this.avatarController,
       configProvider: this.configProvider,
     })
-    
+
     this.setupEventHandlers()
     this.setupDefaultHandlers()
   }

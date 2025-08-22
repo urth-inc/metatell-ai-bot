@@ -1,4 +1,4 @@
-import type { AgentClient, CoreLogRecord as LogRecord, RingBufferLike } from '@metatell/sdk'
+import type { AgentClient, LogRecord, RingBufferLike } from '@metatell/sdk'
 import { getLogger, getRingBuffer } from '@metatell/sdk'
 import { Box, useApp, useInput, useStdout } from 'ink'
 import type React from 'react'

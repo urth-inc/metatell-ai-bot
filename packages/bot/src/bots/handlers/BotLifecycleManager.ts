@@ -52,16 +52,44 @@ export class BotLifecycleManager {
       return
     }
 
+    const errors: Array<{ operation: string; error: unknown }> = []
+
+    // Send goodbye message (non-critical, don't fail if this fails)
     try {
       await this.sendGoodbyeMessage()
-      await this.destroyAvatar()
-      await this.disconnect()
-
-      this.isRunning = false
-      this.logger.info('Bot stopped successfully')
     } catch (error) {
-      this.logger.error(`Error stopping bot: ${error}`)
-      this.isRunning = false
+      this.logger.error('Failed to send goodbye message:', error)
+      errors.push({ operation: 'sendGoodbyeMessage', error })
+    }
+
+    // Destroy avatar (non-critical)
+    try {
+      await this.destroyAvatar()
+    } catch (error) {
+      this.logger.error('Failed to destroy avatar:', error)
+      errors.push({ operation: 'destroyAvatar', error })
+    }
+
+    // Disconnect (critical - must always attempt)
+    try {
+      await this.disconnect()
+    } catch (error) {
+      this.logger.error('Failed to disconnect:', error)
+      errors.push({ operation: 'disconnect', error })
+    }
+
+    this.isRunning = false
+
+    // Report success/partial success
+    if (errors.length === 0) {
+      this.logger.info('Bot stopped successfully')
+    } else if (errors.length < 3) {
+      this.logger.warn(`Bot stopped with ${errors.length} error(s):`, errors)
+    } else {
+      // All operations failed - throw aggregated error
+      const errorMessage = `Bot stop failed completely: ${errors.map((e) => e.operation).join(', ')}`
+      this.logger.error(errorMessage, errors)
+      throw new Error(errorMessage)
     }
   }
 
