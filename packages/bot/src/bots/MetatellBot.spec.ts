@@ -1,17 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
+  BotConfiguration,
   IAppSettings,
   IAvatarController,
-  BotConfiguration,
   IConfigurationProvider,
   IConnectionManager,
   IMessageService,
   IPresenceManager,
-  PresenceUser,
   IUserAvatarManager,
+  PresenceUser,
   UserAvatar,
 } from '@metatell/sdk'
-import { registerLoggerProvider, DefaultLoggerProvider } from '@metatell/sdk'
+import { DefaultLoggerProvider, registerLoggerProvider } from '@metatell/sdk'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MockChannel } from '../../../../test-utils/mocks.js'
 import { findMockCall, getMockCalls } from '../../../../test-utils/mocks.js'
 import type { MessageHandler, PresenceHandler } from '../../../../test-utils/types.js'
@@ -48,9 +48,9 @@ describe('MetatellBot', () => {
                 // Don't call error/timeout callbacks in successful tests
               }
               return { receive: vi.fn() }
-            })
+            }),
           }
-        })
+        }),
       }),
       on: vi.fn(),
       leave: vi.fn(),
@@ -185,9 +185,7 @@ describe('MetatellBot', () => {
     it('should respond to hello message', async () => {
       await messageHandler({ body: '@TestBot hello there!', session_id: 'user-123' })
 
-      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
-        expect.stringContaining('Hello'),
-      )
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(expect.stringContaining('Hello'))
     })
 
     it('should handle help command with different cases', async () => {
@@ -196,14 +194,14 @@ describe('MetatellBot', () => {
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
         expect.stringContaining('Available commands:'),
       )
-      
+
       // 大文字のHELP
       mockMessageService.sendMessage.mockClear()
       await messageHandler({ body: '@TestBot HELP', session_id: 'user-123' })
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
         expect.stringContaining('Available commands:'),
       )
-      
+
       // 余分なスペース
       mockMessageService.sendMessage.mockClear()
       await messageHandler({ body: '@TestBot  help  ', session_id: 'user-123' })
@@ -247,7 +245,9 @@ describe('MetatellBot', () => {
       bot.addMessageHandler(errorHandler)
 
       // エラーが発生してもクラッシュしないことを確認
-      await expect(messageHandler({ body: '@TestBot test', session_id: 'user-123' })).resolves.not.toThrow()
+      await expect(
+        messageHandler({ body: '@TestBot test', session_id: 'user-123' }),
+      ).resolves.not.toThrow()
     })
   })
 
@@ -384,7 +384,7 @@ describe('MetatellBot', () => {
     it('should handle missing hub channel', async () => {
       mockConnectionManager.getHubChannel = vi.fn(() => null)
 
-      await expect(bot.start()).rejects.toThrow('Not connected to hub')
+      await expect(bot.start()).rejects.toThrow('No hub channel available')
       expect(bot.isActive()).toBe(false)
     })
   })
@@ -433,11 +433,11 @@ describe('MetatellBot', () => {
       const expectedMessage = expect.stringContaining('Users online: 2')
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(expectedMessage)
     })
-    
+
     it('should handle bot names with spaces correctly', async () => {
       // 元の設定を保存
       const originalGetConfiguration = mockConfigProvider.getConfiguration
-      
+
       // スペースを含む名前の設定
       mockConfigProvider.getConfiguration = vi.fn(() => ({
         authUrl: 'https://test.app/auth',
@@ -448,7 +448,7 @@ describe('MetatellBot', () => {
         },
         context: {},
       }))
-      
+
       // 新しいボットインスタンスを作成
       const _spaceBot = new MetatellBot(
         mockConnectionManager,
@@ -459,24 +459,22 @@ describe('MetatellBot', () => {
         mockConfigProvider,
         mockAppSettings,
       )
-      
+
       // メッセージハンドラーを取得
       const onCalls = getMockCalls(mockMessageService.on as ReturnType<typeof vi.fn>)
       const messageHandler = onCalls[0][1] as MessageHandler
-      
+
       // helpコマンドのテスト
       await messageHandler({ body: '@AI Assistant help', session_id: 'user-123' })
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
         expect.stringContaining('Available commands:'),
       )
-      
+
       // helloコマンドのテスト
       mockMessageService.sendMessage.mockClear()
       await messageHandler({ body: '@AI Assistant hello', session_id: 'user-123' })
-      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
-        expect.stringContaining('Hello'),
-      )
-      
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(expect.stringContaining('Hello'))
+
       // 設定を元に戻す
       mockConfigProvider.getConfiguration = originalGetConfiguration
     })
