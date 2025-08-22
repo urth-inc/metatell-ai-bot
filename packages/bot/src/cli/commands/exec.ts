@@ -1,11 +1,12 @@
 /**
- * Command execution engine
+ * Command execution engine using unified commands
  */
 
-import type { AgentClient, UserAvatar } from '@metatell/sdk'
+import type { AgentClient } from '@metatell/sdk'
 import { getLogger } from '@metatell/sdk'
 import type { CommandPlan } from './plan.js'
-import { COMMANDS } from './plan.js'
+import { CommandRegistry, type CommandContext } from '../../bots/commands/BotCommand.js'
+import { unifiedCommands } from '../../bots/commands/unifiedCommands.js'
 
 export interface CommandResult {
   success: boolean
@@ -16,47 +17,59 @@ export interface CommandResult {
 
 export class CommandExecutor {
   private logger = getLogger('CommandExecutor')
+  private commandRegistry: CommandRegistry
+  private context: CommandContext
 
-  constructor(private client: AgentClient) {}
+  constructor(private client: AgentClient) {
+    // Initialize command registry with unified commands
+    this.commandRegistry = new CommandRegistry()
+    this.commandRegistry.registerAll(unifiedCommands)
+
+    // Create command context from client services
+    const factory = (this.client as any).factory
+    this.context = {
+      avatarController: factory.getService('IAvatarController'),
+      userAvatarManager: factory.getService('IUserAvatarManager'),
+      presenceManager: factory.getService('IPresenceManager'),
+      messageService: factory.getService('IMessageService'),
+      logger: this.logger,
+    }
+  }
 
   async execute(plan: CommandPlan): Promise<CommandResult> {
     this.logger.debug('Executing command', { plan })
 
     try {
+      // Handle special cases that don't map to unified commands
       switch (plan.kind) {
-        case 'status':
-          return this.executeStatus()
-
-        case 'say':
-          return this.executeSay(plan)
-
-        case 'move':
-          return this.executeMove(plan)
-
-        case 'look':
-          return this.executeLook(plan)
-
-        case 'nearby':
-          return this.executeNearby(plan)
-
-        case 'users':
-          return this.executeUsers(plan)
-
-        case 'logs':
-          return this.executeLogs(plan)
-
-        case 'help':
-          return this.executeHelp()
-
         case 'quit':
           return { success: true, message: 'Goodbye!' }
-
+        
         case 'error':
           return { success: false, message: plan.message }
-
-        default:
-          return { success: false, message: 'Unknown command' }
+        
+        case 'logs':
+          return this.executeLogs(plan)
       }
+
+      // Map plan.kind to command name
+      const commandName = this.mapPlanKindToCommandName(plan.kind)
+      
+      // Extract arguments from plan
+      const args = this.extractArgumentsFromPlan(plan)
+      
+      // Execute using unified command registry
+      const result = await this.commandRegistry.executeCLI(commandName, args, this.context)
+      
+      // Special handling for help command to show in modal
+      if (plan.kind === 'help') {
+        return {
+          ...result,
+          showModal: true,
+        }
+      }
+      
+      return result
     } catch (error) {
       this.logger.error('Command execution failed', { error })
       return {
@@ -66,123 +79,62 @@ export class CommandExecutor {
     }
   }
 
-
-  private async executeStatus(): Promise<CommandResult> {
-    const status = this.client.getStatus()
-
-    const lines = [
-      `Connection: ${status.connected ? 'Connected' : status.connecting ? 'Connecting' : 'Disconnected'}`,
-    ]
-    if (status.room) lines.push(`Room: ${status.room}`)
-    if (status.sessionId) lines.push(`Session: ${status.sessionId}`)
-    if (status.rtt !== undefined) lines.push(`RTT: ${status.rtt}ms`)
-    lines.push(`Retries: ${status.retries}`)
-
-    return { success: true, message: lines.join('\n') }
+  private mapPlanKindToCommandName(kind: string): string {
+    // Map plan kinds to unified command names
+    const mapping: Record<string, string> = {
+      status: 'info',
+      say: 'say',
+      move: 'move', 
+      look: 'nearby',
+      nearby: 'nearby',
+      users: 'users',
+      help: 'help',
+    }
+    return mapping[kind] || kind
   }
 
-  private async executeSay(plan: Extract<CommandPlan, { kind: 'say' }>): Promise<CommandResult> {
-    await this.client.send(plan.message)
-    return { success: true, message: `Sent: ${plan.message}` }
-  }
-
-  private async executeMove(plan: Extract<CommandPlan, { kind: 'move' }>): Promise<CommandResult> {
-    await this.client.move({ x: plan.x, y: plan.y, z: plan.z })
-    return { success: true, message: `Moving to (${plan.x}, ${plan.y}, ${plan.z})` }
-  }
-
-  private async executeLook(plan: Extract<CommandPlan, { kind: 'look' }>): Promise<CommandResult> {
-    switch (plan.target.type) {
-      case 'position':
-        await this.client.look({ x: plan.target.x, y: plan.target.y, z: plan.target.z })
-        return {
-          success: true,
-          message: `Looking at (${plan.target.x}, ${plan.target.y}, ${plan.target.z})`,
-        }
-
-      case 'user':
-        await this.client.look({ userId: plan.target.id })
-        return { success: true, message: `Looking at user: ${plan.target.id}` }
-
-      case 'nearest':
-        await this.client.lookAtNearest()
-        return { success: true, message: 'Looking at nearest user' }
+  private extractArgumentsFromPlan(plan: CommandPlan): string[] {
+    switch (plan.kind) {
+      case 'say':
+        return [(plan as any).message || '']
+      
+      case 'move':
+        const movePlan = plan as any
+        return [
+          movePlan.position?.x?.toString() || '0',
+          movePlan.position?.y?.toString() || '0', 
+          movePlan.position?.z?.toString() || '0'
+        ]
+      
+      case 'look':
+      case 'nearby':
+        const nearbyPlan = plan as any
+        return nearbyPlan.radius ? [nearbyPlan.radius.toString()] : []
+      
+      default:
+        return []
     }
   }
 
-  private async executeNearby(
-    plan: Extract<CommandPlan, { kind: 'nearby' }>,
-  ): Promise<CommandResult> {
-    const radius = plan.radius || 10
-    const users = this.client.getUsersNearby(radius)
-
-    if (users.length === 0) {
-      return { success: true, message: `No users within ${radius} units` }
+  private async executeLogs(plan: CommandPlan): Promise<CommandResult> {
+    // Logs command is CLI-specific and not in unified commands
+    return {
+      success: true,
+      message: 'Logs functionality not yet implemented',
     }
-
-    const lines = [`Users within ${radius} units (${users.length}):`]
-    users.forEach((user: UserAvatar) => {
-      const distance = Math.sqrt(user.position.x ** 2 + user.position.y ** 2 + user.position.z ** 2)
-      lines.push(`  ${user.nickname} - ${distance.toFixed(1)} units away`)
-    })
-
-    return { success: true, message: lines.join('\n') }
   }
 
-  private async executeUsers(
-    plan: Extract<CommandPlan, { kind: 'users' }>,
-  ): Promise<CommandResult> {
-    let users = this.client.getUsers()
-
-    if (plan.nearby !== undefined) {
-      users = this.client.getUsersNearby(plan.nearby)
-    }
-
-    if (users.length === 0) {
-      return { success: true, message: 'No users in room' }
-    }
-
-    const lines = [`Users in room (${users.length}):`]
-    users.forEach((user: UserAvatar) => {
-      lines.push(`  ${user.nickname} (${user.id})`)
-      const pos = user.position
-      lines.push(
-        `    Position: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})`,
-      )
-      if (user.avatarId) {
-        lines.push(`    Avatar: ${user.avatarId}`)
-      }
-    })
-
-    return { success: true, message: lines.join('\n') }
-  }
-
-  private async executeLogs(_plan: Extract<CommandPlan, { kind: 'logs' }>): Promise<CommandResult> {
-    // ログ管理はCLI側で処理
-    return { success: true }
-  }
-
-  private async executeHelp(): Promise<CommandResult> {
-    const lines = ['Available Commands:', '']
-
-    COMMANDS.forEach((cmd) => {
-      lines.push(`  ${cmd.command.padEnd(12)} - ${cmd.description}`)
-      if (cmd.usage !== cmd.command) {
-        lines.push(`    Usage: ${cmd.usage}`)
-      }
-      if (cmd.aliases && cmd.aliases.length > 0) {
-        lines.push(`    Aliases: ${cmd.aliases.join(', ')}`)
-      }
-    })
-
-    lines.push('')
-    lines.push('Navigation:')
-    lines.push('  ↑/↓        - Command history')
-    lines.push('  Tab        - Complete command')
-    lines.push('  Ctrl+R     - Search history')
-    lines.push('  Esc        - Clear filter')
-    lines.push('  Ctrl+C×2   - Exit')
-
-    return { success: true, message: lines.join('\n'), showModal: true }
+  /**
+   * Get available commands for help display
+   */
+  getAvailableCommands(): string[] {
+    return this.commandRegistry.getAll()
+      .filter(cmd => cmd.cliHandler)
+      .map(cmd => {
+        const aliases = cmd.cliAliases?.length 
+          ? ` (${cmd.cliAliases.join(', ')})` 
+          : ''
+        return `/${cmd.name}${aliases} - ${cmd.description}`
+      })
   }
 }
