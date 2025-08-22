@@ -3,6 +3,7 @@ import { getLogger, getRingBuffer } from '@metatell/sdk'
 import { Box, useApp, useInput, useStdout } from 'ink'
 import type React from 'react'
 import { useCallback, useEffect, useMemo } from 'react'
+import type { CommandContext } from '../bots/commands/BotCommand.js'
 import { CommandExecutor } from './commands/exec.js'
 import { COMMANDS, type CommandPlan, parseCommand } from './commands/plan.js'
 import { Footer } from './components/Footer.js'
@@ -13,19 +14,20 @@ import { useCliState } from './hooks/useCliState.js'
 
 interface CliInterfaceProps {
   client: AgentClient
+  commandContext: CommandContext
 }
 
 
 /**
  * Main CLI interface component with 3-pane layout
  */
-export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client }) => {
+export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandContext }) => {
   const { exit } = useApp()
   const { stdout } = useStdout()
   const { state, dispatch, setInput, addLogs, showModal, closeModal } = useCliState()
 
   const logger = getLogger('CLI')
-  const executor = useMemo(() => new CommandExecutor(client), [client])
+  const executor = useMemo(() => new CommandExecutor(client, commandContext), [client, commandContext])
 
   // 初期化：バッファされたログを取得
   useEffect(() => {

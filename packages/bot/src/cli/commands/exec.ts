@@ -2,7 +2,7 @@
  * Command execution engine using unified commands
  */
 
-import type { AgentClient, CoreServiceFactory } from '@metatell/sdk'
+import type { AgentClient } from '@metatell/sdk'
 import { getLogger } from '@metatell/sdk'
 import { type CommandContext, CommandRegistry } from '../../bots/commands/BotCommand.js'
 import { unifiedCommands } from '../../bots/commands/unifiedCommands.js'
@@ -15,29 +15,17 @@ export interface CommandResult {
   showModal?: boolean
 }
 
-interface ClientWithFactory extends AgentClient {
-  factory: CoreServiceFactory
-}
-
 export class CommandExecutor {
   private logger = getLogger('CommandExecutor')
   private commandRegistry: CommandRegistry
-  private context: CommandContext
 
-  constructor(private client: AgentClient) {
+  constructor(
+    private client: AgentClient,
+    private context: CommandContext,
+  ) {
     // Initialize command registry with unified commands
     this.commandRegistry = new CommandRegistry()
     this.commandRegistry.registerAll(unifiedCommands)
-
-    // Create command context from client services
-    const factory = (this.client as ClientWithFactory).factory
-    this.context = {
-      avatarController: factory.getService('IAvatarController'),
-      userAvatarManager: factory.getService('IUserAvatarManager'),
-      presenceManager: factory.getService('IPresenceManager'),
-      messageService: factory.getService('IMessageService'),
-      logger: this.logger,
-    }
   }
 
   async execute(plan: CommandPlan): Promise<CommandResult> {

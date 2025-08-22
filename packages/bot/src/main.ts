@@ -11,6 +11,7 @@ import {
 import { Command } from 'commander'
 import { BotServiceFactory } from './bots/BotServiceFactory.js'
 import { ConfigManager } from './cli/config/config.js'
+import type { CommandContext } from './bots/commands/BotCommand.js'
 import { startInkCli } from './cli/startInkCli.js'
 import { FileLogger } from './utils/logging/file-logger.js'
 
@@ -175,6 +176,15 @@ async function main() {
       : undefined,
   })
 
+  // Create command context for CLI
+  const commandContext: CommandContext = {
+    avatarController: factory.getService('IAvatarController'),
+    userAvatarManager: factory.getService('IUserAvatarManager'),
+    presenceManager: factory.getService('IPresenceManager'),
+    messageService: factory.getService('IMessageService'),
+    logger: getLogger('CLI'),
+  }
+
   // デバッグモードの設定はAppSettingsで管理される
 
   // Handle shutdown gracefully
@@ -188,7 +198,7 @@ async function main() {
 
   try {
     // CLI を起動
-    const _cliApp = startInkCli(client)
+    const _cliApp = startInkCli(client, commandContext)
 
     // CLI起動完了を通知
     const { logger: cliLogger } = await import('./utils/logger.js')
