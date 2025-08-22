@@ -73,7 +73,7 @@ export class UserAvatarManager implements IUserAvatarManager {
 
     this.logger.debug(`[UserAvatarManager] Validating ${userCount} users after reconnection`)
 
-    // Simple polling to wait for user state recovery  
+    // Simple polling to wait for user state recovery
     const maxAttempts = 10
     let attempts = 0
     let delayMs = 1000
@@ -83,7 +83,7 @@ export class UserAvatarManager implements IUserAvatarManager {
       this.logger.debug(
         `[UserAvatarManager] Post-reconnection check: ${presenceUsers.length} presence users, ${this.users.size} avatar users`,
       )
-      
+
       // ユーザーリストが回復していれば成功
       if (this.users.size > 0) {
         this.logger.debug('[UserAvatarManager] User list validated after reconnection')
@@ -91,7 +91,7 @@ export class UserAvatarManager implements IUserAvatarManager {
       }
 
       // Wait with exponential backoff
-      await new Promise(resolve => setTimeout(resolve, delayMs))
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
       delayMs = Math.min(delayMs * 2, 32000)
       attempts++
     }
@@ -99,7 +99,9 @@ export class UserAvatarManager implements IUserAvatarManager {
     // Validation failed after max attempts
     const presenceUsers = this.presenceManager.getUsers()
     if (presenceUsers.length > 0 && this.users.size === 0) {
-      this.logger.error('[UserAvatarManager] All users were lost after reconnection and did not recover after retries!')
+      this.logger.error(
+        '[UserAvatarManager] All users were lost after reconnection and did not recover after retries!',
+      )
     }
   }
 
@@ -135,16 +137,13 @@ export class UserAvatarManager implements IUserAvatarManager {
     const globalState = globalThis as unknown as Record<string, number>
     if (!(debugCounter in globalState)) globalState[debugCounter] = 0
     if (globalState[debugCounter] < 10) {
-      this.logger.debug(
-        `[DEBUG] NAF message #${globalState[debugCounter] + 1} for ${networkId}:`,
-        {
-          networkId,
-          creator: data.creator,
-          owner: data.owner,
-          template: data.template,
-          componentsKeys: Object.keys(data.components || {}),
-        }
-      )
+      this.logger.debug(`[DEBUG] NAF message #${globalState[debugCounter] + 1} for ${networkId}:`, {
+        networkId,
+        creator: data.creator,
+        owner: data.owner,
+        template: data.template,
+        componentsKeys: Object.keys(data.components || {}),
+      })
       globalState[debugCounter]++
     }
 
@@ -157,28 +156,29 @@ export class UserAvatarManager implements IUserAvatarManager {
       const allPresenceUsers = this.presenceManager.getUsers()
       this.logger.debug(
         `[NAF] No presence user for networkId ${networkId}, searching in ${allPresenceUsers.length} users`,
-        { 
+        {
           networkId,
           creator: data.creator,
           owner: data.owner,
-          allUsers: allPresenceUsers.map(u => ({ id: u.id, name: u.profile.displayName })) 
-        }
+          allUsers: allPresenceUsers.map((u) => ({ id: u.id, name: u.profile.displayName })),
+        },
       )
-      
+
       // 他の方法でマッチングを試す（例：creatorやownerフィールドを使用）
       // または部分的なIDマッチング
-      presenceUser = allPresenceUsers.find(user => 
-        user.id === data.creator || 
-        user.id === data.owner ||
-        networkId.includes(user.id.substring(0, 8)) ||
-        user.id.includes(networkId.substring(0, 8))
+      presenceUser = allPresenceUsers.find(
+        (user) =>
+          user.id === data.creator ||
+          user.id === data.owner ||
+          networkId.includes(user.id.substring(0, 8)) ||
+          user.id.includes(networkId.substring(0, 8)),
       )
-      
+
       nickname = presenceUser?.profile.displayName
-      
+
       if (nickname) {
         this.logger.debug(
-          `[NAF] Found user through alternative matching: ${nickname} (${presenceUser?.id})`
+          `[NAF] Found user through alternative matching: ${nickname} (${presenceUser?.id})`,
         )
       }
     }
@@ -187,7 +187,7 @@ export class UserAvatarManager implements IUserAvatarManager {
     if (!nickname) {
       nickname = 'Unknown'
       this.logger.debug(
-        `[NAF] Could not find displayName for networkId: ${networkId}, creator: ${data.creator}, owner: ${data.owner}`
+        `[NAF] Could not find displayName for networkId: ${networkId}, creator: ${data.creator}, owner: ${data.owner}`,
       )
     }
 
@@ -196,7 +196,9 @@ export class UserAvatarManager implements IUserAvatarManager {
     const isNewUser = !existingUser
 
     // 位置情報を取得
-    const positionComponent = data.components[NafComponentId.Position] as { x: number; y: number; z: number; isVector3?: boolean } | undefined
+    const positionComponent = data.components[NafComponentId.Position] as
+      | { x: number; y: number; z: number; isVector3?: boolean }
+      | undefined
     const position = positionComponent || existingUser?.position
 
     // 位置情報がない場合は処理をスキップ（デフォルト値を設定しない）
@@ -216,12 +218,20 @@ export class UserAvatarManager implements IUserAvatarManager {
     let rotation = existingUser?.rotation
     if (data.components[NafComponentId.BodyRotation]) {
       // オイラー角（度数）からクォータニオンに変換
-      const eulerRotation = data.components[NafComponentId.BodyRotation] as { x: number; y: number; z: number }
+      const eulerRotation = data.components[NafComponentId.BodyRotation] as {
+        x: number
+        y: number
+        z: number
+      }
       const { x, y, z } = eulerRotation
       rotation = this.eulerToQuaternion(x, y, z)
     } else if (data.components[NafComponentId.Velocity]) {
       // 従来のクォータニオン形式（後方互換性）
-      const velocityRotation = data.components[NafComponentId.Velocity] as { x: number; y: number; z: number }
+      const velocityRotation = data.components[NafComponentId.Velocity] as {
+        x: number
+        y: number
+        z: number
+      }
       const { x, y, z } = velocityRotation
       // クォータニオンの w を計算（正規化されていると仮定）
       const w = Math.sqrt(Math.max(0, 1 - x * x - y * y - z * z))
@@ -229,7 +239,9 @@ export class UserAvatarManager implements IUserAvatarManager {
     }
 
     // アバターID を取得
-    const avatarComponent = data.components[NafComponentId.Avatar] as { avatarSrc?: string } | undefined
+    const avatarComponent = data.components[NafComponentId.Avatar] as
+      | { avatarSrc?: string }
+      | undefined
     const avatarId = avatarComponent?.avatarSrc
       ? this.extractAvatarId(avatarComponent.avatarSrc)
       : existingUser?.avatarId

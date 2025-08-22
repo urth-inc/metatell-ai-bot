@@ -16,7 +16,7 @@ export function safeStringify(obj: unknown, maxLen = 10_000): string {
         }
         return value
       },
-      2 // Pretty print with 2 spaces
+      2, // Pretty print with 2 spaces
     )
     return str.length > maxLen ? `${str.slice(0, maxLen)}…[truncated]` : str
   } catch (error) {

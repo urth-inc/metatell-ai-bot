@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { registerLoggerProvider, DefaultLoggerProvider } from '../../sdk/logging/index.js'
+import { DefaultLoggerProvider, registerLoggerProvider } from '../../sdk/logging/index.js'
 
 // Register logger provider for tests
 registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
+
 import type { MockChannel, MockPresence } from '../../../../../test-utils/mocks.js'
 import { findChannelCall, findEventBusCall } from '../../../../../test-utils/mocks.js'
 import type { IConnectionManager } from '../interfaces/IConnectionManager.js'
@@ -442,7 +443,7 @@ describe('PresenceManager', () => {
       const presenceDiffHandler = presenceDiffCall?.[1] as (data: unknown) => void
 
       const diffData = { joins: {}, leaves: {} }
-      
+
       // Should handle presence diff without error
       expect(() => presenceDiffHandler(diffData)).not.toThrow()
       // NOTE: ログ出力は実装では抑制されているため、テストしない

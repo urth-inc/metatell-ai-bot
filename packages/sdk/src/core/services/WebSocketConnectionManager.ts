@@ -113,7 +113,7 @@ export class WebSocketConnectionManager implements IConnectionManager {
             'hub:scene_update',
           ]
 
-          debugEvents.forEach(event => {
+          debugEvents.forEach((event) => {
             this.hubChannel?.on(event, (payload: unknown) => {
               this.logger.debug('[WS_RECEIVE]', { event, payload })
             })

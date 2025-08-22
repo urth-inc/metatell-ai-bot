@@ -49,7 +49,7 @@ export class RingBuffer implements LogSink {
     }
 
     const result: LogRecord[] = []
-    
+
     if (this.wrapped) {
       // Buffer has wrapped - read from writeIndex to end, then from 0 to writeIndex-1
       for (let i = this.writeIndex; i < this.capacity; i++) {
@@ -87,20 +87,20 @@ export class RingBuffer implements LogSink {
 
   /**
    * Drain only new records since last drainNew() call
-   * 
+   *
    * IMPORTANT: Single consumer only! Multiple consumers calling drainNew()
    * will result in lost records as the read cursor is shared.
-   * 
+   *
    * For multiple consumers, either:
    * 1. Use drain() and track position externally
    * 2. TODO: Implement reader handles with per-consumer cursors
    *    Example: const reader = buffer.createReader(); reader.drainNew()
-   * 
+   *
    * @returns Array of new log records since last drainNew() call
    */
   drainNew(): LogRecord[] {
     const result: LogRecord[] = []
-    
+
     // If no new writes since last read, nothing new to read
     if (this.readCount >= this.writeCount) {
       return result
@@ -109,7 +109,7 @@ export class RingBuffer implements LogSink {
     // Calculate read boundaries
     let current = this.readIndex
     const hasWrapped = this.wrapped || this.readWrapped
-    
+
     if (hasWrapped) {
       // Buffer has wrapped - read in circular fashion
       do {
@@ -135,7 +135,7 @@ export class RingBuffer implements LogSink {
     this.readIndex = this.writeIndex
     this.readWrapped = this.wrapped
     this.readCount = this.writeCount
-    
+
     return result
   }
 
@@ -209,7 +209,7 @@ export class ConsoleSink implements LogSink {
 
     switch (record.level) {
       case 'debug':
-        console.log(message)  // console.debugはデフォルトで非表示のためconsole.logを使用
+        console.log(message) // console.debugはデフォルトで非表示のためconsole.logを使用
         break
       case 'info':
         console.info(message)
@@ -301,7 +301,7 @@ export function setMinLevel(level: LogLevel): void {
  * If already enabled, updates the log level
  */
 export function enableConsole(debug?: boolean): void {
-  const level: LogLevel = debug === undefined ? 'info' : (debug ? 'debug' : 'info')
+  const level: LogLevel = debug === undefined ? 'info' : debug ? 'debug' : 'info'
   if (!consoleSinkRef) {
     consoleSinkRef = new ConsoleSink(level)
     multiSink.addSink(consoleSinkRef)

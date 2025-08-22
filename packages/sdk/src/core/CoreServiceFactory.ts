@@ -42,9 +42,9 @@ export class CoreServiceFactory {
   protected registerCoreServices(config?: BotConfiguration): void {
     // Register AppSettings (singleton) - initialized with config if provided
     this.container.register<IAppSettings>(
-      'IAppSettings', 
-      () => new AppSettings(config?.debug || false), 
-      { singleton: true }
+      'IAppSettings',
+      () => new AppSettings(config?.debug || false),
+      { singleton: true },
     )
 
     // Register EventBus (singleton)
@@ -53,7 +53,7 @@ export class CoreServiceFactory {
     // Register ConfigurationProvider (singleton) - initialized with config if provided
     this.container.register<IConfigurationProvider>(
       'IConfigurationProvider',
-      () => new ConfigurationProvider(config || {} as BotConfiguration),
+      () => new ConfigurationProvider(config || ({} as BotConfiguration)),
       { singleton: true },
     )
 

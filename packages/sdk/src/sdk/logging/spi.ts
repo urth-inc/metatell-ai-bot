@@ -38,12 +38,11 @@ export interface RegisterOptions {
   allowOverwrite?: boolean
 }
 
-export function registerLoggerProvider(
-  provider: LoggerProvider,
-  options?: RegisterOptions
-): void {
+export function registerLoggerProvider(provider: LoggerProvider, options?: RegisterOptions): void {
   if (_provider && !options?.allowOverwrite) {
-    throw new Error('LoggerProvider is already registered. Use { allowOverwrite: true } to replace.')
+    throw new Error(
+      'LoggerProvider is already registered. Use { allowOverwrite: true } to replace.',
+    )
   }
   _provider = provider
 }

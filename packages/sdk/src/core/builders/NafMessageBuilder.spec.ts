@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { NafMessageBuilder, NafComponentId } from './NafMessageBuilder.js'
+import { describe, expect, it } from 'vitest'
+import { NafComponentId, NafMessageBuilder } from './NafMessageBuilder.js'
 
 describe('NafMessageBuilder', () => {
   it('should build a basic NAF message', () => {

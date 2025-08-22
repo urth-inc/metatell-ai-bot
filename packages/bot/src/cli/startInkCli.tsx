@@ -1,5 +1,5 @@
-import { render } from 'ink'
 import type { AgentClient } from '@metatell/sdk'
+import { render } from 'ink'
 import { InkCliInterface } from './InkCliInterface.js'
 
 export function startInkCli(client: AgentClient) {

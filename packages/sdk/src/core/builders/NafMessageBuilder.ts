@@ -3,7 +3,7 @@
  */
 export enum NafComponentId {
   Position = '0',
-  Velocity = '1', 
+  Velocity = '1',
   Scale = '2',
   Avatar = '3',
   HeadRotation = '4',
@@ -300,7 +300,12 @@ export class NafMessageBuilder {
 
     // Fill in default components if not set
     const defaultComponents: Record<NafComponentId, unknown> = {
-      [NafComponentId.Position]: this.components[NafComponentId.Position] ?? { isVector3: true, x: 0, y: 0, z: 0 },
+      [NafComponentId.Position]: this.components[NafComponentId.Position] ?? {
+        isVector3: true,
+        x: 0,
+        y: 0,
+        z: 0,
+      },
       [NafComponentId.Velocity]: this.components[NafComponentId.Velocity] ?? { x: 0, y: 0, z: 0 },
       [NafComponentId.Scale]: this.components[NafComponentId.Scale] ?? { x: 1, y: 1, z: 1 },
       [NafComponentId.Avatar]: this.components[NafComponentId.Avatar] ?? {
@@ -309,17 +314,49 @@ export class NafMessageBuilder {
         muted: false,
         isSharingAvatarCamera: false,
       },
-      [NafComponentId.HeadRotation]: this.components[NafComponentId.HeadRotation] ?? { x: 0, y: 0, z: 0, w: 1 },
-      [NafComponentId.LeftHandRotation]: this.components[NafComponentId.LeftHandRotation] ?? { x: 0, y: 0, z: 0, w: 1 },
-      [NafComponentId.RightHandRotation]: this.components[NafComponentId.RightHandRotation] ?? { x: 0, y: 0, z: 0, w: 1 },
-      [NafComponentId.LeftHandPosition]: this.components[NafComponentId.LeftHandPosition] ?? { x: 0, y: 0, z: 0 },
-      [NafComponentId.RightHandPosition]: this.components[NafComponentId.RightHandPosition] ?? { x: 0, y: 0, z: 0 },
+      [NafComponentId.HeadRotation]: this.components[NafComponentId.HeadRotation] ?? {
+        x: 0,
+        y: 0,
+        z: 0,
+        w: 1,
+      },
+      [NafComponentId.LeftHandRotation]: this.components[NafComponentId.LeftHandRotation] ?? {
+        x: 0,
+        y: 0,
+        z: 0,
+        w: 1,
+      },
+      [NafComponentId.RightHandRotation]: this.components[NafComponentId.RightHandRotation] ?? {
+        x: 0,
+        y: 0,
+        z: 0,
+        w: 1,
+      },
+      [NafComponentId.LeftHandPosition]: this.components[NafComponentId.LeftHandPosition] ?? {
+        x: 0,
+        y: 0,
+        z: 0,
+      },
+      [NafComponentId.RightHandPosition]: this.components[NafComponentId.RightHandPosition] ?? {
+        x: 0,
+        y: 0,
+        z: 0,
+      },
       [NafComponentId.HandRaised]: this.components[NafComponentId.HandRaised] ?? false,
-      [NafComponentId.PinPosition]: this.components[NafComponentId.PinPosition] ?? { x: 0, y: 0, z: 0 },
+      [NafComponentId.PinPosition]: this.components[NafComponentId.PinPosition] ?? {
+        x: 0,
+        y: 0,
+        z: 0,
+      },
       [NafComponentId.PinScale]: this.components[NafComponentId.PinScale] ?? { x: 1, y: 1, z: 1 },
-      [NafComponentId.FaceSnapshotEnabled]: this.components[NafComponentId.FaceSnapshotEnabled] ?? false,
+      [NafComponentId.FaceSnapshotEnabled]:
+        this.components[NafComponentId.FaceSnapshotEnabled] ?? false,
       [NafComponentId.FaceSnapshot]: this.components[NafComponentId.FaceSnapshot] ?? null,
-      [NafComponentId.BodyRotation]: this.components[NafComponentId.BodyRotation] ?? { x: 0, y: 0, z: 0 },
+      [NafComponentId.BodyRotation]: this.components[NafComponentId.BodyRotation] ?? {
+        x: 0,
+        y: 0,
+        z: 0,
+      },
     }
 
     const mergedComponents = { ...defaultComponents, ...this.components }

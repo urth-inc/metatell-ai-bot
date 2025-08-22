@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { DefaultLoggerProvider, getRingBuffer } from './default.js'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LogSink } from '../spi.js'
+import { DefaultLoggerProvider, getRingBuffer } from './default.js'
 
 describe('DefaultLoggerProvider', () => {
   let provider: DefaultLoggerProvider
@@ -40,31 +40,31 @@ describe('DefaultLoggerProvider', () => {
 
     it('should log messages to console when enabled', () => {
       const logger = provider.getLogger('TestModule')
-      
+
       logger.info('Test message')
-      
+
       expect(consoleSpy.info).toHaveBeenCalledWith(
-        expect.stringContaining('[INFO] [TestModule] Test message')
+        expect.stringContaining('[INFO] [TestModule] Test message'),
       )
     })
 
     it('should not log debug messages when log level is info', () => {
       provider.setLogLevel('info')
       const logger = provider.getLogger('TestModule')
-      
+
       logger.debug('Debug message')
-      
+
       expect(consoleSpy.debug).not.toHaveBeenCalled()
     })
 
     it('should log debug messages when log level is debug', () => {
       provider.setLogLevel('debug')
       const logger = provider.getLogger('TestModule')
-      
+
       logger.debug('Debug message')
-      
+
       expect(consoleSpy.debug).toHaveBeenCalledWith(
-        expect.stringContaining('[DEBUG] [TestModule] Debug message')
+        expect.stringContaining('[DEBUG] [TestModule] Debug message'),
       )
     })
   })
@@ -73,9 +73,9 @@ describe('DefaultLoggerProvider', () => {
     it('should disable console output when set to false', () => {
       provider.enableConsole(false)
       const logger = provider.getLogger('TestModule')
-      
+
       logger.info('Test message')
-      
+
       expect(consoleSpy.info).not.toHaveBeenCalled()
     })
 
@@ -83,9 +83,9 @@ describe('DefaultLoggerProvider', () => {
       provider.enableConsole(false)
       provider.enableConsole(true)
       const logger = provider.getLogger('TestModule')
-      
+
       logger.info('Test message')
-      
+
       expect(consoleSpy.info).toHaveBeenCalled()
     })
   })
@@ -95,12 +95,12 @@ describe('DefaultLoggerProvider', () => {
       const mockSink: LogSink = {
         write: vi.fn(),
       }
-      
+
       provider.registerSink(mockSink)
       const logger = provider.getLogger('TestModule')
-      
+
       logger.info('Test message', { foo: 'bar' })
-      
+
       expect(mockSink.write).toHaveBeenCalledWith({
         ts: expect.any(Number),
         level: 'info',
@@ -113,13 +113,13 @@ describe('DefaultLoggerProvider', () => {
     it('should support multiple sinks', () => {
       const mockSink1: LogSink = { write: vi.fn() }
       const mockSink2: LogSink = { write: vi.fn() }
-      
+
       provider.registerSink(mockSink1)
       provider.registerSink(mockSink2)
       const logger = provider.getLogger('TestModule')
-      
+
       logger.info('Test message')
-      
+
       expect(mockSink1.write).toHaveBeenCalled()
       expect(mockSink2.write).toHaveBeenCalled()
     })
@@ -128,7 +128,7 @@ describe('DefaultLoggerProvider', () => {
   describe('getRingBuffer', () => {
     it('should return a ring buffer instance', () => {
       const buffer = getRingBuffer()
-      
+
       expect(buffer).toBeDefined()
       expect(buffer?.drain).toBeDefined()
       expect(buffer?.clear).toBeDefined()
@@ -138,10 +138,10 @@ describe('DefaultLoggerProvider', () => {
     it('should capture log records in the ring buffer', () => {
       const logger = provider.getLogger('TestModule')
       const buffer = getRingBuffer()
-      
+
       buffer?.clear()
       logger.info('Test message')
-      
+
       const records = buffer?.drain()
       expect(records).toHaveLength(1)
       expect(records?.[0]).toMatchObject({

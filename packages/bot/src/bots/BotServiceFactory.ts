@@ -2,19 +2,20 @@
  * Bot Service Factory - Application Layer Service Factory
  * Extends CoreServiceFactory and adds application-specific services like MetatellBot
  */
-import { MetatellBot } from './MetatellBot.js'
-import {
-  CoreServiceFactory,
-  type ServiceContainer,
-  type BotConfiguration,
-  type IConfigurationProvider,
-  type IAvatarController,
-  type IPresenceManager,
-  type IMessageService,
-  type IUserAvatarManager,
-  type IAppSettings,
-} from '@metatell/sdk'
+
 import type { IConnectionManager } from '@metatell/sdk'
+import {
+  type BotConfiguration,
+  CoreServiceFactory,
+  type IAppSettings,
+  type IAvatarController,
+  type IConfigurationProvider,
+  type IMessageService,
+  type IPresenceManager,
+  type IUserAvatarManager,
+  type ServiceContainer,
+} from '@metatell/sdk'
+import { MetatellBot } from './MetatellBot.js'
 
 /**
  * Application layer service factory that extends CoreServiceFactory

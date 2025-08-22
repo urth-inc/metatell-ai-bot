@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { registerLoggerProvider, DefaultLoggerProvider } from '../../sdk/logging/index.js'
+import { DefaultLoggerProvider, registerLoggerProvider } from '../../sdk/logging/index.js'
 
 // Register logger provider for tests
 registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
+
 import type { MockChannel } from '../../../../../test-utils/mocks.js'
 import { findChannelCall, findEventBusCall } from '../../../../../test-utils/mocks.js'
 import type { IAppSettings } from '../interfaces/IAppSettings.js'
@@ -45,7 +46,6 @@ describe('MessageService', () => {
       once: vi.fn(),
       removeAllListeners: vi.fn(),
     }
-
 
     // Mock app settings
     mockAppSettings = {

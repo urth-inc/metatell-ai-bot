@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  registerLoggerProvider,
-  resetLoggerProvider,
   getLogger,
   getLoggerProvider,
-  type LoggerProvider,
-  type Logger,
   type LogEvent,
+  type Logger,
+  type LoggerProvider,
+  registerLoggerProvider,
+  resetLoggerProvider,
 } from './spi.js'
 
 describe('Logging SPI', () => {
@@ -38,7 +38,9 @@ describe('Logging SPI', () => {
       expect(getLoggerProvider()).toBe(firstProvider)
 
       // Should throw when trying to overwrite without permission
-      expect(() => registerLoggerProvider(secondProvider)).toThrow('LoggerProvider is already registered')
+      expect(() => registerLoggerProvider(secondProvider)).toThrow(
+        'LoggerProvider is already registered',
+      )
       expect(getLoggerProvider()).toBe(firstProvider)
     })
 
@@ -163,10 +165,38 @@ describe('Logging SPI', () => {
 
       const mockProvider: LoggerProvider = {
         getLogger: (module: string) => ({
-          debug: (msg, attrs) => capturedEvents.push({ ts: Date.now(), level: 'debug', module, message: msg, attributes: attrs }),
-          info: (msg, attrs) => capturedEvents.push({ ts: Date.now(), level: 'info', module, message: msg, attributes: attrs }),
-          warn: (msg, attrs) => capturedEvents.push({ ts: Date.now(), level: 'warn', module, message: msg, attributes: attrs }),
-          error: (msg, attrs) => capturedEvents.push({ ts: Date.now(), level: 'error', module, message: msg, attributes: attrs }),
+          debug: (msg, attrs) =>
+            capturedEvents.push({
+              ts: Date.now(),
+              level: 'debug',
+              module,
+              message: msg,
+              attributes: attrs,
+            }),
+          info: (msg, attrs) =>
+            capturedEvents.push({
+              ts: Date.now(),
+              level: 'info',
+              module,
+              message: msg,
+              attributes: attrs,
+            }),
+          warn: (msg, attrs) =>
+            capturedEvents.push({
+              ts: Date.now(),
+              level: 'warn',
+              module,
+              message: msg,
+              attributes: attrs,
+            }),
+          error: (msg, attrs) =>
+            capturedEvents.push({
+              ts: Date.now(),
+              level: 'error',
+              module,
+              message: msg,
+              attributes: attrs,
+            }),
         }),
       }
 

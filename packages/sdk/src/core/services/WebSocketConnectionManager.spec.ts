@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { registerLoggerProvider, DefaultLoggerProvider } from '../../sdk/logging/index.js'
+import { DefaultLoggerProvider, registerLoggerProvider } from '../../sdk/logging/index.js'
 
 // Register logger provider for tests
 registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
@@ -83,7 +83,11 @@ describe('WebSocketConnectionManager', () => {
       setDebugMode: vi.fn(),
     }
 
-    connectionManager = new WebSocketConnectionManager(mockEventBus, mockConfigProvider, mockAppSettings)
+    connectionManager = new WebSocketConnectionManager(
+      mockEventBus,
+      mockConfigProvider,
+      mockAppSettings,
+    )
   })
 
   describe('connect', () => {

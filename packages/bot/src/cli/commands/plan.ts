@@ -158,8 +158,6 @@ function resolveAlias(command: string): string {
   return command
 }
 
-
-
 function parseSay(args: string[]): CommandPlan {
   if (args.length === 0) {
     throw new ParseError('Missing message', '/say <message>')
@@ -243,10 +241,7 @@ function parseLogs(args: string[]): CommandPlan {
   }
 
   if (subcommand === 'filter' && !args[1]) {
-    throw new ParseError(
-      `Missing argument for ${subcommand}`,
-      '/logs tail|filter <regex>|clear',
-    )
+    throw new ParseError(`Missing argument for ${subcommand}`, '/logs tail|filter <regex>|clear')
   }
 
   return {
@@ -255,7 +250,6 @@ function parseLogs(args: string[]): CommandPlan {
     arg: args[1],
   }
 }
-
 
 function parseFlags(args: string[]): Record<string, string | boolean> {
   const flags: Record<string, string | boolean> = {}
