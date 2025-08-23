@@ -2,12 +2,17 @@
  * SDK Logging module - SPI and default implementation
  */
 
+// Export event emitter for reactive log updates
+export {
+  getLogEventEmitter,
+  type ILogEventEmitter,
+  type LogEventHandler,
+  resetLogEventEmitter,
+} from './LogEventEmitter.js'
 // Export default provider and CLI compatibility functions
 export { DefaultLoggerProvider, getRingBuffer } from './providers/default.js'
 // Export SPI interfaces and registration functions
 export * from './spi.js'
-// Export event emitter for reactive log updates
-export { getLogEventEmitter, resetLogEventEmitter, type ILogEventEmitter, type LogEventHandler } from './LogEventEmitter.js'
 
 // Core logging types
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'

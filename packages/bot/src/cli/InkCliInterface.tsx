@@ -1,5 +1,5 @@
 import type { AgentClient, RingBufferLike } from '@metatell/sdk'
-import { getLogger, getLogEventEmitter, getRingBuffer } from '@metatell/sdk'
+import { getLogEventEmitter, getLogger, getRingBuffer } from '@metatell/sdk'
 import { Box, useApp, useInput, useStdout } from 'ink'
 import type React from 'react'
 import { useCallback, useEffect, useMemo } from 'react'
