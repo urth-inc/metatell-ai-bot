@@ -23,5 +23,8 @@
     "@types/node": "*",
     "@types/ws": "*"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@types/phoenix": "^1.6.6"
+  }
 }

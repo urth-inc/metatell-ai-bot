@@ -7,7 +7,7 @@ import type { Channel, Push } from 'phoenix'
 export function pushPromise(
   channel: Channel,
   event: string,
-  payload: unknown = {},
+  payload: object = {},
   timeoutMs = 30000,
 ): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -32,7 +32,7 @@ export async function pushSequence(
   channel: Channel,
   operations: Array<{
     event: string
-    payload?: unknown
+    payload?: object
     timeoutMs?: number
     onSuccess?: (response: unknown) => void
   }>,
