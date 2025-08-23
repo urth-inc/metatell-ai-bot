@@ -33,6 +33,27 @@ function extractHubIdFromUrl(url: string): string {
 }
 
 async function main() {
+  // デバッグフラグを早期に検出してログを初期化
+  const hasDebugFlag = process.argv.includes('--debug') || process.argv.includes('-d')
+  let debugLogPath: string | undefined
+  
+  if (hasDebugFlag) {
+    // デバッグログを最初に初期化
+    const provider = new DefaultLoggerProvider()
+    provider.setLogLevel('debug')
+    const fileLogger = new FileLogger()
+    provider.registerSink(fileLogger)
+    debugLogPath = fileLogger.getFilePath()
+    provider.enableConsole(false) // CLIモードではコンソールを無効化
+    registerLoggerProvider(provider, { allowOverwrite: true })
+    
+    const debugLogger = getLogger('Main')
+    debugLogger.info('Debug logging initialized', {
+      logFile: fileLogger.getFilePath(),
+      args: process.argv,
+    })
+  }
+
   const program = new Command()
 
   program
@@ -115,30 +136,10 @@ async function main() {
   // AppSettingsを取得してLoggingシステムを設定
   const appSettings = factory.getService<import('@metatell/sdk').IAppSettings>('IAppSettings')
 
-  // デバッグモードでファイルログを有効化
-  let debugLogPath: string | undefined
-
+  // デバッグモードの場合はAppSettingsも更新
   if (config.debug) {
     appSettings.setDebugMode(true)
     appSettings.setLogLevel('debug')
-
-    // 新しいプロバイダーを作成してファイルロガーを追加
-    const provider = new DefaultLoggerProvider()
-    provider.setLogLevel('debug') // デバッグレベルを設定
-    const fileLogger = new FileLogger()
-    provider.registerSink(fileLogger)
-    debugLogPath = fileLogger.getFilePath()
-
-    // CLIモードではコンソールログを無効化（CLIインターフェースと競合するため）
-    provider.enableConsole(false)
-
-    // グローバルプロバイダーを再登録
-    registerLoggerProvider(provider, { allowOverwrite: true })
-
-    const mainLogger = getLogger('Main')
-    mainLogger.info('Debug mode enabled with file logging', {
-      logFile: fileLogger.getFilePath(),
-    })
   }
 
   // デバッグモード変更時のログレベル制御をここで行う（責務の分離）
