@@ -6,6 +6,8 @@
 export { DefaultLoggerProvider, getRingBuffer } from './providers/default.js'
 // Export SPI interfaces and registration functions
 export * from './spi.js'
+// Export event emitter for reactive log updates
+export { getLogEventEmitter, resetLogEventEmitter, type ILogEventEmitter, type LogEventHandler } from './LogEventEmitter.js'
 
 // Core logging types
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
