@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 const execAsync = promisify(exec)
 
 describe('CLI E2E Tests', () => {
-  const CLI_PATH = join(__dirname, '..', 'dist', 'main.js')
+  const CLI_PATH = join(__dirname, '..', '..', 'dist', 'main.js')
   const TEST_CONFIG_DIR = join(homedir(), '.metatell-bot-test')
   const TEST_LOG_DIR = join(homedir(), '.metatell-bot', 'logs')
   
@@ -162,8 +162,8 @@ describe('CLI E2E Tests', () => {
       try {
         await execAsync(`node ${CLI_PATH} not-a-url`)
         expect.fail('Should have thrown an error')
-      } catch (error: any) {
-        expect(error.stderr).toContain('Invalid URL')
+      } catch (error) {
+        expect((error as { stderr: string }).stderr).toContain('Invalid URL')
       }
     })
 
@@ -212,8 +212,8 @@ describe('CLI E2E Tests', () => {
       try {
         await execAsync(`node ${CLI_PATH} "http://not-metatell.com/room"`)
         expect.fail('Should have thrown an error')
-      } catch (error: any) {
-        expect(error.stderr).toContain('Invalid')
+      } catch (error) {
+        expect((error as { stderr: string }).stderr).toContain('Invalid')
       }
     })
   })
