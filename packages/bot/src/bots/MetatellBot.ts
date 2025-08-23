@@ -54,6 +54,7 @@ export class MetatellBot {
     })
 
     this.presenceHandler = new PresenceHandler({
+      connectionManager: this.connectionManager,
       messageService: this.messageService,
       avatarController: this.avatarController,
       configProvider: this.configProvider,

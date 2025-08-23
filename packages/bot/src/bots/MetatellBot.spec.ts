@@ -283,7 +283,7 @@ describe('MetatellBot', () => {
       const joinHandler = joinCall?.[1] as PresenceHandler
 
       const botUser: PresenceUser = {
-        id: 'bot-123',
+        id: 'bot-session-123', // Same as bot's session ID
         profile: { displayName: 'TestBot' },
         permissions: {},
         roles: {},
@@ -292,6 +292,27 @@ describe('MetatellBot', () => {
       joinHandler(botUser)
 
       expect(mockMessageService.sendMessage).not.toHaveBeenCalled()
+    })
+
+    it('should welcome user with same display name as bot', () => {
+      const joinCall = findMockCall(
+        mockPresenceManager.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'join',
+      )
+      const joinHandler = joinCall?.[1] as PresenceHandler
+
+      const sameNameUser: PresenceUser = {
+        id: 'different-user-456', // Different session ID
+        profile: { displayName: 'TestBot' }, // Same display name as bot
+        permissions: {},
+        roles: {},
+      }
+
+      joinHandler(sameNameUser)
+
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
+        'Welcome to the room, TestBot! 👋',
+      )
     })
 
     it('should handle user leave without logging', () => {

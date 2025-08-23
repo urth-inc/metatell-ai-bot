@@ -1,12 +1,14 @@
 import type {
   IAvatarController,
   IConfigurationProvider,
+  IConnectionManager,
   IMessageService,
   PresenceUser,
 } from '@metatell/sdk'
 import { getLogger } from '@metatell/sdk'
 
 export interface PresenceHandlerOptions {
+  connectionManager: IConnectionManager
   messageService: IMessageService
   avatarController: IAvatarController
   configProvider: IConfigurationProvider
@@ -18,11 +20,12 @@ export class PresenceHandler {
   constructor(private options: PresenceHandlerOptions) {}
 
   public async handleUserJoin(user: PresenceUser): Promise<void> {
-    const config = this.options.configProvider.getConfiguration()
     const displayName = user.profile.displayName || 'Unknown'
+    const currentSessionId = this.options.connectionManager.getSessionId()
 
-    // Ignore self join events
-    if (displayName === config.profile.displayName) {
+    // Ignore self join events by comparing session IDs
+    if (user.id === currentSessionId) {
+      this.logger.debug('Ignoring self join event', { sessionId: user.id, displayName })
       return
     }
 
