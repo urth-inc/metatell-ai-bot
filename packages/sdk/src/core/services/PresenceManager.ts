@@ -31,7 +31,7 @@ export class PresenceManager implements IPresenceManager {
         const newUsers = new Map<string, PresenceUser>()
 
         // list() returns an array of transformed values
-        const presenceList = this.presence?.list((id: string, data: unknown) => {
+        this.presence?.list((id: string, data: unknown) => {
           const metaData = data as {
             metas?: Array<{
               profile?: { displayName?: string; avatarId?: string }
@@ -73,7 +73,7 @@ export class PresenceManager implements IPresenceManager {
 
           newUsers.set(id, user)
           return user // Return the user for the array
-        }) || []
+        })
 
         // Find joins and leaves
         const joins: PresenceUser[] = []
