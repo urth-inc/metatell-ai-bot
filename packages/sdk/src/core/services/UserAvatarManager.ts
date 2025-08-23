@@ -22,10 +22,61 @@ interface NAFMessage {
   data: NAFComponent | { d: NAFComponent[] }
 }
 
+// ID解決戦略インターフェース
+interface IdMappingStrategy {
+  name: string
+  match(networkId: string, user: any, data: NAFComponent): boolean
+  priority: number
+}
+
 export class UserAvatarManager implements IUserAvatarManager {
   private users = new Map<string, UserAvatar>()
   private eventHandlers = new Map<UserAvatarEvent, Set<(user: UserAvatar) => void>>()
   private logger = getLogger('UserAvatarManager')
+  
+  // ID解決キャッシュ
+  private readonly idMappingCache = new Map<string, string>()
+  private readonly unmappableIds = new Set<string>()
+  
+  // ID解決メトリクス
+  private readonly resolutionMetrics = {
+    total: 0,
+    byStrategy: new Map<string, number>(),
+    failures: 0,
+    cacheHits: 0,
+  }
+
+  // ID解決戦略（優先度順）
+  private readonly idMappingStrategies: IdMappingStrategy[] = [
+    {
+      name: 'exact-match',
+      priority: 1,
+      match: (networkId, user) => user.id === networkId,
+    },
+    {
+      name: 'creator-match',
+      priority: 2,
+      match: (networkId, user, data) => user.id === data.creator,
+    },
+    {
+      name: 'owner-match',
+      priority: 3,
+      match: (networkId, user, data) => user.id === data.owner,
+    },
+    {
+      name: 'prefix-match-strict',
+      priority: 4,
+      match: (networkId, user) => {
+        // 最低16文字の前方一致を要求（UUID形式を想定）
+        const minLength = 16
+        if (!networkId || !user.id) return false
+        if (networkId.length < minLength || user.id.length < minLength) {
+          return false
+        }
+        return networkId.substring(0, minLength) === user.id.substring(0, minLength)
+      },
+    },
+  ]
 
   constructor(
     private messageService: IMessageService,
@@ -312,6 +363,13 @@ export class UserAvatarManager implements IUserAvatarManager {
 
   private handleUserJoin(user: { id: string; profile: { displayName?: string } }): void {
     this.logger.debug('[Presence] User joined', { id: user.id, name: user.profile.displayName })
+
+    // Presence更新時に失敗したID解決を再試行
+    if (this.unmappableIds.size > 0) {
+      const idsToRetry = Array.from(this.unmappableIds)
+      this.unmappableIds.clear()
+      this.logger.debug(`[NAF] Retrying ID resolution for ${idsToRetry.length} unmappable IDs`)
+    }
     // PresenceManagerからのユーザー参加イベントを処理
     if (!this.users.has(user.id)) {
       const userAvatar: UserAvatar = {
