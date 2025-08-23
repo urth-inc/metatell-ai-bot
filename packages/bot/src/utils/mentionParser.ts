@@ -11,13 +11,13 @@
 function createMentionPattern(botName: string, startOnly = false): RegExp {
   // Escape special regex characters in bot name
   const escapedBotName = botName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  
+
   // Build pattern: @botName followed by space or end of string
   const pattern = `@${escapedBotName}(?:\\s|$)`
-  
+
   // Apply start-of-line anchor if needed
   const fullPattern = startOnly ? `^${pattern}` : pattern
-  
+
   return new RegExp(fullPattern, 'i')
 }
 

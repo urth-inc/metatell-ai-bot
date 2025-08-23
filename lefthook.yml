@@ -1,0 +1,12 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - glob: "*.{js,ts,jsx,tsx,json,jsonc}"
+      run: npm run check:fix -- {staged_files}
+
+pre-push:
+  parallel: true
+  jobs:
+    - glob: "*.{js,ts,jsx,tsx,json,jsonc}"
+      run: npm run check -- {push_files}
+

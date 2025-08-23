@@ -10,8 +10,8 @@ import {
 } from '@metatell/sdk'
 import { Command } from 'commander'
 import { BotServiceFactory } from './bots/BotServiceFactory.js'
-import { ConfigManager } from './cli/config/config.js'
 import type { CommandContext } from './bots/commands/BotCommand.js'
+import { ConfigManager } from './cli/config/config.js'
 import { startInkCli } from './cli/startInkCli.js'
 import { FileLogger } from './utils/logging/file-logger.js'
 
@@ -36,7 +36,7 @@ async function main() {
   // デバッグフラグを早期に検出してログを初期化
   const hasDebugFlag = process.argv.includes('--debug') || process.argv.includes('-d')
   let debugLogPath: string | undefined
-  
+
   if (hasDebugFlag) {
     // デバッグログを最初に初期化
     const provider = new DefaultLoggerProvider()
@@ -46,7 +46,7 @@ async function main() {
     debugLogPath = fileLogger.getFilePath()
     provider.enableConsole(false) // CLIモードではコンソールを無効化
     registerLoggerProvider(provider, { allowOverwrite: true })
-    
+
     const debugLogger = getLogger('Main')
     debugLogger.info('Debug logging initialized', {
       logFile: fileLogger.getFilePath(),
@@ -179,9 +179,12 @@ async function main() {
 
   // Create command context for CLI with proper typing
   const commandContext: CommandContext = {
-    avatarController: factory.getService<import('@metatell/sdk').IAvatarController>('IAvatarController'),
-    userAvatarManager: factory.getService<import('@metatell/sdk').IUserAvatarManager>('IUserAvatarManager'),
-    presenceManager: factory.getService<import('@metatell/sdk').IPresenceManager>('IPresenceManager'),
+    avatarController:
+      factory.getService<import('@metatell/sdk').IAvatarController>('IAvatarController'),
+    userAvatarManager:
+      factory.getService<import('@metatell/sdk').IUserAvatarManager>('IUserAvatarManager'),
+    presenceManager:
+      factory.getService<import('@metatell/sdk').IPresenceManager>('IPresenceManager'),
     messageService: factory.getService<import('@metatell/sdk').IMessageService>('IMessageService'),
     logger: getLogger('CLI'),
   }

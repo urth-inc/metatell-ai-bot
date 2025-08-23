@@ -24,7 +24,7 @@ export default defineConfig({
     include: [
       'packages/*/src/**/*.{test,spec}.ts',
       'packages/*/tests/e2e/**/*.test.ts',
-      'test-utils/**/*.{test,spec}.ts'
+      'test-utils/**/*.{test,spec}.ts',
     ],
   },
   resolve: {

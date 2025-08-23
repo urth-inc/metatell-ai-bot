@@ -4,16 +4,16 @@
  */
 
 import {
-  NafMessageBuilder,
-  NafComponentId,
-  type TypedNAFMessage,
-  type NAFCreateMessage,
-  type Position3D,
-  type Quaternion,
+  extractAvatarData,
+  extractPosition,
   isNAFCreateMessage,
   isNAFMultiUpdateMessage,
-  extractPosition,
-  extractAvatarData,
+  type NAFCreateMessage,
+  NafComponentId,
+  NafMessageBuilder,
+  type Position3D,
+  type Quaternion,
+  type TypedNAFMessage,
 } from '@metatell/sdk'
 
 // ============================================================================
@@ -37,7 +37,7 @@ function buildTypedSpawnMessage(sessionId: string, avatarId: string): TypedNAFMe
 
   // Use buildTyped() for type-safe message
   const message: TypedNAFMessage = builder.buildTyped()
-  
+
   // TypeScript knows this is a NAFCreateMessage
   if (message.dataType === 'u') {
     console.log('Spawning at:', message.data.networkId)
@@ -57,7 +57,7 @@ function _handleIncomingNAFMessage(message: unknown): void {
     // TypeScript knows message is NAFCreateMessage
     const position = extractPosition(message.data.components)
     const avatarData = extractAvatarData(message.data.components)
-    
+
     console.log('User spawned:', {
       networkId: message.data.networkId,
       position,
@@ -65,7 +65,7 @@ function _handleIncomingNAFMessage(message: unknown): void {
     })
   } else if (isNAFMultiUpdateMessage(message)) {
     // TypeScript knows message is NAFMultiUpdateMessage
-    message.data.d.forEach(entity => {
+    message.data.d.forEach((entity) => {
       const position = extractPosition(entity.components)
       console.log(`Entity ${entity.networkId} at:`, position)
     })
@@ -79,7 +79,7 @@ function _handleIncomingNAFMessage(message: unknown): void {
 function updateAvatarPosition(
   networkId: string,
   position: Position3D,
-  rotation?: Quaternion
+  rotation?: Quaternion,
 ): TypedNAFMessage {
   const builder = new NafMessageBuilder()
     .withDataType('um')
@@ -101,7 +101,7 @@ function updateAvatarPosition(
 
 function processNAFCreate(message: NAFCreateMessage): void {
   const { components } = message.data
-  
+
   // Type-safe component access
   const positionComponent = components[NafComponentId.Position]
   if (positionComponent?.components) {
@@ -146,23 +146,23 @@ class TypedMessageService {
 
 async function main() {
   const service = new TypedMessageService()
-  
+
   // Build and send a spawn message
   const spawnMessage = buildTypedSpawnMessage('session-123', 'avatar-456')
   await service.sendNAF(spawnMessage)
-  
+
   // Handle incoming messages with full type safety
   service.onNAFMessage((message) => {
     if (isNAFCreateMessage(message)) {
       processNAFCreate(message)
     }
   })
-  
+
   // Update position with type safety
   const updateMessage = updateAvatarPosition(
     'session-123',
     { x: 5, y: 1.6, z: -3 },
-    { x: 0, y: Math.SQRT1_2, z: 0, w: Math.SQRT1_2 }
+    { x: 0, y: Math.SQRT1_2, z: 0, w: Math.SQRT1_2 },
   )
   await service.sendNAF(updateMessage)
 }

@@ -57,7 +57,7 @@ describe('BotServiceFactory', () => {
     it('should expose container for main.ts', () => {
       const container = factory.getContainer()
       expect(container).toBeDefined()
-      
+
       const bot = container.get<MetatellBot>('MetatellBot')
       expect(bot).toBeInstanceOf(MetatellBot)
     })

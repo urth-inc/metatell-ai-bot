@@ -412,7 +412,7 @@ export class NafMessageBuilder {
    */
   buildTyped(): TypedNAFMessage {
     const message = this.build()
-    
+
     // Convert to strongly-typed format based on dataType
     if (this.dataType === 'u') {
       // For 'u' type, these fields are guaranteed by build() method
@@ -434,7 +434,7 @@ export class NafMessageBuilder {
           forceRender: message.data.forceRender,
           megaphone: message.data.megaphone,
           temporaryMegaphone: message.data.temporaryMegaphone,
-        }
+        },
       }
     } else if (this.dataType === 'um') {
       // For 'um' type, d array is guaranteed by build() method
@@ -444,7 +444,7 @@ export class NafMessageBuilder {
       return {
         dataType: 'um',
         data: {
-          d: message.data.d.map(entity => ({
+          d: message.data.d.map((entity) => ({
             networkId: entity.networkId,
             owner: entity.owner,
             creator: entity.creator,
@@ -453,8 +453,8 @@ export class NafMessageBuilder {
             persistent: entity.persistent,
             parent: entity.parent,
             components: entity.components as NAFComponentMap,
-          }))
-        }
+          })),
+        },
       }
     } else {
       // 'r' type - remove message
@@ -464,8 +464,8 @@ export class NafMessageBuilder {
       return {
         dataType: 'r',
         data: {
-          networkId: message.data.networkId
-        }
+          networkId: message.data.networkId,
+        },
       }
     }
   }

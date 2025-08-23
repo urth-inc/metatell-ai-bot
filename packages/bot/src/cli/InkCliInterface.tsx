@@ -17,7 +17,6 @@ interface CliInterfaceProps {
   commandContext: CommandContext
 }
 
-
 /**
  * Main CLI interface component with 3-pane layout
  */
@@ -27,7 +26,10 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
   const { state, dispatch, setInput, addLogs, showModal, closeModal } = useCliState()
 
   const logger = getLogger('CLI')
-  const executor = useMemo(() => new CommandExecutor(client, commandContext), [client, commandContext])
+  const executor = useMemo(
+    () => new CommandExecutor(client, commandContext),
+    [client, commandContext],
+  )
 
   // 初期化：バッファされたログを取得
   useEffect(() => {

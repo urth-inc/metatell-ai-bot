@@ -108,7 +108,7 @@ export function cliReducer(state: CliState, action: CliAction): CliState {
         ...state,
         selectedSuggestionIndex: Math.min(
           state.suggestions.length - 1,
-          state.selectedSuggestionIndex + 1
+          state.selectedSuggestionIndex + 1,
         ),
       }
 
