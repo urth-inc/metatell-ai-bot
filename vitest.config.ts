@@ -21,7 +21,11 @@ export default defineConfig({
         'packages/bot/src/websocket-polyfill.ts',
       ],
     },
-    include: ['packages/*/src/**/*.{test,spec}.{js,ts}', 'test-utils/**/*.{test,spec}.{js,ts}'],
+    include: [
+      'packages/*/src/**/*.{test,spec}.{js,ts}',
+      'packages/*/e2e/**/*.{test,spec}.{js,ts}',
+      'test-utils/**/*.{test,spec}.{js,ts}'
+    ],
   },
   resolve: {
     alias: {
