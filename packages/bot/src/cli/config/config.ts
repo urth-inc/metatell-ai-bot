@@ -9,6 +9,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { config as dotenvConfig } from 'dotenv'
 
 export interface Config {
   url?: string
@@ -49,18 +50,9 @@ export class ConfigManager {
   }
 
   private loadEnvFile(): void {
-    const envPath = join(process.cwd(), '.env')
-    if (existsSync(envPath)) {
-      const content = readFileSync(envPath, 'utf-8')
-      content.split('\n').forEach((line) => {
-        const trimmed = line.trim()
-        if (trimmed && !trimmed.startsWith('#')) {
-          const [key, ...valueParts] = trimmed.split('=')
-          const value = valueParts.join('=').trim()
-          process.env[key.trim()] = value
-        }
-      })
-    }
+    // Use dotenv to properly parse .env file
+    // This handles edge cases like comments, quotes, multiline values, etc.
+    dotenvConfig({ path: join(process.cwd(), '.env') })
   }
 
   private loadConfigFile(): void {
