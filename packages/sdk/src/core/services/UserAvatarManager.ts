@@ -2,7 +2,7 @@ import { getLogger } from '../../sdk/logging/index.js'
 import { NafComponentId } from '../builders/NafMessageBuilder.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
-import type { IPresenceManager } from '../interfaces/IPresenceManager.js'
+import type { IPresenceManager, PresenceUser } from '../interfaces/IPresenceManager.js'
 import type {
   IUserAvatarManager,
   UserAvatar,
@@ -25,7 +25,7 @@ interface NAFMessage {
 // ID解決戦略インターフェース
 interface IdMappingStrategy {
   name: string
-  match(networkId: string, user: any, data: NAFComponent): boolean
+  match(networkId: string, user: PresenceUser, data: NAFComponent): boolean
   priority: number
 }
 
@@ -33,11 +33,11 @@ export class UserAvatarManager implements IUserAvatarManager {
   private users = new Map<string, UserAvatar>()
   private eventHandlers = new Map<UserAvatarEvent, Set<(user: UserAvatar) => void>>()
   private logger = getLogger('UserAvatarManager')
-  
+
   // ID解決キャッシュ
   private readonly idMappingCache = new Map<string, string>()
   private readonly unmappableIds = new Set<string>()
-  
+
   // ID解決メトリクス
   private readonly resolutionMetrics = {
     total: 0,
