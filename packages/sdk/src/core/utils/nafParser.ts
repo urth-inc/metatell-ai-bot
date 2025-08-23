@@ -4,8 +4,8 @@
  */
 
 import { NafComponentId } from '../builders/NafMessageBuilder.js'
-import type { NAFComponentMap, Position3D, EulerRotation, Quaternion } from '../types/naf.js'
-import { extractPosition, extractAvatarData, extractBodyRotation } from '../types/naf.js'
+import type { EulerRotation, NAFComponentMap, Position3D, Quaternion } from '../types/naf.js'
+import { extractAvatarData, extractBodyRotation, extractPosition } from '../types/naf.js'
 
 export interface ParsedNAFData {
   position?: Position3D
@@ -21,9 +21,11 @@ export interface ParsedNAFData {
  * @param components The components object from NAF message
  * @returns Parsed NAF data
  */
-export function parseNAFComponents(components: Record<string, unknown> | NAFComponentMap): ParsedNAFData {
+export function parseNAFComponents(
+  components: Record<string, unknown> | NAFComponentMap,
+): ParsedNAFData {
   const result: ParsedNAFData = {}
-  
+
   // Use type-safe component map
   const typedComponents = components as NAFComponentMap
 

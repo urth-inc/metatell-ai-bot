@@ -13,23 +13,28 @@ export interface NAFMessage {
 }
 
 // Re-export typed NAF messages for convenience
-export type { TypedNAFMessage, NAFCreateMessage, NAFMultiUpdateMessage, NAFRemoveMessage } from '../types/naf.js'
+export type {
+  NAFCreateMessage,
+  NAFMultiUpdateMessage,
+  NAFRemoveMessage,
+  TypedNAFMessage,
+} from '../types/naf.js'
 
 export interface IMessageService {
   sendMessage(message: string): Promise<void>
-  
+
   // NAF (Networked A-Frame) methods
   // sendNAF: Sends unreliable messages (UDP-like, best-effort delivery)
   // Best for frequent updates like position/rotation where some loss is acceptable
   sendNAF(data: NAFMessage): Promise<void>
-  
+
   // sendNAFR: Sends reliable messages (TCP-like, guaranteed delivery)
   // Best for critical state changes like spawn/despawn that must arrive
   sendNAFR(data: NAFMessage): Promise<void>
-  
+
   beginTyping(): Promise<void>
   endTyping(): Promise<void>
-  
+
   // Event subscription for incoming messages
   // 'message': Text chat messages
   // 'naf': Unreliable NAF messages from other clients

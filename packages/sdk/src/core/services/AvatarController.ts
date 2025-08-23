@@ -39,7 +39,7 @@ export class AvatarController implements IAvatarController {
     const timestamp = Date.now()
     const networkId = this.sessionId
     const spawnPosition = position || { x: 0, y: 0.2, z: 0 }
-    
+
     // Get storage URL from config or use default
     const storageUrl = config.storageUrl || 'https://storage.metatell.app:443'
 

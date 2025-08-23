@@ -1,5 +1,5 @@
 import { exec } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -11,7 +11,7 @@ describe('CLI E2E Tests', () => {
   const CLI_PATH = join(__dirname, '..', '..', 'dist', 'main.js')
   const TEST_CONFIG_DIR = join(homedir(), '.metatell-bot-test')
   const TEST_LOG_DIR = join(homedir(), '.metatell-bot', 'logs')
-  
+
   beforeAll(() => {
     // テスト用の設定ディレクトリを作成
     if (!existsSync(TEST_CONFIG_DIR)) {
@@ -29,7 +29,7 @@ describe('CLI E2E Tests', () => {
   describe('Help Display', () => {
     it('should display help when no arguments provided', async () => {
       const { stdout, stderr } = await execAsync(`node ${CLI_PATH}`)
-      
+
       expect(stdout).toContain('Usage: metatell-ai-bot')
       expect(stdout).toContain('AI bot for Metatell metaverse')
       expect(stdout).toContain('--debug')
@@ -40,7 +40,7 @@ describe('CLI E2E Tests', () => {
 
     it('should display help with --help flag', async () => {
       const { stdout } = await execAsync(`node ${CLI_PATH} --help`)
-      
+
       expect(stdout).toContain('Usage: metatell-ai-bot')
       expect(stdout).toContain('Options:')
       expect(stdout).toContain('-h, --help')
@@ -48,26 +48,24 @@ describe('CLI E2E Tests', () => {
 
     it('should display version with --version flag', async () => {
       const { stdout } = await execAsync(`node ${CLI_PATH} --version`)
-      
+
       expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/)
     })
   })
 
   describe('Debug Logging', () => {
     it('should create log file when --debug flag is used', async () => {
-      const beforeCount = existsSync(TEST_LOG_DIR) 
-        ? readdirSync(TEST_LOG_DIR).length 
-        : 0
+      const beforeCount = existsSync(TEST_LOG_DIR) ? readdirSync(TEST_LOG_DIR).length : 0
 
       const { stdout, stderr } = await execAsync(`node ${CLI_PATH} --debug --help`)
-      
+
       // デバッグメッセージがstderrに出力される
       expect(stderr).toContain('📝 Debug logging enabled:')
       expect(stderr).toContain('.metatell-bot/logs/bot-')
-      
+
       // ヘルプはstdoutに出力される
       expect(stdout).toContain('Usage: metatell-ai-bot')
-      
+
       // ログファイルが作成されたことを確認
       if (existsSync(TEST_LOG_DIR)) {
         const files = readdirSync(TEST_LOG_DIR)
@@ -78,15 +76,15 @@ describe('CLI E2E Tests', () => {
 
     it('should log command arguments in debug mode', async () => {
       const { stderr } = await execAsync(`node ${CLI_PATH} --debug --help`)
-      
+
       // ログファイルパスを抽出
       const logPathMatch = stderr.match(/Debug logging enabled: (.+\.log)/)
       expect(logPathMatch).toBeTruthy()
-      
+
       if (logPathMatch) {
         const logPath = logPathMatch[1]
         const logContent = readFileSync(logPath, 'utf-8')
-        
+
         expect(logContent).toContain('Debug logging initialized')
         expect(logContent).toContain('--debug')
         expect(logContent).toContain('--help')
@@ -95,19 +93,15 @@ describe('CLI E2E Tests', () => {
     })
 
     it('should not create log file without --debug flag', async () => {
-      const beforeFiles = existsSync(TEST_LOG_DIR) 
-        ? readdirSync(TEST_LOG_DIR) 
-        : []
+      const beforeFiles = existsSync(TEST_LOG_DIR) ? readdirSync(TEST_LOG_DIR) : []
 
       const { stderr } = await execAsync(`node ${CLI_PATH} --help`)
-      
+
       // デバッグメッセージが出力されない
       expect(stderr).not.toContain('Debug logging enabled')
-      
+
       // 新しいログファイルが作成されていない
-      const afterFiles = existsSync(TEST_LOG_DIR) 
-        ? readdirSync(TEST_LOG_DIR) 
-        : []
+      const afterFiles = existsSync(TEST_LOG_DIR) ? readdirSync(TEST_LOG_DIR) : []
       expect(afterFiles.length).toBe(beforeFiles.length)
     })
   })
@@ -123,22 +117,20 @@ describe('CLI E2E Tests', () => {
             url: 'https://metatell.app/test-room',
             profile: {
               displayName: 'TestBot',
-              avatarId: 'test-avatar'
-            }
-          }
-        }
+              avatarId: 'test-avatar',
+            },
+          },
+        },
       }
       writeFileSync(TEST_CONFIG_FILE, JSON.stringify(config, null, 2))
 
       // HOME環境変数を一時的に変更してテスト設定を使用
       const originalHome = process.env.HOME
       process.env.HOME = TEST_CONFIG_DIR.replace('/.metatell-bot-test', '')
-      
+
       try {
-        const { stdout, stderr } = await execAsync(
-          `node ${CLI_PATH} --profile test --debug --help`
-        )
-        
+        const { stdout, stderr } = await execAsync(`node ${CLI_PATH} --profile test --debug --help`)
+
         // デバッグログに設定が読み込まれたことが記録される
         expect(stderr).toContain('Debug logging enabled')
         expect(stdout).toContain('Usage: metatell-ai-bot')
@@ -148,10 +140,8 @@ describe('CLI E2E Tests', () => {
     })
 
     it('should handle missing profile gracefully', async () => {
-      const { stdout } = await execAsync(
-        `node ${CLI_PATH} --profile non-existent --help`
-      )
-      
+      const { stdout } = await execAsync(`node ${CLI_PATH} --profile non-existent --help`)
+
       // エラーではなくヘルプが表示される
       expect(stdout).toContain('Usage: metatell-ai-bot')
     })
@@ -169,10 +159,8 @@ describe('CLI E2E Tests', () => {
 
     it('should accept valid Metatell URL', async () => {
       // 実際の接続はせず、URLパースのみをテスト
-      const { stdout } = await execAsync(
-        `node ${CLI_PATH} https://metatell.app/test-room --help`
-      )
-      
+      const { stdout } = await execAsync(`node ${CLI_PATH} https://metatell.app/test-room --help`)
+
       // URLが受け入れられてヘルプが表示される
       expect(stdout).toContain('Usage: metatell-ai-bot')
     })
@@ -181,20 +169,17 @@ describe('CLI E2E Tests', () => {
   describe('Token Handling', () => {
     it('should accept token via --token flag', async () => {
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} --token test-token --debug --help`
+        `node ${CLI_PATH} --token test-token --debug --help`,
       )
-      
+
       expect(stderr).toContain('Debug logging enabled')
       expect(stdout).toContain('Usage: metatell-ai-bot')
     })
 
     it('should accept token via environment variable', async () => {
       const env = { ...process.env, METATELL_AUTH_TOKEN: 'env-token' }
-      const { stdout } = await execAsync(
-        `node ${CLI_PATH} --help`,
-        { env }
-      )
-      
+      const { stdout } = await execAsync(`node ${CLI_PATH} --help`, { env })
+
       expect(stdout).toContain('Usage: metatell-ai-bot')
     })
   })
@@ -202,7 +187,7 @@ describe('CLI E2E Tests', () => {
   describe('Error Handling', () => {
     it('should handle missing required parameters gracefully', async () => {
       const { stdout } = await execAsync(`node ${CLI_PATH}`)
-      
+
       // エラーではなくヘルプが表示される
       expect(stdout).toContain('Usage: metatell-ai-bot')
       expect(stdout).toContain('Arguments:')
@@ -221,18 +206,16 @@ describe('CLI E2E Tests', () => {
   describe('CLI Flag Combinations', () => {
     it('should handle multiple flags together', async () => {
       const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} --debug --token test --profile default --help`
+        `node ${CLI_PATH} --debug --token test --profile default --help`,
       )
-      
+
       expect(stderr).toContain('Debug logging enabled')
       expect(stdout).toContain('Usage: metatell-ai-bot')
     })
 
     it('should handle short and long flag formats', async () => {
-      const { stdout, stderr } = await execAsync(
-        `node ${CLI_PATH} -d -t test -p default -h`
-      )
-      
+      const { stdout, stderr } = await execAsync(`node ${CLI_PATH} -d -t test -p default -h`)
+
       // -d (debug) のショートフラグをサポート
       expect(stderr).toContain('Debug logging enabled')
       // -h (help) のショートフラグをサポート

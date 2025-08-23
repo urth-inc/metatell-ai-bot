@@ -5,30 +5,6 @@ export type {
   NafDataType,
   NafMessage,
 } from './core/builders/NafMessageBuilder.js'
-
-// NAF Types (strongly-typed NAF message definitions)
-export type {
-  TypedNAFMessage,
-  NAFCreateMessage,
-  NAFMultiUpdateMessage,
-  NAFRemoveMessage,
-  NAFComponentMap,
-  NAFEntityData,
-  Position3D,
-  Quaternion,
-  EulerRotation,
-  Scale3D,
-  AvatarComponentData,
-} from './core/types/naf.js'
-export {
-  isNAFCreateMessage,
-  isNAFMultiUpdateMessage,
-  isNAFRemoveMessage,
-  isTypedNAFMessage,
-  extractPosition,
-  extractAvatarData,
-  extractBodyRotation,
-} from './core/types/naf.js'
 // NAF Message Builder (ユーティリティ)
 export { NafComponentId, NafMessageBuilder } from './core/builders/NafMessageBuilder.js'
 export {
@@ -60,6 +36,29 @@ export type {
 } from './core/interfaces/IWebSocketConnectionManager.js'
 // Service Container (DIコンテナ)
 export { ServiceContainer } from './core/ServiceContainer.js'
+// NAF Types (strongly-typed NAF message definitions)
+export type {
+  AvatarComponentData,
+  EulerRotation,
+  NAFComponentMap,
+  NAFCreateMessage,
+  NAFEntityData,
+  NAFMultiUpdateMessage,
+  NAFRemoveMessage,
+  Position3D,
+  Quaternion,
+  Scale3D,
+  TypedNAFMessage,
+} from './core/types/naf.js'
+export {
+  extractAvatarData,
+  extractBodyRotation,
+  extractPosition,
+  isNAFCreateMessage,
+  isNAFMultiUpdateMessage,
+  isNAFRemoveMessage,
+  isTypedNAFMessage,
+} from './core/types/naf.js'
 export type {
   AgentClient,
   AgentClientConfig,

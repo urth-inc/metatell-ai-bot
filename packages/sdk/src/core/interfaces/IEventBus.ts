@@ -33,7 +33,7 @@ export enum SystemEvents {
   // NAF: Standard networking messages (unreliable, best-effort delivery)
   // Used for frequent updates like position/rotation where some packet loss is acceptable
   NAF_RECEIVED = 'naf:received',
-  
+
   // NAFR: Reliable NAF messages (guaranteed delivery)
   // Used for critical state updates that must arrive (spawn, despawn, important state changes)
   NAFR_RECEIVED = 'nafr:received',

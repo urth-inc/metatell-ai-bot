@@ -8,15 +8,17 @@ export class ConfigurationProvider implements IConfigurationProvider {
 
   constructor(initialConfig: BotConfiguration) {
     // Create a deep copy of the configuration to ensure complete isolation
-    this.config = JSON.parse(JSON.stringify({
-      ...initialConfig,
-      context: initialConfig.context || {
-        mobile: false,
-        embed: false,
-        hmd: false,
-      },
-    }))
-    
+    this.config = JSON.parse(
+      JSON.stringify({
+        ...initialConfig,
+        context: initialConfig.context || {
+          mobile: false,
+          embed: false,
+          hmd: false,
+        },
+      }),
+    )
+
     // Deep freeze the configuration to prevent any modifications
     this.deepFreeze(this.config)
   }
@@ -28,7 +30,7 @@ export class ConfigurationProvider implements IConfigurationProvider {
   private deepFreeze(obj: unknown): void {
     if (obj && typeof obj === 'object') {
       Object.freeze(obj)
-      Object.values(obj).forEach(value => {
+      Object.values(obj).forEach((value) => {
         this.deepFreeze(value)
       })
     }

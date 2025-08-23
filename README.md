@@ -204,6 +204,14 @@ This client implements the Phoenix Channel protocol to communicate with Metatell
 - **NAF Protocol**: Networked A-Frame for 3D object synchronization
 - **Permissions**: Role-based access control
 
+## For Developer
+
+Enable pre-commit/pre-push hook with `lefthook`:
+
+```bash
+npx lefthook install
+```
+
 ## License
 
 MIT

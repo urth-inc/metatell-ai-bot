@@ -55,7 +55,6 @@ export class CoreServiceFactory {
       { singleton: true },
     )
 
-
     // Register AuthenticationService
     this.container.register<IAuthenticationService>(
       'IAuthenticationService',
