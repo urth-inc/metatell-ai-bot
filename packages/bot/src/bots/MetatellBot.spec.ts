@@ -110,7 +110,7 @@ describe('MetatellBot', () => {
       getConfiguration: vi.fn(
         () =>
           ({
-            authUrl: 'https://test.app/auth',
+            serverUrl: 'https://test.app/auth',
             hubUrl: 'https://test.app/hub',
             hubId: 'test-hub',
             profile: { displayName: 'TestBot', avatarId: 'bot-avatar' },
@@ -351,7 +351,7 @@ describe('MetatellBot', () => {
       await bot.start()
 
       expect(mockConnectionManager.connect).toHaveBeenCalledWith({
-        authUrl: 'https://test.app/auth',
+        serverUrl: 'https://test.app/auth',
         hubId: 'test-hub',
       })
       expect(mockChannel.push).toHaveBeenCalledWith('events:entering', {})
@@ -442,7 +442,7 @@ describe('MetatellBot', () => {
 
       // スペースを含む名前の設定
       mockConfigProvider.getConfiguration = vi.fn(() => ({
-        authUrl: 'https://test.app/auth',
+        serverUrl: 'https://test.app/auth',
         hubId: 'test-hub',
         profile: {
           displayName: 'AI Assistant',

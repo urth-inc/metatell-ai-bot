@@ -5,6 +5,30 @@ export type {
   NafDataType,
   NafMessage,
 } from './core/builders/NafMessageBuilder.js'
+
+// NAF Types (strongly-typed NAF message definitions)
+export type {
+  TypedNAFMessage,
+  NAFCreateMessage,
+  NAFMultiUpdateMessage,
+  NAFRemoveMessage,
+  NAFComponentMap,
+  NAFEntityData,
+  Position3D,
+  Quaternion,
+  EulerRotation,
+  Scale3D,
+  AvatarComponentData,
+} from './core/types/naf.js'
+export {
+  isNAFCreateMessage,
+  isNAFMultiUpdateMessage,
+  isNAFRemoveMessage,
+  isTypedNAFMessage,
+  extractPosition,
+  extractAvatarData,
+  extractBodyRotation,
+} from './core/types/naf.js'
 // NAF Message Builder (ユーティリティ)
 export { NafComponentId, NafMessageBuilder } from './core/builders/NafMessageBuilder.js'
 export {
@@ -25,7 +49,6 @@ export type { IConnectionManager } from './core/interfaces/IConnectionManager.js
 export type { IEventBus, SystemEvents } from './core/interfaces/IEventBus.js'
 export type { IMessageService } from './core/interfaces/IMessageService.js'
 export type { IPresenceManager, PresenceUser } from './core/interfaces/IPresenceManager.js'
-export type { IRateLimiter } from './core/interfaces/IRateLimiter.js'
 export type {
   IUserAvatarManager,
   UserAvatar,

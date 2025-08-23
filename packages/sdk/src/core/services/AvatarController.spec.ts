@@ -39,7 +39,7 @@ describe('AvatarController', () => {
       getConfiguration: vi.fn(
         () =>
           ({
-            authUrl: 'https://test.app/auth',
+            serverUrl: 'https://test.app/auth',
             hubUrl: 'https://test.app/hub',
             hubId: 'test-hub',
             profile: { displayName: 'TestBot', avatarId: 'test-avatar' },

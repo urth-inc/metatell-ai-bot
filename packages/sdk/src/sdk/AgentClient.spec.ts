@@ -21,7 +21,7 @@ describe('AgentClient', () => {
 
   beforeEach(() => {
     botConfig = {
-      authUrl: 'wss://example.com',
+      serverUrl: 'wss://example.com',
       hubUrl: 'https://example.com/test',
       hubId: 'test-hub',
       profile: {

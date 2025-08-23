@@ -35,7 +35,8 @@ export interface NafAvatarConfig {
 export type NafDataType = 'u' | 'um' | 'r'
 
 /**
- * NAF Message structure
+ * NAF Message structure (legacy - for backward compatibility)
+ * @deprecated Use TypedNAFMessage from '../types/naf' for new code
  */
 export interface NafMessage {
   dataType: NafDataType
@@ -64,6 +65,9 @@ export interface NafMessage {
     }>
   }
 }
+
+// Import strongly-typed NAF definitions
+import type { NAFComponentMap, TypedNAFMessage } from '../types/naf.js'
 
 /**
  * Builder for constructing NAF messages with a fluent API
@@ -398,6 +402,70 @@ export class NafMessageBuilder {
           parent: this.parent,
           components: mergedComponents,
         },
+      }
+    }
+  }
+
+  /**
+   * Build a strongly-typed NAF message
+   * @returns Type-safe NAF message based on the dataType
+   */
+  buildTyped(): TypedNAFMessage {
+    const message = this.build()
+    
+    // Convert to strongly-typed format based on dataType
+    if (this.dataType === 'u') {
+      // For 'u' type, these fields are guaranteed by build() method
+      if (!message.data.networkId || !message.data.owner || !message.data.creator) {
+        throw new Error('Invalid message data for type u')
+      }
+      return {
+        dataType: 'u',
+        data: {
+          networkId: message.data.networkId,
+          owner: message.data.owner,
+          creator: message.data.creator,
+          lastOwnerTime: message.data.lastOwnerTime ?? Date.now(),
+          template: message.data.template ?? '#remote-avatar',
+          persistent: message.data.persistent ?? false,
+          parent: message.data.parent,
+          components: message.data.components as NAFComponentMap,
+          isFirstSync: message.data.isFirstSync,
+          forceRender: message.data.forceRender,
+          megaphone: message.data.megaphone,
+          temporaryMegaphone: message.data.temporaryMegaphone,
+        }
+      }
+    } else if (this.dataType === 'um') {
+      // For 'um' type, d array is guaranteed by build() method
+      if (!message.data.d) {
+        throw new Error('Invalid message data for type um')
+      }
+      return {
+        dataType: 'um',
+        data: {
+          d: message.data.d.map(entity => ({
+            networkId: entity.networkId,
+            owner: entity.owner,
+            creator: entity.creator,
+            lastOwnerTime: entity.lastOwnerTime,
+            template: entity.template,
+            persistent: entity.persistent,
+            parent: entity.parent,
+            components: entity.components as NAFComponentMap,
+          }))
+        }
+      }
+    } else {
+      // 'r' type - remove message
+      if (!message.data.networkId) {
+        throw new Error('Invalid message data for type r')
+      }
+      return {
+        dataType: 'r',
+        data: {
+          networkId: message.data.networkId
+        }
       }
     }
   }

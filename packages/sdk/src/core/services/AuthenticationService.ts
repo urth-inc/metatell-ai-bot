@@ -27,7 +27,7 @@ export class AuthenticationService implements IAuthenticationService {
     const config = this.configProvider.getConfiguration()
 
     // For now, generate a mock token since the auth endpoint is not fully implemented
-    // In production, this should make a real API call to config.authUrl
+    // In production, this should make a real API call to the authentication server
     this.token = {
       token: `mock-token-${Date.now()}-${config.hubId || 'default'}`,
       expiresAt: Date.now() + 24 * 60 * 60 * 1000,

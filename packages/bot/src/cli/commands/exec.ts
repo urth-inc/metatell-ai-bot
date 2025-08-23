@@ -20,7 +20,7 @@ export class CommandExecutor {
   private commandRegistry: CommandRegistry
 
   constructor(
-    private client: AgentClient,
+    _client: AgentClient,
     private context: CommandContext,
   ) {
     // Initialize command registry with unified commands

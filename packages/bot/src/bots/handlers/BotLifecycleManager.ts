@@ -15,7 +15,7 @@ export interface BotLifecycleOptions {
 }
 
 export interface ConnectionInfo {
-  authUrl: string
+  serverUrl: string
   hubId: string
   authToken?: string
 }
@@ -100,11 +100,11 @@ export class BotLifecycleManager {
   private async establishConnection(connectionInfo?: ConnectionInfo): Promise<void> {
     const config = this.options.configProvider.getConfiguration()
 
-    const authUrl = connectionInfo?.authUrl || config.authUrl
+    const serverUrl = connectionInfo?.serverUrl || config.serverUrl
     const hubId = connectionInfo?.hubId || config.hubId
 
     await this.options.connectionManager.connect({
-      authUrl,
+      serverUrl,
       hubId,
     })
   }

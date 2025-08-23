@@ -7,19 +7,31 @@ export class ConfigurationProvider implements IConfigurationProvider {
   private readonly config: BotConfiguration
 
   constructor(initialConfig: BotConfiguration) {
-    // Create an immutable copy of the configuration
-    this.config = {
+    // Create a deep copy of the configuration to ensure complete isolation
+    this.config = JSON.parse(JSON.stringify({
       ...initialConfig,
       context: initialConfig.context || {
         mobile: false,
         embed: false,
         hmd: false,
       },
+    }))
+    
+    // Deep freeze the configuration to prevent any modifications
+    this.deepFreeze(this.config)
+  }
+
+  /**
+   * Recursively freeze an object and all its nested properties
+   * This ensures complete immutability of the configuration
+   */
+  private deepFreeze(obj: unknown): void {
+    if (obj && typeof obj === 'object') {
+      Object.freeze(obj)
+      Object.values(obj).forEach(value => {
+        this.deepFreeze(value)
+      })
     }
-    // Freeze the configuration to prevent modifications
-    Object.freeze(this.config)
-    Object.freeze(this.config.profile)
-    Object.freeze(this.config.context)
   }
 
   get<T = unknown>(key: string): T | undefined {

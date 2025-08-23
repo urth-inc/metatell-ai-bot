@@ -123,7 +123,7 @@ describe('WebSocketConnectionManager', () => {
       mockSocket = mockSocketInstance
 
       const config = {
-        authUrl: 'https://test.app/auth',
+        serverUrl: 'https://test.app/auth',
         hubId: 'test-hub',
       }
 
@@ -155,7 +155,7 @@ describe('WebSocketConnectionManager', () => {
       ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
 
       const config = {
-        authUrl: 'https://test.app/auth',
+        serverUrl: 'https://test.app/auth',
         hubId: 'test-hub',
       }
 
@@ -209,7 +209,7 @@ describe('WebSocketConnectionManager', () => {
       ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
 
       const config = {
-        authUrl: 'https://test.app/auth',
+        serverUrl: 'https://test.app/auth',
         hubId: 'test-hub',
       }
 
@@ -249,7 +249,7 @@ describe('WebSocketConnectionManager', () => {
       ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
 
       await connectionManager.connect({
-        authUrl: 'https://test.app/auth',
+        serverUrl: 'https://test.app/auth',
         hubId: 'test-hub',
       })
 
@@ -299,7 +299,7 @@ describe('WebSocketConnectionManager', () => {
 
       // Connect successfully
       await connectionManager.connect({
-        authUrl: 'https://test.app/auth',
+        serverUrl: 'https://test.app/auth',
         hubId: 'test-hub',
       })
 
@@ -340,7 +340,7 @@ describe('WebSocketConnectionManager', () => {
       ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
 
       await connectionManager.connect({
-        authUrl: 'https://test.app/auth',
+        serverUrl: 'https://test.app/auth',
         hubId: 'test-hub',
       })
 
@@ -380,7 +380,7 @@ describe('WebSocketConnectionManager', () => {
       ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
 
       await connectionManager.connect({
-        authUrl: 'https://test.app/auth',
+        serverUrl: 'https://test.app/auth',
         hubId: 'test-hub',
       })
 
@@ -454,7 +454,7 @@ describe('WebSocketConnectionManager', () => {
       ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
 
       await connectionManager.connect({
-        authUrl: 'https://test.app/auth',
+        serverUrl: 'https://test.app/auth',
         hubId: 'test-hub',
       })
 
@@ -487,7 +487,7 @@ describe('WebSocketConnectionManager', () => {
 
       connectionManager
         .connect({
-          authUrl: 'https://test.app/auth',
+          serverUrl: 'https://test.app/auth',
           hubId: 'test-hub',
         })
         .catch(() => undefined)
@@ -517,7 +517,7 @@ describe('WebSocketConnectionManager', () => {
 
       connectionManager
         .connect({
-          authUrl: 'https://test.app/auth',
+          serverUrl: 'https://test.app/auth',
           hubId: 'test-hub',
         })
         .catch(() => undefined)
@@ -548,7 +548,7 @@ describe('WebSocketConnectionManager', () => {
 
       connectionManager
         .connect({
-          authUrl: 'https://test.app/auth',
+          serverUrl: 'https://test.app/auth',
           hubId: 'test-hub',
         })
         .catch(() => undefined)
@@ -592,7 +592,7 @@ describe('WebSocketConnectionManager', () => {
       ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
 
       await connectionManager.connect({
-        authUrl: 'https://test.app/auth',
+        serverUrl: 'https://test.app/auth',
         hubId: 'test-hub',
       })
 

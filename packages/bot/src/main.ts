@@ -94,7 +94,7 @@ async function main() {
 
   // Create bot configuration
   const botConfig: BotConfiguration = {
-    authUrl: socketUrl,
+    serverUrl: socketUrl,
     hubUrl: metatellUrl,
     hubId: hubId,
     profile: {
@@ -151,7 +151,7 @@ async function main() {
       const mainLogger = getLogger('Main')
       mainLogger.debug('Debug mode enabled via AppSettings')
       mainLogger.debug('Bot configuration', {
-        authUrl: socketUrl,
+        serverUrl: socketUrl,
         hubUrl: metatellUrl,
         hubId: hubId,
         botName: botName,
@@ -176,12 +176,12 @@ async function main() {
       : undefined,
   })
 
-  // Create command context for CLI
+  // Create command context for CLI with proper typing
   const commandContext: CommandContext = {
-    avatarController: factory.getService('IAvatarController'),
-    userAvatarManager: factory.getService('IUserAvatarManager'),
-    presenceManager: factory.getService('IPresenceManager'),
-    messageService: factory.getService('IMessageService'),
+    avatarController: factory.getService<import('@metatell/sdk').IAvatarController>('IAvatarController'),
+    userAvatarManager: factory.getService<import('@metatell/sdk').IUserAvatarManager>('IUserAvatarManager'),
+    presenceManager: factory.getService<import('@metatell/sdk').IPresenceManager>('IPresenceManager'),
+    messageService: factory.getService<import('@metatell/sdk').IMessageService>('IMessageService'),
     logger: getLogger('CLI'),
   }
 

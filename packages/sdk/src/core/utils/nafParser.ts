@@ -1,12 +1,19 @@
 /**
  * NAF (Networked A-Frame) message parser utilities
+ * Uses strongly-typed NAF component definitions for type-safe parsing
  */
 
+import { NafComponentId } from '../builders/NafMessageBuilder.js'
+import type { NAFComponentMap, Position3D, EulerRotation, Quaternion } from '../types/naf.js'
+import { extractPosition, extractAvatarData, extractBodyRotation } from '../types/naf.js'
+
 export interface ParsedNAFData {
-  position?: { x: number; y: number; z: number }
-  rotation?: { x: number; y: number; z: number; w: number }
+  position?: Position3D
+  rotation?: Quaternion
   avatarId?: string
   nickname?: string
+  headRotation?: EulerRotation
+  bodyRotation?: EulerRotation
 }
 
 /**
@@ -14,54 +21,41 @@ export interface ParsedNAFData {
  * @param components The components object from NAF message
  * @returns Parsed NAF data
  */
-export function parseNAFComponents(components: Record<string, unknown>): ParsedNAFData {
+export function parseNAFComponents(components: Record<string, unknown> | NAFComponentMap): ParsedNAFData {
   const result: ParsedNAFData = {}
+  
+  // Use type-safe component map
+  const typedComponents = components as NAFComponentMap
 
-  // Parse position
-  if (components[1]) {
-    const pos = components[1] as { x?: number; y?: number; z?: number }
-    result.position = {
-      x: pos.x || 0,
-      y: pos.y || 0,
-      z: pos.z || 0,
+  // Parse position using type-safe helper
+  result.position = extractPosition(typedComponents)
+
+  // Parse head rotation
+  const headRotComponent = typedComponents[NafComponentId.HeadRotation]
+  if (headRotComponent?.components && Array.isArray(headRotComponent.components)) {
+    const [x = 0, y = 0, z = 0] = headRotComponent.components
+    result.headRotation = { x, y, z }
+  }
+
+  // Parse body rotation and convert to quaternion
+  const bodyRotation = extractBodyRotation(typedComponents)
+  if (bodyRotation) {
+    result.bodyRotation = bodyRotation
+    result.rotation = eulerToQuaternion(bodyRotation.x, bodyRotation.y, bodyRotation.z)
+  }
+
+  // Parse avatar component using type-safe helper
+  const avatarData = extractAvatarData(typedComponents)
+  if (avatarData) {
+    // Extract avatar ID from src URL if present
+    const match = avatarData.avatarSrc.match(/avatar_id=([^&]+)/)
+    if (match) {
+      result.avatarId = match[1]
     }
   }
 
-  // Parse rotation (quaternion or euler)
-  if (components[2]) {
-    const rot = components[2] as { x?: number; y?: number; z?: number; w?: number }
-    if ('w' in rot) {
-      // Quaternion
-      result.rotation = {
-        x: rot.x || 0,
-        y: rot.y || 0,
-        z: rot.z || 0,
-        w: rot.w || 1,
-      }
-    } else {
-      // Euler angles - convert to quaternion
-      result.rotation = eulerToQuaternion(rot.x || 0, rot.y || 0, rot.z || 0)
-    }
-  }
-
-  // Parse avatar ID
-  if (components[6]) {
-    const comp6 = components[6] as { data?: { src?: string } }
-    if (comp6.data?.src) {
-      const match = comp6.data.src.match(/avatar_id=([^&]+)/)
-      if (match) {
-        result.avatarId = match[1]
-      }
-    }
-  }
-
-  // Parse nickname from nametag
-  if (components[8]) {
-    const comp8 = components[8] as { text?: string }
-    if (comp8.text) {
-      result.nickname = comp8.text
-    }
-  }
+  // Note: Nickname is not part of standard NAF components in our schema
+  // It may be in a custom component or separate message
 
   return result
 }

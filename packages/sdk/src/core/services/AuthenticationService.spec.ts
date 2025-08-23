@@ -18,7 +18,7 @@ describe('AuthenticationService', () => {
       getConfiguration: vi.fn(
         () =>
           ({
-            authUrl: 'https://auth.test.app',
+            serverUrl: 'https://auth.test.app',
             hubUrl: 'https://hub.test.app',
             hubId: 'test-hub',
             profile: { displayName: 'TestBot', avatarId: 'test-avatar' },

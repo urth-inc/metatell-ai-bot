@@ -51,8 +51,8 @@ export interface AgentClientEvents {
 export interface ConnectionOptions {
   url: string
   token?: string
-  authUrl?: string // Allow passing authUrl directly
-  hubUrl?: string // Allow passing hubUrl directly
+  serverUrl?: string // Allow passing serverUrl directly (WebSocket URL)
+  hubUrl?: string // Allow passing hubUrl directly (HTTP API URL)
   hubId?: string // Allow passing hubId directly
 }
 
@@ -154,20 +154,20 @@ export class DefaultAgentClient implements AgentClient {
     this.status.connecting = true
 
     try {
-      let authUrl: string
+      let serverUrl: string
       let hubId: string
 
       // Use provided values or parse from URL
-      if (options.authUrl && options.hubUrl && options.hubId) {
-        authUrl = options.authUrl
+      if (options.serverUrl && options.hubUrl && options.hubId) {
+        serverUrl = options.serverUrl
         hubId = options.hubId
       } else {
-        // URLを解析してauthUrlとhubIdを取得
+        // URLを解析してserverUrlとhubIdを取得
         const url = new URL(options.url)
 
         // HTTPSからWSSに変換
         const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-        authUrl = `${protocol}//${url.host}`
+        serverUrl = `${protocol}//${url.host}`
 
         // hubIdを取得（パスから'/'を除去）
         const pathParts = url.pathname.split('/').filter(Boolean)
@@ -180,7 +180,7 @@ export class DefaultAgentClient implements AgentClient {
 
       // Connect through connection manager directly
       await this.connectionManager.connect({
-        authUrl,
+        serverUrl,
         hubId,
       })
 
@@ -216,7 +216,7 @@ export class DefaultAgentClient implements AgentClient {
       this.status.connected = true
       this.status.connecting = false
       this.logger.info('Connected successfully', {
-        authUrl,
+        serverUrl,
         hubId,
         sessionId: this.status.sessionId,
       })

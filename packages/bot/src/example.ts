@@ -28,11 +28,11 @@ async function main() {
   // Parse room URL to get hub ID
   const url = new URL(roomUrl)
   const hubId = url.pathname.split('/')[1]
-  const authUrl = `wss://${url.host}`
+  const serverUrl = `wss://${url.host}`
 
   // Create service factory with configuration
   const factory = new CoreServiceFactory({
-    authUrl: authUrl,
+    serverUrl: serverUrl,
     hubUrl: roomUrl,
     hubId: hubId,
     profile: {
@@ -48,7 +48,7 @@ async function main() {
   try {
     const options: ConnectionOptions = {
       url: roomUrl,
-      authUrl: roomUrl.replace('https:', 'wss:'),
+      serverUrl: roomUrl.replace('https:', 'wss:'),
       hubUrl: roomUrl,
       hubId: roomUrl.split('/')[3], // Extract hub ID from URL
     }

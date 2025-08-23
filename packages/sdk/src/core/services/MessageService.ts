@@ -6,6 +6,7 @@ import type { IMessageService, NAFMessage } from '../interfaces/IMessageService.
 
 export class MessageService implements IMessageService {
   private messageHandlers = new Map<string, Set<(data: unknown) => void>>()
+  private listenersSetup = false
   private logger = getLogger('MessageService')
 
   constructor(
@@ -23,9 +24,12 @@ export class MessageService implements IMessageService {
     // Listen for connection events to setup channel listeners
     this.eventBus.on(SystemEvents.ROOM_JOINED, () => {
       const channel = this.connectionManager.getHubChannel()
-      if (!channel) {
+      if (!channel || this.listenersSetup) {
         return
       }
+
+      this.logger.debug('Setting up channel listeners')
+      this.listenersSetup = true
 
       // Setup message listener
       channel.on('message', (payload: unknown) => {
