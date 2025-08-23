@@ -10,25 +10,17 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { config as dotenvConfig } from 'dotenv'
+import * as v from 'valibot'
+import {
+  type Config,
+  ConfigFileSchema,
+  type ConfigProfile,
+  ConfigSchema,
+  EnvVarsSchema,
+  FlagsSchema,
+} from './schema.js'
 
-export interface Config {
-  url?: string
-  token?: string
-  profile?: {
-    displayName?: string
-    avatarId?: string
-  }
-  rate?: {
-    messagesPerSec?: number
-    movesPerSec?: number
-    looksPerSec?: number
-  }
-  debug?: boolean
-}
-
-export interface ConfigProfile extends Config {
-  name: string
-}
+export type { Config, ConfigProfile } from './schema.js'
 
 export class ConfigManager {
   private config: Config = {}
@@ -52,7 +44,15 @@ export class ConfigManager {
   private loadEnvFile(): void {
     // Use dotenv to properly parse .env file
     // This handles edge cases like comments, quotes, multiline values, etc.
-    dotenvConfig({ path: join(process.cwd(), '.env') })
+    // Suppress dotenv's default output by temporarily redirecting console
+    const originalConsoleLog = console.log
+    console.log = () => {} // Temporarily disable console.log
+    
+    try {
+      dotenvConfig({ path: join(process.cwd(), '.env') })
+    } finally {
+      console.log = originalConsoleLog // Restore console.log
+    }
   }
 
   private loadConfigFile(): void {
@@ -62,17 +62,26 @@ export class ConfigManager {
         const content = readFileSync(configPath, 'utf-8')
         const data = JSON.parse(content)
 
+        // Validate config file
+        const result = v.safeParse(ConfigFileSchema, data)
+        if (!result.success) {
+          console.error('Invalid config file format:', v.flatten(result.issues))
+          return
+        }
+
+        const validatedData = result.output
+
         // メイン設定
-        if (data.url) this.config.url = data.url
-        if (data.token) this.config.token = data.token
-        if (data.profile) this.config.profile = data.profile
-        if (data.rate) this.config.rate = data.rate
-        if (data.debug !== undefined) this.config.debug = data.debug
+        if (validatedData.url) this.config.url = validatedData.url
+        if (validatedData.token) this.config.token = validatedData.token
+        if (validatedData.profile) this.config.profile = validatedData.profile
+        if (validatedData.rate) this.config.rate = validatedData.rate
+        if (validatedData.debug !== undefined) this.config.debug = validatedData.debug
 
         // プロファイル
-        if (data.profiles) {
-          Object.entries(data.profiles).forEach(([name, profile]) => {
-            this.profiles.set(name, { name, ...(profile as Config) })
+        if (validatedData.profiles) {
+          Object.entries(validatedData.profiles).forEach(([name, profile]) => {
+            this.profiles.set(name, { name, ...profile })
           })
         }
       } catch (error) {
@@ -82,8 +91,22 @@ export class ConfigManager {
   }
 
   private loadEnvironmentVariables(): void {
+    // Validate environment variables
+    const envResult = v.safeParse(EnvVarsSchema, process.env)
+    if (!envResult.success) {
+      // Log validation issues but continue (env vars are optional)
+      if (this.config.debug) {
+        console.warn('Environment variable validation issues:', v.flatten(envResult.issues))
+      }
+    }
+
     if (process.env.METATELL_URL) {
-      this.config.url = process.env.METATELL_URL
+      const urlResult = v.safeParse(v.pipe(v.string(), v.url()), process.env.METATELL_URL)
+      if (urlResult.success) {
+        this.config.url = urlResult.output
+      } else {
+        console.warn(`Invalid METATELL_URL: ${process.env.METATELL_URL}`)
+      }
     }
     if (process.env.METATELL_TOKEN || process.env.METATELL_AUTH_TOKEN) {
       this.config.token = process.env.METATELL_TOKEN || process.env.METATELL_AUTH_TOKEN
@@ -105,6 +128,14 @@ export class ConfigManager {
    * Get configuration with command line overrides
    */
   getConfig(flags: Record<string, string | boolean> = {}): Config {
+    // Validate flags
+    const flagsResult = v.safeParse(FlagsSchema, flags)
+    if (!flagsResult.success) {
+      throw new Error(
+        `Invalid command line flags: ${JSON.stringify(v.flatten(flagsResult.issues))}`,
+      )
+    }
+
     const result: Config = { ...this.config }
 
     // プロファイルの適用
@@ -126,7 +157,13 @@ export class ConfigManager {
       result.debug = true
     }
 
-    return result
+    // Validate final configuration
+    const configResult = v.safeParse(ConfigSchema, result)
+    if (!configResult.success) {
+      throw new Error(`Invalid configuration: ${JSON.stringify(v.flatten(configResult.issues))}`)
+    }
+
+    return configResult.output
   }
 
   /**
