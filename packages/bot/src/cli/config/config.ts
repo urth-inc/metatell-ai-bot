@@ -18,9 +18,10 @@ import {
   ConfigSchema,
   EnvVarsSchema,
   FlagsSchema,
-} from './schema.js'
+  UrlSchema,
+} from '../../schemas/index.js'
 
-export type { Config, ConfigProfile } from './schema.js'
+export type { Config, ConfigProfile } from '../../schemas/index.js'
 
 export class ConfigManager {
   private config: Config = {}
@@ -47,7 +48,7 @@ export class ConfigManager {
     // Suppress dotenv's default output by temporarily redirecting console
     const originalConsoleLog = console.log
     console.log = () => {} // Temporarily disable console.log
-    
+
     try {
       dotenvConfig({ path: join(process.cwd(), '.env') })
     } finally {
@@ -101,7 +102,7 @@ export class ConfigManager {
     }
 
     if (process.env.METATELL_URL) {
-      const urlResult = v.safeParse(v.pipe(v.string(), v.url()), process.env.METATELL_URL)
+      const urlResult = v.safeParse(UrlSchema, process.env.METATELL_URL)
       if (urlResult.success) {
         this.config.url = urlResult.output
       } else {
