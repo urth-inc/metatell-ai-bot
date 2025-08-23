@@ -56,12 +56,12 @@ export class UserAvatarManager implements IUserAvatarManager {
     {
       name: 'creator-match',
       priority: 2,
-      match: (networkId, user, data) => user.id === data.creator,
+      match: (_networkId, user, data) => user.id === data.creator,
     },
     {
       name: 'owner-match',
       priority: 3,
-      match: (networkId, user, data) => user.id === data.owner,
+      match: (_networkId, user, data) => user.id === data.owner,
     },
     {
       name: 'prefix-match-strict',
@@ -202,35 +202,12 @@ export class UserAvatarManager implements IUserAvatarManager {
     let presenceUser = this.presenceManager.getUser(networkId)
     let nickname = presenceUser?.profile.displayName
 
-    // networkIdで見つからない場合、すべてのPresenceユーザーから検索
+    // networkIdで見つからない場合、戦略的にユーザーを解決
     if (!nickname) {
-      const allPresenceUsers = this.presenceManager.getUsers()
-      this.logger.debug(
-        `[NAF] No presence user for networkId ${networkId}, searching in ${allPresenceUsers.length} users`,
-        {
-          networkId,
-          creator: data.creator,
-          owner: data.owner,
-          allUsers: allPresenceUsers.map((u) => ({ id: u.id, name: u.profile.displayName })),
-        },
-      )
-
-      // 他の方法でマッチングを試す（例：creatorやownerフィールドを使用）
-      // または部分的なIDマッチング
-      presenceUser = allPresenceUsers.find(
-        (user) =>
-          user.id === data.creator ||
-          user.id === data.owner ||
-          networkId.includes(user.id.substring(0, 8)) ||
-          user.id.includes(networkId.substring(0, 8)),
-      )
-
-      nickname = presenceUser?.profile.displayName
-
-      if (nickname) {
-        this.logger.debug(
-          `[NAF] Found user through alternative matching: ${nickname} (${presenceUser?.id})`,
-        )
+      const resolvedUserId = this.resolveUserId(networkId, data)
+      if (resolvedUserId) {
+        presenceUser = this.presenceManager.getUser(resolvedUserId)
+        nickname = presenceUser?.profile.displayName
       }
     }
 
@@ -319,6 +296,87 @@ export class UserAvatarManager implements IUserAvatarManager {
       } else {
         this.emit('userUpdated', userAvatar)
       }
+    }
+  }
+
+  /**
+   * 戦略パターンを使用してユーザーIDを解決
+   */
+  private resolveUserId(networkId: string, nafData: NAFComponent): string | undefined {
+    // キャッシュチェック
+    if (this.idMappingCache.has(networkId)) {
+      this.resolutionMetrics.cacheHits++
+      return this.idMappingCache.get(networkId)
+    }
+
+    // ブラックリストチェック
+    if (this.unmappableIds.has(networkId)) {
+      return undefined
+    }
+
+    const allUsers = this.presenceManager.getUsers()
+    this.resolutionMetrics.total++
+
+    // 戦略パターンで順番に試行
+    for (const strategy of this.idMappingStrategies) {
+      const matchedUser = allUsers.find((user) => strategy.match(networkId, user, nafData))
+      if (matchedUser) {
+        this.logger.debug(`[NAF] User resolved using strategy: ${strategy.name}`, {
+          networkId,
+          resolvedId: matchedUser.id,
+          strategy: strategy.name,
+        })
+
+        // キャッシュに保存
+        this.idMappingCache.set(networkId, matchedUser.id)
+
+        // メトリクス記録
+        const count = this.resolutionMetrics.byStrategy.get(strategy.name) || 0
+        this.resolutionMetrics.byStrategy.set(strategy.name, count + 1)
+
+        return matchedUser.id
+      }
+    }
+
+    // 解決不可能な場合
+    this.unmappableIds.add(networkId)
+    this.resolutionMetrics.failures++
+
+    this.logger.warn(`[NAF] Unable to resolve user ID`, {
+      networkId,
+      availableUsers: allUsers.map((u) => u.id),
+      nafCreator: nafData.creator,
+      nafOwner: nafData.owner,
+    })
+
+    // メトリクスログ（100回ごと）
+    if (this.resolutionMetrics.total % 100 === 0) {
+      this.logger.info('[NAF] ID Resolution Metrics', {
+        total: this.resolutionMetrics.total,
+        cacheHits: this.resolutionMetrics.cacheHits,
+        failures: this.resolutionMetrics.failures,
+        byStrategy: Object.fromEntries(this.resolutionMetrics.byStrategy),
+      })
+    }
+
+    return undefined
+  }
+
+  /**
+   * IDキャッシュを無効化
+   */
+  public invalidateIdCache(userId?: string): void {
+    if (userId) {
+      // 特定ユーザーのキャッシュエントリを削除
+      for (const [networkId, cachedUserId] of this.idMappingCache.entries()) {
+        if (cachedUserId === userId) {
+          this.idMappingCache.delete(networkId)
+        }
+      }
+    } else {
+      // 全キャッシュクリア
+      this.idMappingCache.clear()
+      this.unmappableIds.clear()
     }
   }
 
