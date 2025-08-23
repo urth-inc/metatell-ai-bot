@@ -2,31 +2,23 @@ import { getLogger } from '../../sdk/logging/index.js'
 import { NafComponentId } from '../builders/NafMessageBuilder.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
-import type { IPresenceManager, PresenceUser } from '../interfaces/IPresenceManager.js'
+import type { IPresenceManager } from '../interfaces/IPresenceManager.js'
 import type {
   IUserAvatarManager,
   UserAvatar,
   UserAvatarEvent,
 } from '../interfaces/IUserAvatarManager.js'
-
-interface NAFComponent {
-  networkId: string
-  owner: string
-  creator: string
-  template: string
-  components: Record<string, unknown>
-}
+import type { NAFComponent } from '../types/index.js'
+import { CompositeUserIdResolver } from './resolvers/CompositeUserIdResolver.js'
+import { CreatorMatchResolver } from './resolvers/CreatorMatchResolver.js'
+import { ExactMatchResolver } from './resolvers/ExactMatchResolver.js'
+import type { IUserIdResolver } from './resolvers/IUserIdResolver.js'
+import { OwnerMatchResolver } from './resolvers/OwnerMatchResolver.js'
+import { PrefixMatchResolver } from './resolvers/PrefixMatchResolver.js'
 
 interface NAFMessage {
   dataType: 'u' | 'r' | 'um'
   data: NAFComponent | { d: NAFComponent[] }
-}
-
-// ID解決戦略インターフェース
-interface IdMappingStrategy {
-  name: string
-  match(networkId: string, user: PresenceUser, data: NAFComponent): boolean
-  priority: number
 }
 
 export class UserAvatarManager implements IUserAvatarManager {
@@ -46,43 +38,17 @@ export class UserAvatarManager implements IUserAvatarManager {
     cacheHits: 0,
   }
 
-  // ID解決戦略（優先度順）
-  private readonly idMappingStrategies: IdMappingStrategy[] = [
-    {
-      name: 'exact-match',
-      priority: 1,
-      match: (networkId, user) => user.id === networkId,
-    },
-    {
-      name: 'creator-match',
-      priority: 2,
-      match: (_networkId, user, data) => user.id === data.creator,
-    },
-    {
-      name: 'owner-match',
-      priority: 3,
-      match: (_networkId, user, data) => user.id === data.owner,
-    },
-    {
-      name: 'prefix-match-strict',
-      priority: 4,
-      match: (networkId, user) => {
-        // 最低16文字の前方一致を要求（UUID形式を想定）
-        const minLength = 16
-        if (!networkId || !user.id) return false
-        if (networkId.length < minLength || user.id.length < minLength) {
-          return false
-        }
-        return networkId.substring(0, minLength) === user.id.substring(0, minLength)
-      },
-    },
-  ]
+  // Injected ID resolver
+  private readonly idResolver: IUserIdResolver
 
   constructor(
     private messageService: IMessageService,
     private presenceManager: IPresenceManager,
     private eventBus: IEventBus,
+    idResolver?: IUserIdResolver,
   ) {
+    // Use injected resolver or create default if not provided
+    this.idResolver = idResolver ?? this.createDefaultResolver()
     this.logger.info('[UserAvatarManager] Initializing...')
     this.setupEventListeners()
     this.setupConnectionMonitoring()
@@ -300,7 +266,7 @@ export class UserAvatarManager implements IUserAvatarManager {
   }
 
   /**
-   * 戦略パターンを使用してユーザーIDを解決
+   * Use injected resolver to resolve user ID
    */
   private resolveUserId(networkId: string, nafData: NAFComponent): string | undefined {
     // キャッシュチェック
@@ -317,25 +283,25 @@ export class UserAvatarManager implements IUserAvatarManager {
     const allUsers = this.presenceManager.getUsers()
     this.resolutionMetrics.total++
 
-    // 戦略パターンで順番に試行
-    for (const strategy of this.idMappingStrategies) {
-      const matchedUser = allUsers.find((user) => strategy.match(networkId, user, nafData))
-      if (matchedUser) {
-        this.logger.debug(`[NAF] User resolved using strategy: ${strategy.name}`, {
-          networkId,
-          resolvedId: matchedUser.id,
-          strategy: strategy.name,
-        })
+    // Use injected resolver
+    const result = this.idResolver.resolve(networkId, allUsers, nafData)
 
-        // キャッシュに保存
-        this.idMappingCache.set(networkId, matchedUser.id)
+    if (result.userId && result.confidence !== 'none') {
+      this.logger.debug(`[NAF] User resolved using strategy: ${result.strategy}`, {
+        networkId,
+        confidence: result.confidence,
+        resolvedId: result.userId,
+        strategy: result.strategy,
+      })
 
-        // メトリクス記録
-        const count = this.resolutionMetrics.byStrategy.get(strategy.name) || 0
-        this.resolutionMetrics.byStrategy.set(strategy.name, count + 1)
+      // キャッシュに保存
+      this.idMappingCache.set(networkId, result.userId)
 
-        return matchedUser.id
-      }
+      // メトリクス記録
+      const count = this.resolutionMetrics.byStrategy.get(result.strategy || 'unknown') || 0
+      this.resolutionMetrics.byStrategy.set(result.strategy || 'unknown', count + 1)
+
+      return result.userId
     }
 
     // 解決不可能な場合
@@ -360,6 +326,18 @@ export class UserAvatarManager implements IUserAvatarManager {
     }
 
     return undefined
+  }
+
+  /**
+   * Create default resolver if none is injected
+   */
+  private createDefaultResolver(): IUserIdResolver {
+    return new CompositeUserIdResolver([
+      new ExactMatchResolver(),
+      new CreatorMatchResolver(),
+      new OwnerMatchResolver(),
+      new PrefixMatchResolver(16), // 16-character prefix for UUID format
+    ])
   }
 
   /**

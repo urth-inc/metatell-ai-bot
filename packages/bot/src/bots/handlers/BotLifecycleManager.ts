@@ -4,8 +4,7 @@ import type {
   IConnectionManager,
   IMessageService,
 } from '@metatell/sdk'
-import { getLogger } from '@metatell/sdk'
-import { pushPromise } from '../../utils/phoenixUtils.js'
+import { ChannelService, getLogger } from '@metatell/sdk'
 
 export interface BotLifecycleOptions {
   connectionManager: IConnectionManager
@@ -23,6 +22,7 @@ export interface ConnectionInfo {
 export class BotLifecycleManager {
   private logger = getLogger('BotLifecycleManager')
   private isRunning = false
+  private channelService = new ChannelService()
 
   constructor(private options: BotLifecycleOptions) {}
 
@@ -119,7 +119,7 @@ export class BotLifecycleManager {
 
     try {
       // Send entering event
-      await pushPromise(channel, 'events:entering', {})
+      await this.channelService.push(channel, 'events:entering', {})
       this.logger.debug('Entering event acknowledged')
 
       // Send entered event with metadata
@@ -133,7 +133,7 @@ export class BotLifecycleManager {
         userAgent: 'MetatellBot/1.0',
       }
 
-      await pushPromise(channel, 'events:entered', enteredPayload)
+      await this.channelService.push(channel, 'events:entered', enteredPayload)
       this.logger.info('Successfully entered room')
     } catch (error) {
       this.logger.error('Failed to enter room:', { error })

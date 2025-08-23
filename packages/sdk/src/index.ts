@@ -36,6 +36,8 @@ export type {
 } from './core/interfaces/IWebSocketConnectionManager.js'
 // Service Container (DIコンテナ)
 export { ServiceContainer } from './core/ServiceContainer.js'
+export { ChannelService } from './core/services/ChannelService.js'
+export type { IChannelService } from './core/services/IChannelService.js'
 // NAF Types (strongly-typed NAF message definitions)
 export type {
   AvatarComponentData,
