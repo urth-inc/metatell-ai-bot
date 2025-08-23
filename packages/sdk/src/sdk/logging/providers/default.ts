@@ -2,8 +2,8 @@
  * Default LoggerProvider implementation
  */
 
-import { getLogEventEmitter } from '../LogEventEmitter.js'
 import type { LogRecord, RingBufferLike } from '../index.js'
+import { getLogEventEmitter } from '../LogEventEmitter.js'
 import type { Logger, LoggerProvider, LogLevel, LogSink } from '../spi.js'
 
 /**
@@ -23,7 +23,7 @@ class RingBuffer implements RingBufferLike {
     if (this.writeIndex === 0) {
       this.wrapped = true
     }
-    
+
     // Emit event for new log
     const eventEmitter = getLogEventEmitter()
     eventEmitter.emitNewLogs([record])

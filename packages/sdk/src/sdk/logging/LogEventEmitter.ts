@@ -32,7 +32,7 @@ export class LogEventEmitter implements ILogEventEmitter {
 
   onNewLogs(handler: LogEventHandler): () => void {
     this.handlers.add(handler)
-    
+
     // Return unsubscribe function
     return () => {
       this.handlers.delete(handler)
@@ -41,7 +41,7 @@ export class LogEventEmitter implements ILogEventEmitter {
 
   emitNewLogs(records: CoreLogRecord[]): void {
     if (records.length === 0) return
-    
+
     // Notify all handlers
     for (const handler of this.handlers) {
       try {
