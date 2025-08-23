@@ -29,7 +29,8 @@ export class FileLogger implements LogSink {
       message: `=== Log session started at ${timestamp} ===`,
     })
 
-    console.log(`📝 Debug logging enabled: ${this.filePath}`)
+    // デバッグモードのメッセージはstderrに出力（stdoutのヘルプ表示と競合しないように）
+    console.error(`📝 Debug logging enabled: ${this.filePath}`)
   }
 
   write(event: LogEvent): void {
