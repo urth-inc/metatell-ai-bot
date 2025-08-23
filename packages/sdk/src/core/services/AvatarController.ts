@@ -39,6 +39,9 @@ export class AvatarController implements IAvatarController {
     const timestamp = Date.now()
     const networkId = this.sessionId
     const spawnPosition = position || { x: 0, y: 0.2, z: 0 }
+    
+    // Get storage URL from config or use default
+    const storageUrl = config.storageUrl || 'https://storage.metatell.app:443'
 
     // Update internal state
     this.state = {
@@ -46,11 +49,11 @@ export class AvatarController implements IAvatarController {
       position: spawnPosition,
       rotation: { x: 0, y: 0, z: 0, w: 1 },
       avatarId,
-      avatarSrc: `https://storage.metatell.app:443/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`,
+      avatarSrc: `${storageUrl}/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`,
       displayName: config.profile.displayName,
     }
 
-    // Send initial NAF message using builder pattern
+    // Send initial NAF message (unreliable) for immediate visibility
     const nafMessage = new NafMessageBuilder()
       .withDataType('u')
       .withNetworkId(networkId)
@@ -68,7 +71,7 @@ export class AvatarController implements IAvatarController {
 
     await this.messageService.sendNAF(nafMessage)
 
-    // Send NAFR message using builder pattern
+    // Send NAFR message (reliable) to ensure critical spawn data arrives
     const nafrMessage = new NafMessageBuilder()
       .withDataType('um')
       .withNetworkId(networkId)
@@ -97,6 +100,8 @@ export class AvatarController implements IAvatarController {
 
     this.state.position = position
 
+    // Send position update via NAFR (reliable) to ensure movement is received
+    // Position updates are critical for avatar synchronization
     const nafMessage = new NafMessageBuilder()
       .withDataType('um')
       .withNetworkId(this.state.networkId)

@@ -8,12 +8,12 @@ describe('ConfigurationProvider', () => {
 
   beforeEach(() => {
     initialConfig = {
-      apiUrl: 'https://metatell.app',
-      retryAttempts: 3,
-      authToken: 'test-token',
+      serverUrl: 'wss://metatell.app',
+      hubUrl: 'https://metatell.app',
+      hubId: 'test-hub',
       profile: {
         displayName: 'TestBot',
-        avatarColor: 'blue',
+        avatarId: 'test-avatar-id',
       },
     }
     provider = new ConfigurationProvider(initialConfig)
@@ -22,9 +22,9 @@ describe('ConfigurationProvider', () => {
   describe('constructor', () => {
     it('should initialize with provided config', () => {
       const config = provider.getConfiguration()
-      expect(config.apiUrl).toBe('https://metatell.app')
-      expect(config.retryAttempts).toBe(3)
-      expect(config.authToken).toBe('test-token')
+      expect(config.serverUrl).toBe('wss://metatell.app')
+      expect(config.hubUrl).toBe('https://metatell.app')
+      expect(config.hubId).toBe('test-hub')
     })
 
     it('should set default context if not provided', () => {
@@ -58,14 +58,14 @@ describe('ConfigurationProvider', () => {
 
   describe('get', () => {
     it('should retrieve top-level config values', () => {
-      expect(provider.get<string>('apiUrl')).toBe('https://metatell.app')
-      expect(provider.get<number>('retryAttempts')).toBe(3)
-      expect(provider.get<string>('authToken')).toBe('test-token')
+      expect(provider.get<string>('serverUrl')).toBe('wss://metatell.app')
+      expect(provider.get<string>('hubUrl')).toBe('https://metatell.app')
+      expect(provider.get<string>('hubId')).toBe('test-hub')
     })
 
     it('should retrieve nested config values', () => {
       expect(provider.get<string>('profile.displayName')).toBe('TestBot')
-      expect(provider.get<string>('profile.avatarColor')).toBe('blue')
+      expect(provider.get<string>('profile.avatarId')).toBe('test-avatar-id')
       expect(provider.get<boolean>('context.mobile')).toBe(false)
     })
 

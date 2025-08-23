@@ -13,7 +13,6 @@ import type { IConnectionManager } from './interfaces/IConnectionManager.js'
 import type { IEventBus } from './interfaces/IEventBus.js'
 import type { IMessageService } from './interfaces/IMessageService.js'
 import type { IPresenceManager } from './interfaces/IPresenceManager.js'
-import type { IRateLimiter } from './interfaces/IRateLimiter.js'
 import type { IUserAvatarManager } from './interfaces/IUserAvatarManager.js'
 import { ServiceContainer } from './ServiceContainer.js'
 import { AppSettings } from './services/AppSettings.js'
@@ -23,7 +22,6 @@ import { ConfigurationProvider } from './services/ConfigurationProvider.js'
 import { EventBus } from './services/EventBus.js'
 import { MessageService } from './services/MessageService.js'
 import { PresenceManager } from './services/PresenceManager.js'
-import { RateLimiter } from './services/RateLimiter.js'
 import { UserAvatarManager } from './services/UserAvatarManager.js'
 import { WebSocketConnectionManager } from './services/WebSocketConnectionManager.js'
 
@@ -57,12 +55,6 @@ export class CoreServiceFactory {
       { singleton: true },
     )
 
-    // Register RateLimiter
-    this.container.register<IRateLimiter>(
-      'IRateLimiter',
-      () => new RateLimiter({ maxRequests: 1, windowMs: 15000 }),
-      { singleton: true },
-    )
 
     // Register AuthenticationService
     this.container.register<IAuthenticationService>(

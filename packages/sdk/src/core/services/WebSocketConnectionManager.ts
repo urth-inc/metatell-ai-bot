@@ -24,7 +24,7 @@ export class WebSocketConnectionManager implements IConnectionManager {
   async connect(config: ConnectionConfig): Promise<void> {
     try {
       // Create Phoenix socket (no authentication here, just connect)
-      const socketUrl = new URL(config.authUrl)
+      const socketUrl = new URL(config.serverUrl)
       socketUrl.pathname = '/socket'
       socketUrl.protocol = socketUrl.protocol.replace('http', 'ws')
 

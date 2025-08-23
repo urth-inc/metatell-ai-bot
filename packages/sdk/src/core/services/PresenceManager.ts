@@ -7,6 +7,7 @@ export class PresenceManager implements IPresenceManager {
   private presence: Presence | null = null
   private users = new Map<string, PresenceUser>()
   private handlers = new Map<string, Set<(user: PresenceUser) => void>>()
+  private presenceSetup = false
 
   constructor(
     private connectionManager: IConnectionManager,
@@ -18,10 +19,11 @@ export class PresenceManager implements IPresenceManager {
   private setupPresence(): void {
     this.eventBus.on(SystemEvents.ROOM_JOINED, () => {
       const channel = this.connectionManager.getHubChannel()
-      if (!channel) {
+      if (!channel || this.presenceSetup) {
         return
       }
 
+      this.presenceSetup = true
       this.presence = new Presence(channel)
 
       // Handle presence state sync

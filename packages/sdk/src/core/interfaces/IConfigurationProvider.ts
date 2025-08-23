@@ -10,12 +10,13 @@ export interface BotContext {
 }
 
 export interface BotConfiguration {
-  authUrl: string
-  hubUrl: string
+  serverUrl: string // WebSocket server URL (wss://...)
+  hubUrl: string // Hub API URL (https://...)
   hubId: string
   profile: BotProfile
   context?: BotContext
   debug?: boolean
+  storageUrl?: string // Avatar storage URL (defaults to storage.metatell.app)
 }
 
 export interface IConfigurationProvider {

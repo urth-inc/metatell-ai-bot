@@ -1,7 +1,7 @@
 import type { Channel, Socket } from 'phoenix'
 
 export interface ConnectionConfig {
-  authUrl: string
+  serverUrl: string // WebSocket server URL
   hubId: string
   retryOptions?: {
     maxRetries?: number

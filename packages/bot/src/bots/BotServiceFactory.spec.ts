@@ -12,7 +12,7 @@ describe('BotServiceFactory', () => {
 
   beforeEach(() => {
     config = {
-      authUrl: 'wss://example.com',
+      serverUrl: 'wss://example.com',
       hubUrl: 'https://example.com/hub',
       hubId: 'test-hub',
       profile: {
@@ -89,7 +89,7 @@ describe('BotServiceFactory', () => {
       const configProvider = factory.getService('IConfigurationProvider')
       const actualConfig = configProvider.getConfiguration()
 
-      expect(actualConfig.authUrl).toBe(config.authUrl)
+      expect(actualConfig.serverUrl).toBe(config.serverUrl)
       expect(actualConfig.hubUrl).toBe(config.hubUrl)
       expect(actualConfig.hubId).toBe(config.hubId)
       expect(actualConfig.profile).toEqual(config.profile)
