@@ -22,9 +22,9 @@ export default defineConfig({
       ],
     },
     include: [
-      'packages/*/src/**/*.{test,spec}.{js,ts}',
-      'packages/*/e2e/**/*.{test,spec}.{js,ts}',
-      'test-utils/**/*.{test,spec}.{js,ts}'
+      'packages/*/src/**/*.{test,spec}.ts',
+      'packages/*/tests/e2e/**/*.test.ts',
+      'test-utils/**/*.{test,spec}.ts'
     ],
   },
   resolve: {
