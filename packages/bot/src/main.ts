@@ -86,7 +86,22 @@ async function main() {
 
   // 設定を読み込み
   const configManager = new ConfigManager()
-  const config = configManager.getConfig(flags)
+  let config: import('./cli/config/config.js').Config
+  try {
+    config = configManager.getConfig(flags)
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('Invalid command line flags')) {
+      // Extract the specific validation error
+      if (error.message.includes('--url')) {
+        console.error('Error: Invalid URL format')
+      } else {
+        console.error(`Error: ${error.message}`)
+      }
+    } else {
+      console.error('Error loading configuration:', error)
+    }
+    process.exit(1)
+  }
 
   // URL が指定されていない場合はヘルプを表示
   if (!config.url) {
