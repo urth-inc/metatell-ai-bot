@@ -1,5 +1,5 @@
 import type { AgentClient, RingBufferLike } from '@metatell/sdk'
-import { getLogger, getRingBuffer } from '@metatell/sdk'
+import { getLogger, getLogEventEmitter, getRingBuffer } from '@metatell/sdk'
 import { Box, useApp, useInput, useStdout } from 'ink'
 import type React from 'react'
 import { useCallback, useEffect, useMemo } from 'react'
@@ -31,24 +31,26 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
     [client, commandContext],
   )
 
-  // 初期化：バッファされたログを取得
+  // 初期化：バッファされたログを取得とイベント購読
   useEffect(() => {
+    // 既存のバッファされたログを取得
     const rb = getRingBuffer() as RingBufferLike
     const logs = rb.drainNew ? rb.drainNew() : rb.drain()
     if (logs.length > 0) {
       addLogs(logs)
     }
 
-    // ログシステムのリスナー設定
-    const interval = setInterval(() => {
-      const rb = getRingBuffer() as RingBufferLike
-      const newLogs = rb.drainNew ? rb.drainNew() : rb.drain()
+    // イベント駆動でログを受信
+    const logEmitter = getLogEventEmitter()
+    const unsubscribe = logEmitter.onNewLogs((newLogs) => {
       if (newLogs.length > 0) {
         addLogs(newLogs)
       }
-    }, 100)
+    })
 
-    return () => clearInterval(interval)
+    return () => {
+      unsubscribe()
+    }
   }, [addLogs])
 
   // 高さ計算
