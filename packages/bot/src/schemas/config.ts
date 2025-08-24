@@ -31,6 +31,7 @@ export const RateSchema = v.object({
 export const ConfigSchema = v.object({
   url: v.optional(UrlSchema),
   token: v.optional(TokenSchema),
+  botAccessKey: v.optional(v.string()),
   profile: v.optional(ProfileSchema),
   rate: v.optional(RateSchema),
   debug: v.optional(DebugModeSchema),
@@ -48,6 +49,7 @@ export const ConfigProfileSchema = v.intersect([
 export const ConfigFileSchema = v.object({
   url: v.optional(UrlSchema),
   token: v.optional(TokenSchema),
+  botAccessKey: v.optional(v.string()),
   profile: v.optional(ProfileSchema),
   rate: v.optional(RateSchema),
   debug: v.optional(DebugModeSchema),
@@ -59,6 +61,7 @@ export const EnvVarsSchema = v.object({
   METATELL_URL: v.optional(UrlSchema),
   METATELL_TOKEN: v.optional(v.string()),
   METATELL_AUTH_TOKEN: v.optional(v.string()),
+  BOT_ACCESS_KEY: v.optional(v.string()),
   BOT_NAME: v.optional(v.string()),
   AVATAR_ID: v.optional(v.string()),
   DEBUG: v.optional(BooleanStringSchema),

@@ -112,6 +112,9 @@ export class ConfigManager {
     if (process.env.METATELL_TOKEN || process.env.METATELL_AUTH_TOKEN) {
       this.config.token = process.env.METATELL_TOKEN || process.env.METATELL_AUTH_TOKEN
     }
+    if (process.env.BOT_ACCESS_KEY) {
+      this.config.botAccessKey = process.env.BOT_ACCESS_KEY
+    }
     if (process.env.BOT_NAME) {
       this.config.profile = this.config.profile || {}
       this.config.profile.displayName = process.env.BOT_NAME

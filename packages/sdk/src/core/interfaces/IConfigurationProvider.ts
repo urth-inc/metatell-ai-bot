@@ -17,6 +17,7 @@ export interface BotConfiguration {
   context?: BotContext
   debug?: boolean
   storageUrl?: string // Avatar storage URL (defaults to storage.metatell.app)
+  botAccessKey?: string // Bot access key for OAuth-required hubs
 }
 
 export interface IConfigurationProvider {

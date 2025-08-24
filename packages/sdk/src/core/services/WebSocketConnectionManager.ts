@@ -62,6 +62,9 @@ export class WebSocketConnectionManager implements IConnectionManager {
       // Wait for connection
       await this.waitForConnection()
 
+      // Join ret channel first (required by Metatell backend)
+      await this.joinRetChannel(config.hubId)
+
       // Join hub channel
       this.logger.debug('About to join hub:', { hubId: config.hubId })
       await this.joinHub(config.hubId)
@@ -69,6 +72,36 @@ export class WebSocketConnectionManager implements IConnectionManager {
       this.logger.error(`Connection failed: ${error}`)
       throw error
     }
+  }
+
+  private async joinRetChannel(hubId: string): Promise<void> {
+    if (!this.socket) {
+      throw new Error('Socket not connected')
+    }
+
+    return new Promise((resolve, reject) => {
+      const retChannel = this.socket?.channel('ret', { hub_id: hubId })
+
+      if (!retChannel) {
+        reject(new Error('Failed to create ret channel'))
+        return
+      }
+
+      retChannel
+        .join()
+        .receive('ok', () => {
+          this.logger.debug('Successfully joined ret channel')
+          resolve()
+        })
+        .receive('error', (error) => {
+          this.logger.error('Failed to join ret channel:', error)
+          reject(new Error(`Failed to join ret channel: ${JSON.stringify(error)}`))
+        })
+        .receive('timeout', () => {
+          this.logger.error('Timeout joining ret channel')
+          reject(new Error('Timeout joining ret channel'))
+        })
+    })
   }
 
   private async joinHub(hubId: string): Promise<void> {
@@ -79,9 +112,18 @@ export class WebSocketConnectionManager implements IConnectionManager {
     return new Promise((resolve, reject) => {
       // Get profile and context from configuration provider
       const config = this.configProvider.getConfiguration()
-      const channelParams = {
+
+      // Build channel parameters
+      // Note: Don't send auth_token/perms_token if they're null
+      // The backend has issues handling null tokens
+      const channelParams: Record<string, unknown> = {
         profile: config.profile,
         context: config.context || {},
+      }
+
+      // Add bot_access_key if provided
+      if (config.botAccessKey) {
+        channelParams.bot_access_key = config.botAccessKey
       }
 
       this.logger.debug('Attempting to join hub with:', {

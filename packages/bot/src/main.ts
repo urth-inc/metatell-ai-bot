@@ -9,10 +9,12 @@ import {
   registerLoggerProvider,
 } from '@metatell/sdk'
 import { Command } from 'commander'
+import * as v from 'valibot'
 import { BotServiceFactory } from './bots/BotServiceFactory.js'
 import type { CommandContext } from './bots/commands/BotCommand.js'
 import { ConfigManager } from './cli/config/config.js'
 import { startInkCli } from './cli/startInkCli.js'
+import { parseCliArgs, type CliArgs } from './schemas/cli.js'
 import { FileLogger } from './utils/logging/file-logger.js'
 
 // Register default logger provider at startup
@@ -69,20 +71,35 @@ async function main() {
   const options = program.opts()
   const [url] = program.args
 
+  // Validate command-line arguments with valibot
+  let cliArgs: CliArgs
+  try {
+    cliArgs = parseCliArgs(options, url)
+  } catch (error) {
+    if (v.isValiError(error)) {
+      console.error('Invalid arguments:')
+      error.issues.forEach((issue) => {
+        console.error(`  ${issue.path?.join('.')}: ${issue.message}`)
+      })
+    } else {
+      console.error('Error parsing arguments:', error)
+    }
+    process.exit(1)
+  }
+
   // デバッグモードの場合、パース結果を表示
   const mainLogger = getLogger('Main')
-  if (options.debug) {
+  if (cliArgs.debug) {
     mainLogger.debug('Debug mode enabled via CLI')
-    mainLogger.debug('Parsed options', options)
-    mainLogger.debug('URL', { url })
+    mainLogger.debug('Validated CLI args', cliArgs)
   }
 
   // フラグをConfigManager用の形式に変換
   const flags: Record<string, string | boolean> = {}
-  if (url) flags['--url'] = url
-  if (options.token) flags['--token'] = options.token
-  if (options.debug) flags['--debug'] = true
-  if (options.profile) flags['--profile'] = options.profile
+  if (cliArgs.url) flags['--url'] = cliArgs.url
+  if (cliArgs.token) flags['--token'] = cliArgs.token
+  if (cliArgs.debug) flags['--debug'] = true
+  if (cliArgs.profile) flags['--profile'] = cliArgs.profile
 
   // 設定を読み込み
   const configManager = new ConfigManager()
@@ -114,6 +131,7 @@ async function main() {
   const botName = config.profile?.displayName || 'AI Assistant'
   const avatarId = config.profile?.avatarId || 'hsBHyUu2'
   const authToken = config.token
+  const botAccessKey = config.botAccessKey
 
   let hubId: string
   let socketUrl: string
@@ -143,6 +161,7 @@ async function main() {
       hmd: false,
     },
     debug: config.debug,
+    botAccessKey: botAccessKey,
   }
 
   // Initialize BotServiceFactory with configuration (includes bot-specific services)
@@ -238,7 +257,8 @@ async function main() {
       url: metatellUrl,
       token: authToken,
     })
-  } catch (_error) {
+  } catch (error) {
+    console.error('Failed to start bot:', error)
     process.exit(1)
   }
 }

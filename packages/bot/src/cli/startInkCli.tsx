@@ -4,10 +4,11 @@ import type { CommandContext } from '../bots/commands/BotCommand.js'
 import { InkCliInterface } from './InkCliInterface.js'
 
 export function startInkCli(client: AgentClient, commandContext: CommandContext) {
-  // Raw modeがサポートされているかチェック
-  if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    console.error('Error: This CLI requires an interactive terminal (TTY)')
-    console.error('Please run directly in a terminal, not piped or redirected')
+  // Inkはstdinのraw modeを使うため、TTYチェックが必要
+  if (!process.stdin.isTTY) {
+    console.error('Error: Cannot read keyboard input. stdin is not a TTY.')
+    console.error('This may happen when running through certain IDEs or CI environments.')
+    console.error('Try running the command directly in a terminal.')
     process.exit(1)
   }
 
