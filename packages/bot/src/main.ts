@@ -14,7 +14,7 @@ import { BotServiceFactory } from './bots/BotServiceFactory.js'
 import type { CommandContext } from './bots/commands/BotCommand.js'
 import { ConfigManager } from './cli/config/config.js'
 import { startInkCli } from './cli/startInkCli.js'
-import { parseCliArgs, type CliArgs } from './schemas/cli.js'
+import { type CliArgs, parseCliArgs } from './schemas/cli.js'
 import { FileLogger } from './utils/logging/file-logger.js'
 
 // Register default logger provider at startup
