@@ -213,7 +213,7 @@ describe('WebSocketConnectionManager', () => {
         hubId: 'test-hub',
       }
 
-      await expect(connectionManager.connect(config)).rejects.toThrow('Failed to join hub')
+      await expect(connectionManager.connect(config)).rejects.toThrow('Failed to join ret channel')
 
       consoleErrorSpy.mockRestore()
     })

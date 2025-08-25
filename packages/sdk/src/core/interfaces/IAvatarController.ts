@@ -1,3 +1,5 @@
+import type { AnimationPlaybackResult, AnimationPlayOptions } from '../types/animation.js'
+
 export interface Position {
   x: number
   y: number
@@ -18,6 +20,7 @@ export interface AvatarState {
   avatarId: string
   avatarSrc?: string
   displayName?: string
+  currentAnimation?: string
 }
 
 export interface IAvatarController {
@@ -32,4 +35,26 @@ export interface IAvatarController {
    * Sends the complete avatar state with isFirstSync flag
    */
   resyncAvatar(): Promise<void>
+
+  /**
+   * Play an animation on the avatar
+   * @param animationId - The animation ID (preset or custom UUID)
+   * @param options - Animation playback options
+   * @returns Promise resolving to playback result
+   */
+  playAnimation(
+    animationId: string,
+    options?: AnimationPlayOptions,
+  ): Promise<AnimationPlaybackResult>
+
+  /**
+   * Get current animation ID
+   * @returns Current animation ID or null
+   */
+  getCurrentAnimation(): string | null
+
+  /**
+   * Stop current animation
+   */
+  stopAnimation(): Promise<void>
 }
