@@ -3,6 +3,12 @@
  */
 
 import type { CoreServiceFactory } from '../core/CoreServiceFactory.js'
+import {
+  AnimationNotFoundError,
+  AnimationPlaybackError,
+  AvatarNotSpawnedError,
+} from '../core/errors/animation-errors.js'
+import type { IAnimationService } from '../core/interfaces/IAnimationService.js'
 import type { IAvatarController } from '../core/interfaces/IAvatarController.js'
 import type { IConfigurationProvider } from '../core/interfaces/IConfigurationProvider.js'
 import type { IConnectionManager } from '../core/interfaces/IConnectionManager.js'
@@ -77,6 +83,12 @@ export interface ConnectionStatus {
   rtt?: number
 }
 
+import type {
+  AnimationPlaybackResult,
+  AnimationPlayOptions,
+  VRMAnimation,
+} from '../core/types/animation.js'
+
 export interface AgentClient {
   // Connection management
   connect(options: ConnectionOptions): Promise<void>
@@ -92,6 +104,15 @@ export interface AgentClient {
   move(position: { x: number; y: number; z: number }): Promise<void>
   look(target: { x: number; y: number; z: number } | { userId: string }): Promise<void>
   lookAtNearest(): Promise<void>
+
+  // Animation control
+  playAnimation(
+    animationId: string,
+    options?: AnimationPlayOptions,
+  ): Promise<AnimationPlaybackResult>
+  stopAnimation(): Promise<void>
+  getAvailableAnimations(): Promise<VRMAnimation[]>
+  getCurrentAnimation(): string | null
 
   // User management
   getUsers(): UserAvatar[]
@@ -116,6 +137,7 @@ export class DefaultAgentClient implements AgentClient {
   private userAvatarManager: IUserAvatarManager
   private connectionManager: IConnectionManager
   private eventBus: IEventBus
+  private animationService?: IAnimationService
   private rateLimiter = new RateLimitedQueue()
   private logger = getLogger('AgentClient')
   private factory: CoreServiceFactory
@@ -133,6 +155,14 @@ export class DefaultAgentClient implements AgentClient {
     this.userAvatarManager = factory.getService('IUserAvatarManager') as IUserAvatarManager
     this.connectionManager = factory.getService('IConnectionManager') as IConnectionManager
     this.eventBus = factory.getService('IEventBus') as IEventBus
+
+    // Optional services
+    try {
+      this.animationService = factory.getService('IAnimationService') as IAnimationService
+    } catch {
+      // Animation service is optional
+      this.logger.debug('Animation service not available')
+    }
 
     // Setup event handlers for user join
     this.setupEventHandlers()
@@ -356,6 +386,78 @@ export class DefaultAgentClient implements AgentClient {
 
   getRateLimit(key: 'messages' | 'moves' | 'looks'): number | undefined {
     return this.rateLimiter.getRate(key)
+  }
+
+  /**
+   * Play animation on avatar
+   */
+  async playAnimation(
+    animationId: string,
+    options?: AnimationPlayOptions,
+  ): Promise<AnimationPlaybackResult> {
+    try {
+      const result = await this.avatarController.playAnimation(animationId, options)
+
+      this.logger.info('Animation played', {
+        animationId,
+        playbackId: result.playbackId,
+      })
+
+      return result
+    } catch (error) {
+      // Convert to specific error types
+      if (error instanceof AvatarNotSpawnedError) {
+        throw error
+      }
+      if (error instanceof AnimationNotFoundError) {
+        throw error
+      }
+      throw new AnimationPlaybackError(
+        `Failed to play animation: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error : undefined,
+      )
+    }
+  }
+
+  /**
+   * Stop current animation
+   */
+  async stopAnimation(): Promise<void> {
+    await this.avatarController.stopAnimation()
+    this.logger.debug('Animation stopped')
+  }
+
+  /**
+   * Get available animations
+   */
+  async getAvailableAnimations(): Promise<VRMAnimation[]> {
+    if (!this.animationService) {
+      // Return empty array if animation service not available
+      this.logger.warn('Animation service not available')
+      return []
+    }
+
+    const config = this.factory.getService('IConfigurationProvider') as IConfigurationProvider
+    const avatarId = config.getConfiguration().profile.avatarId
+
+    if (!avatarId) {
+      this.logger.warn('No avatar ID configured')
+      return []
+    }
+
+    try {
+      return await this.animationService.getAvailableAnimations(avatarId)
+    } catch (error) {
+      this.logger.error('Failed to get available animations', { error })
+      return []
+    }
+  }
+
+  /**
+   * Get current animation
+   */
+  getCurrentAnimation(): string | null {
+    return this.avatarController.getCurrentAnimation()
   }
 
   private setupEventHandlers(): void {

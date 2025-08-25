@@ -1,5 +1,8 @@
+import { v4 as uuidv4 } from 'uuid'
 import { getLogger } from '../../sdk/logging/index.js'
 import { NafMessageBuilder } from '../builders/NafMessageBuilder.js'
+import { AnimationNotFoundError, AvatarNotSpawnedError } from '../errors/animation-errors.js'
+import type { IAnimationService } from '../interfaces/IAnimationService.js'
 import type {
   AvatarState,
   IAvatarController,
@@ -9,6 +12,11 @@ import type {
 import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
+import type {
+  AnimationNAFMessage,
+  AnimationPlaybackResult,
+  AnimationPlayOptions,
+} from '../types/animation.js'
 
 // Constants for default values
 const DEFAULT_TEMPLATE = '#remote-avatar'
@@ -17,12 +25,14 @@ const DEFAULT_AVATAR_TYPE = 'skinnable'
 export class AvatarController implements IAvatarController {
   private state: AvatarState | null = null
   private sessionId: string | null = null
+  private currentAnimation: string | null = null
   private logger = getLogger('AvatarController')
 
   constructor(
     private messageService: IMessageService,
     private configProvider: IConfigurationProvider,
     private eventBus: IEventBus,
+    private animationService?: IAnimationService,
   ) {
     // Listen for room joined to get session ID
     this.eventBus.on(SystemEvents.ROOM_JOINED, (data: unknown) => {
@@ -242,5 +252,132 @@ export class AvatarController implements IAvatarController {
     await this.messageService.sendNAF(nafMessage)
 
     this.logger.debug(`✅ Avatar resynced for new user`)
+  }
+
+  /**
+   * Play animation on the avatar
+   */
+  async playAnimation(
+    animationId: string,
+    options?: AnimationPlayOptions,
+  ): Promise<AnimationPlaybackResult> {
+    if (!this.state || !this.sessionId) {
+      throw new AvatarNotSpawnedError()
+    }
+
+    // Validate animation exists (if animation service is available)
+    if (this.animationService) {
+      const isValid = await this.animationService.validateAnimation(animationId)
+      if (!isValid) {
+        throw new AnimationNotFoundError(animationId)
+      }
+    }
+
+    const playbackId = uuidv4()
+    const timestamp = Date.now()
+
+    // Update internal state
+    this.currentAnimation = animationId
+    this.state.currentAnimation = animationId
+
+    // Build animation NAF message
+    const animationMessage: AnimationNAFMessage = {
+      dataType: 'animation',
+      data: {
+        networkId: this.state.networkId,
+        owner: this.sessionId,
+        animationId,
+        playbackId,
+        options,
+        timestamp,
+      },
+    }
+
+    // Send via NAFR for reliability
+    await this.messageService.sendNAFR(animationMessage)
+
+    // Emit event
+    this.eventBus.emit('animation:played', {
+      animationId,
+      playbackId,
+      options,
+    })
+
+    this.logger.info('Animation played', {
+      animationId,
+      playbackId,
+      options,
+    })
+
+    return {
+      playbackId,
+      animationId,
+      startedAt: timestamp,
+      expectedDuration: await this.calculateExpectedDuration(animationId, options),
+    }
+  }
+
+  /**
+   * Get current animation
+   */
+  getCurrentAnimation(): string | null {
+    return this.currentAnimation
+  }
+
+  /**
+   * Stop current animation
+   */
+  async stopAnimation(): Promise<void> {
+    if (!this.state || !this.sessionId) {
+      throw new AvatarNotSpawnedError()
+    }
+
+    // Clear animation state
+    this.currentAnimation = null
+    this.state.currentAnimation = undefined
+
+    // Send stop animation message
+    const stopMessage: AnimationNAFMessage = {
+      dataType: 'animation',
+      data: {
+        networkId: this.state.networkId,
+        owner: this.sessionId,
+        animationId: 'idle', // Return to idle animation
+        playbackId: uuidv4(),
+        timestamp: Date.now(),
+      },
+    }
+
+    await this.messageService.sendNAFR(stopMessage)
+
+    this.eventBus.emit('animation:stopped', {
+      previousAnimation: this.currentAnimation,
+    })
+
+    this.logger.debug('Animation stopped')
+  }
+
+  /**
+   * Calculate expected animation duration
+   */
+  private async calculateExpectedDuration(
+    animationId: string,
+    options?: AnimationPlayOptions,
+  ): Promise<number | undefined> {
+    if (!this.animationService) {
+      return undefined
+    }
+
+    try {
+      const animation = await this.animationService.loadAnimation(animationId)
+      if (animation.duration) {
+        const timeScale = options?.timeScale || 1
+        return animation.duration / timeScale
+      }
+    } catch {
+      // Ignore errors, return undefined
+    }
+
+    return undefined
   }
 }

@@ -2,6 +2,9 @@
  * Core Service Factory - SDK Core Services Only
  * This factory only includes core services needed for the SDK, without any application-specific services
  */
+
+import { getLogger } from '../sdk/logging/index.js'
+import type { IAnimationService } from './interfaces/IAnimationService.js'
 import type { IAppSettings } from './interfaces/IAppSettings.js'
 import type { IAuthenticationService } from './interfaces/IAuthenticationService.js'
 import type { IAvatarController } from './interfaces/IAvatarController.js'
@@ -15,6 +18,7 @@ import type { IMessageService } from './interfaces/IMessageService.js'
 import type { IPresenceManager } from './interfaces/IPresenceManager.js'
 import type { IUserAvatarManager } from './interfaces/IUserAvatarManager.js'
 import { ServiceContainer } from './ServiceContainer.js'
+import { AnimationService } from './services/AnimationService.js'
 import { AppSettings } from './services/AppSettings.js'
 import { AuthenticationService } from './services/AuthenticationService.js'
 import { AvatarController } from './services/AvatarController.js'
@@ -87,6 +91,19 @@ export class CoreServiceFactory {
       { singleton: true },
     )
 
+    // Register AnimationService (singleton)
+    this.container.register<IAnimationService>(
+      'IAnimationService',
+      (container) => {
+        const logger = getLogger('AnimationService')
+        const configProvider = container.get<IConfigurationProvider>('IConfigurationProvider')
+        const config = configProvider.getConfiguration()
+        const apiBaseUrl = config.storageUrl || 'https://storage.metatell.app:443'
+        return new AnimationService(logger, apiBaseUrl)
+      },
+      { singleton: true },
+    )
+
     // Register AvatarController
     this.container.register<IAvatarController>(
       'IAvatarController',
@@ -95,6 +112,7 @@ export class CoreServiceFactory {
           container.get<IMessageService>('IMessageService'),
           container.get<IConfigurationProvider>('IConfigurationProvider'),
           container.get<IEventBus>('IEventBus'),
+          container.get<IAnimationService>('IAnimationService'),
         ),
       { singleton: true },
     )
