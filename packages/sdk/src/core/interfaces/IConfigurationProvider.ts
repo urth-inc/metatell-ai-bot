@@ -18,6 +18,8 @@ export interface BotConfiguration {
   debug?: boolean
   storageUrl?: string // Avatar storage URL (defaults to storage.metatell.app)
   botAccessKey?: string // Bot access key for OAuth-required hubs
+  livekitUrl?: string // LiveKit server URL (wss://...)
+  apiBaseUrl?: string // API base URL for LiveKit token endpoint
 }
 
 export interface IConfigurationProvider {
