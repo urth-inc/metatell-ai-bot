@@ -15,6 +15,8 @@ import type { IConnectionManager } from '../core/interfaces/IConnectionManager.j
 import type { IEventBus } from '../core/interfaces/IEventBus.js'
 import type { IMessageService } from '../core/interfaces/IMessageService.js'
 import type { IUserAvatarManager, UserAvatar } from '../core/interfaces/IUserAvatarManager.js'
+import type { ILiveKitService } from '../core/services/LiveKitService.js'
+import { LiveKitEvents } from '../core/services/LiveKitService.js'
 import { getLogger } from './logging/index.js'
 import { RateLimitedQueue } from './rate.js'
 
@@ -52,6 +54,15 @@ export interface AgentClientEvents {
 
   // Error events
   error: (error: Error) => void
+
+  // Voice events (LiveKit)
+  'voice:connected': () => void
+  'voice:disconnected': (reason?: string) => void
+  'voice:microphone:published': () => void
+  'voice:microphone:unpublished': () => void
+  'voice:track:subscribed': (data: { trackSid: string }) => void
+  'voice:track:unsubscribed': (data: { trackSid: string }) => void
+  'voice:error': (error: Error) => void
 }
 
 export interface ConnectionOptions {
@@ -123,6 +134,17 @@ export interface AgentClient {
   on<E extends keyof AgentClientEvents>(event: E, handler: AgentClientEvents[E]): void
   off<E extends keyof AgentClientEvents>(event: E, handler: AgentClientEvents[E]): void
 
+  // Voice control (LiveKit)
+  enableVoice(): Promise<void>
+  disableVoice(): Promise<void>
+  isVoiceEnabled(): boolean
+  publishMicrophone(): Promise<void>
+  unpublishMicrophone(): Promise<void>
+  setMicrophoneEnabled(enabled: boolean): Promise<void>
+  isMicrophonePublished(): boolean
+  setSpeakerVolume(volume: number): void
+  getSpeakerVolume(): number
+
   // Utilities
   setRateLimit(key: 'messages' | 'moves' | 'looks', perSecond: number): void
   getRateLimit(key: 'messages' | 'moves' | 'looks'): number | undefined
@@ -138,9 +160,11 @@ export class DefaultAgentClient implements AgentClient {
   private connectionManager: IConnectionManager
   private eventBus: IEventBus
   private animationService?: IAnimationService
+  private liveKitService?: ILiveKitService
   private rateLimiter = new RateLimitedQueue()
   private logger = getLogger('AgentClient')
   private factory: CoreServiceFactory
+  private speakerVolume = 1
   private status: ConnectionStatus = {
     connected: false,
     connecting: false,
@@ -162,6 +186,13 @@ export class DefaultAgentClient implements AgentClient {
     } catch {
       // Animation service is optional
       this.logger.debug('Animation service not available')
+    }
+
+    try {
+      this.liveKitService = factory.getService('ILiveKitService') as ILiveKitService
+    } catch {
+      // LiveKit service is optional
+      this.logger.debug('LiveKit service not available')
     }
 
     // Setup event handlers for user join
@@ -474,6 +505,126 @@ export class DefaultAgentClient implements AgentClient {
         }
       }
     })
+
+    // Setup LiveKit event forwarding if service is available
+    if (this.liveKitService) {
+      // Forward LiveKit events to AgentClient events
+      this.eventBus.on(LiveKitEvents.CONNECTED, () => {
+        this.eventBus.emit('voice:connected')
+      })
+
+      this.eventBus.on(LiveKitEvents.DISCONNECTED, (data: { reason?: string }) => {
+        this.eventBus.emit('voice:disconnected', data.reason)
+      })
+
+      this.eventBus.on(LiveKitEvents.MICROPHONE_PUBLISHED, () => {
+        this.eventBus.emit('voice:microphone:published')
+      })
+
+      this.eventBus.on(LiveKitEvents.MICROPHONE_UNPUBLISHED, () => {
+        this.eventBus.emit('voice:microphone:unpublished')
+      })
+
+      this.eventBus.on(LiveKitEvents.AUDIO_TRACK_SUBSCRIBED, (data: { trackSid: string }) => {
+        this.eventBus.emit('voice:track:subscribed', data)
+      })
+
+      this.eventBus.on(LiveKitEvents.AUDIO_TRACK_UNSUBSCRIBED, (data: { trackSid: string }) => {
+        this.eventBus.emit('voice:track:unsubscribed', data)
+      })
+
+      this.eventBus.on(LiveKitEvents.CONNECTION_ERROR, (error: Error) => {
+        this.eventBus.emit('voice:error', error)
+      })
+    }
+  }
+
+  // Voice control (LiveKit) implementation
+  async enableVoice(): Promise<void> {
+    if (!this.liveKitService) {
+      throw new Error('Voice service not available')
+    }
+
+    if (this.liveKitService.isConnected()) {
+      this.logger.debug('Voice already enabled')
+      return
+    }
+
+    const configProvider = this.factory.getService(
+      'IConfigurationProvider',
+    ) as IConfigurationProvider
+    const config = configProvider.getConfiguration()
+
+    // LiveKitサービスを初期化
+    this.liveKitService.initialize(config.hubId)
+
+    // 接続
+    await this.liveKitService.connect()
+    this.logger.info('Voice enabled successfully')
+  }
+
+  async disableVoice(): Promise<void> {
+    if (!this.liveKitService) {
+      throw new Error('Voice service not available')
+    }
+
+    await this.liveKitService.disconnect()
+    this.logger.info('Voice disabled successfully')
+  }
+
+  isVoiceEnabled(): boolean {
+    return this.liveKitService?.isConnected() ?? false
+  }
+
+  async publishMicrophone(): Promise<void> {
+    if (!this.liveKitService) {
+      throw new Error('Voice service not available')
+    }
+
+    if (!this.liveKitService.isConnected()) {
+      throw new Error('Voice not enabled. Call enableVoice() first')
+    }
+
+    await this.liveKitService.publishMicrophone()
+  }
+
+  async unpublishMicrophone(): Promise<void> {
+    if (!this.liveKitService) {
+      throw new Error('Voice service not available')
+    }
+
+    await this.liveKitService.unpublishMicrophone()
+  }
+
+  async setMicrophoneEnabled(enabled: boolean): Promise<void> {
+    if (!this.liveKitService) {
+      throw new Error('Voice service not available')
+    }
+
+    await this.liveKitService.setMicrophoneEnabled(enabled)
+  }
+
+  isMicrophonePublished(): boolean {
+    if (!this.liveKitService) {
+      return false
+    }
+
+    return this.liveKitService.getMicrophonePublication() !== undefined
+  }
+
+  setSpeakerVolume(volume: number): void {
+    if (!this.liveKitService) {
+      throw new Error('Voice service not available')
+    }
+
+    // Ensure volume is between 0 and 1
+    const clampedVolume = Math.max(0, Math.min(1, volume))
+    this.speakerVolume = clampedVolume
+    this.liveKitService.setSpeakerVolume(clampedVolume)
+  }
+
+  getSpeakerVolume(): number {
+    return this.speakerVolume
   }
 }
 

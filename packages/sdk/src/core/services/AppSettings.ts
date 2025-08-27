@@ -6,10 +6,19 @@ export class AppSettings implements IAppSettings {
   private _logLevel: 'debug' | 'info' | 'warn' | 'error'
   private debugCallbacks: ((enabled: boolean) => void)[] = []
   private logger = getLogger('AppSettings')
+  public readonly livekitUrl?: string
+  public readonly apiBaseUrl?: string
 
-  constructor(debugMode = false, logLevel: 'debug' | 'info' | 'warn' | 'error' = 'info') {
+  constructor(
+    debugMode = false,
+    logLevel: 'debug' | 'info' | 'warn' | 'error' = 'info',
+    livekitUrl?: string,
+    apiBaseUrl?: string,
+  ) {
     this._debugMode = debugMode
     this._logLevel = logLevel
+    this.livekitUrl = livekitUrl
+    this.apiBaseUrl = apiBaseUrl
   }
 
   get debugMode(): boolean {

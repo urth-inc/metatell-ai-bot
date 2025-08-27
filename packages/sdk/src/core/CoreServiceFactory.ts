@@ -24,6 +24,7 @@ import { AuthenticationService } from './services/AuthenticationService.js'
 import { AvatarController } from './services/AvatarController.js'
 import { ConfigurationProvider } from './services/ConfigurationProvider.js'
 import { EventBus } from './services/EventBus.js'
+import { type ILiveKitService, LiveKitService } from './services/LiveKitService.js'
 import { MessageService } from './services/MessageService.js'
 import { PresenceManager } from './services/PresenceManager.js'
 import { UserAvatarManager } from './services/UserAvatarManager.js'
@@ -45,7 +46,7 @@ export class CoreServiceFactory {
     // Register AppSettings (singleton) - initialized with config if provided
     this.container.register<IAppSettings>(
       'IAppSettings',
-      () => new AppSettings(config?.debug || false),
+      () => new AppSettings(config?.debug || false, 'info', config?.livekitUrl, config?.apiBaseUrl),
       { singleton: true },
     )
 
@@ -136,6 +137,18 @@ export class CoreServiceFactory {
           container.get<IMessageService>('IMessageService'),
           container.get<IPresenceManager>('IPresenceManager'),
           container.get<IEventBus>('IEventBus'),
+        ),
+      { singleton: true },
+    )
+
+    // Register LiveKitService
+    this.container.register<ILiveKitService>(
+      'ILiveKitService',
+      (container) =>
+        new LiveKitService(
+          container.get<IEventBus>('IEventBus'),
+          container.get<IConnectionManager>('IConnectionManager'),
+          container.get<IAppSettings>('IAppSettings'),
         ),
       { singleton: true },
     )

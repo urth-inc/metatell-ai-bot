@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@types/uuid": "^10.0.0",
+    "livekit-client": "^2.8.1",
     "phoenix": "1.8.0",
     "uuid": "^11.1.0",
     "ws": "8.18.3"
