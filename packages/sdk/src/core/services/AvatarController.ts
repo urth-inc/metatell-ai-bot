@@ -50,13 +50,21 @@ export class AvatarController implements IAvatarController {
     const networkId = this.sessionId
     const spawnPosition = position || { x: 0, y: 0.2, z: 0 }
 
-    // Get storage URL from config or determine from hubUrl
-    let storageUrl = config.storageUrl
-    if (!storageUrl && config.hubUrl) {
-      storageUrl = this.determineStorageUrl(config.hubUrl)
+    // Determine avatar source URL based on avatar ID format
+    let avatarSrc: string
+    if (this.isOrganizationAvatar(avatarId)) {
+      // Organization avatar (UUID format) - use hub URL
+      const hubUrl = new URL(config.hubUrl || '')
+      avatarSrc = `${hubUrl.origin}/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`
+    } else {
+      // Individual avatar (non-UUID format) - use storage URL
+      let storageUrl = config.storageUrl
+      if (!storageUrl && config.hubUrl) {
+        storageUrl = this.determineStorageUrl(config.hubUrl)
+      }
+      storageUrl = storageUrl || 'https://storage.metatell.app:443'
+      avatarSrc = `${storageUrl}/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`
     }
-    // Fallback to default if still not set
-    storageUrl = storageUrl || 'https://storage.metatell.app:443'
 
     // Update internal state
     this.state = {
@@ -64,7 +72,7 @@ export class AvatarController implements IAvatarController {
       position: spawnPosition,
       rotation: { x: 0, y: 0, z: 0, w: 1 },
       avatarId,
-      avatarSrc: `${storageUrl}/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`,
+      avatarSrc,
       displayName: config.profile.displayName,
     }
 
@@ -105,7 +113,10 @@ export class AvatarController implements IAvatarController {
 
     // Emit event
     this.eventBus.emit(SystemEvents.AVATAR_SPAWNED, this.state)
-    this.logger.debug(`✅ Avatar spawned with ID: ${avatarId}`)
+    this.logger.debug(`✅ Avatar spawned with ID: ${avatarId}`, {
+      avatarSrc,
+      isOrganization: this.isOrganizationAvatar(avatarId),
+    })
   }
 
   /**
@@ -129,6 +140,15 @@ export class AvatarController implements IAvatarController {
       this.logger.warn('Failed to parse hub URL for storage URL determination', { hubUrl, error })
       return 'https://storage.metatell.app:443'
     }
+  }
+
+  /**
+   * Check if avatar ID is organization avatar (UUID format)
+   */
+  private isOrganizationAvatar(avatarId: string): boolean {
+    // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    return uuidRegex.test(avatarId)
   }
 
   async move(position: Position): Promise<void> {
