@@ -277,6 +277,10 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
       const config = configProvider.getConfiguration()
 
       if (config.profile.avatarId) {
+        this.logger.debug('Spawning avatar', {
+          avatarId: config.profile.avatarId,
+          organizationAvatarUrl: config.organizationAvatarUrl,
+        })
         await this.avatarController.spawn(
           config.profile.avatarId,
           undefined,

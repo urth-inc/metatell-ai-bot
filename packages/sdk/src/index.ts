@@ -74,7 +74,11 @@ export type {
   ConnectionStatus,
 } from './sdk/AgentClient.js'
 // Agent Client (SDKのメインインターフェース)
-export { createAgentClient } from './sdk/AgentClient.js'
+export {
+  createAgentClient,
+  createAgentClientWithFactory,
+  DefaultAgentClient,
+} from './sdk/AgentClient.js'
 // Errors (公開API)
 export * from './sdk/errors.js'
 // Logging (拡張ポイント)

@@ -322,8 +322,13 @@ export class AvatarController implements IAvatarController {
       throw new AvatarNotSpawnedError()
     }
 
+    // UUID形式のアニメーションかチェック
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    const isCustomAnimation = uuidRegex.test(animationId)
+
     // Validate animation exists (if animation service is available)
-    if (this.animationService) {
+    // カスタムアニメーション（UUID）の場合は検証をスキップ
+    if (this.animationService && !isCustomAnimation) {
       const isValid = await this.animationService.validateAnimation(animationId)
       if (!isValid) {
         throw new AnimationNotFoundError(animationId)
