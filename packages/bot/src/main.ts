@@ -218,6 +218,9 @@ async function main() {
   // Initialize BotServiceFactory with configuration (includes bot-specific services)
   const factory = new BotServiceFactory(botConfig)
 
+  // アバター情報表示状態を追跡
+  let avatarInfoDisplayed = false
+
   // AppSettingsを取得してLoggingシステムを設定
   const appSettings = factory.getService<import('@metatell/sdk').IAppSettings>('IAppSettings')
 
@@ -369,26 +372,29 @@ async function main() {
     const { logger: cliLogger } = await import('./utils/logger.js')
     cliLogger.notifyCliStarted?.()
 
-    // CLI起動後にアバター情報を再表示
-    cliLogger.log(
-      `🤖 Connected as: ${botConfig.profile.displayName} (${botConfig.profile.avatarId})`,
-    )
-    if (avatarName) {
-      cliLogger.log(`🎨 Avatar: ${avatarName}`)
-    }
-    if (organizationInfo.organizationId) {
-      cliLogger.log(`🏢 Organization: ${organizationInfo.organizationId}`)
-    }
-
-    // デバッグモードの場合は構造化ログのコンソール出力を再有効化
-    if (config.debug && globalLoggerProvider) {
-      globalLoggerProvider.enableConsole(true)
+    // CLI起動後にアバター情報を一度だけ表示
+    if (!avatarInfoDisplayed) {
+      avatarInfoDisplayed = true
+      cliLogger.log(
+        `🤖 Connected as: ${botConfig.profile.displayName} (${botConfig.profile.avatarId})`,
+      )
+      if (avatarName) {
+        cliLogger.log(`🎨 Avatar: ${avatarName}`)
+      }
+      if (organizationInfo.organizationId) {
+        cliLogger.log(`🏢 Organization: ${organizationInfo.organizationId}`)
+      }
     }
 
     // デバッグモードの場合、ログファイルパスを表示
     if (debugLogPath) {
       // CLIのloggerで表示
       cliLogger.log(`📝 Debug logging enabled: ${debugLogPath}`)
+    }
+
+    // デバッグモードの場合はアバター情報表示後に構造化ログのコンソール出力を有効化
+    if (config.debug && globalLoggerProvider) {
+      globalLoggerProvider.enableConsole(true)
     }
   } catch (error) {
     console.error('Failed to start bot:', error)
