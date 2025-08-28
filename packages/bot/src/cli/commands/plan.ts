@@ -51,7 +51,7 @@ export const COMMANDS: CommandDefinition[] = [
   {
     command: '/look',
     description: 'Look at position or user',
-    usage: '/look <x> <y> <z> | /look user <id> | /look nearest',
+    usage: '/look <x> <y> <z> | /look @<username> | /look nearest',
   },
   {
     command: '/nearby',
@@ -218,7 +218,15 @@ function parseMove(args: string[]): CommandPlan {
 
 function parseLook(args: string[]): CommandPlan {
   if (args.length === 0) {
-    throw new ParseError('Missing arguments', '/look <x> <y> <z> | /look user <id> | /look nearest')
+    throw new ParseError(
+      'Missing arguments',
+      '/look <x> <y> <z> | /look @<username> | /look nearest',
+    )
+  }
+
+  // @username format
+  if (args[0].startsWith('@') && args[0].length > 1) {
+    return { kind: 'look', target: { type: 'user', id: args[0].substring(1) } }
   }
 
   if (args[0] === 'user' && args[1]) {
@@ -241,7 +249,7 @@ function parseLook(args: string[]): CommandPlan {
     return { kind: 'look', target: { type: 'position', x, y, z } }
   }
 
-  throw new ParseError('Invalid arguments', '/look <x> <y> <z> | /look user <id> | /look nearest')
+  throw new ParseError('Invalid arguments', '/look <x> <y> <z> | /look @<username> | /look nearest')
 }
 
 function parseNearby(args: string[]): CommandPlan {
