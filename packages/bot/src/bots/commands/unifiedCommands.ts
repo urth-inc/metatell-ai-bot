@@ -324,7 +324,7 @@ export const unifiedCommands: UnifiedCommand[] = [
         if (!client) {
           throw new Error('AgentClient not available in context')
         }
-        await client.say(message)
+        await client.send(message)
         return {
           success: true,
           message: 'Message sent',
@@ -374,7 +374,7 @@ export const unifiedCommands: UnifiedCommand[] = [
       }
 
       const action = args[0].toLowerCase()
-      const client = context.client
+      const client = context.agentClient
 
       if (!client) {
         return {
@@ -447,7 +447,7 @@ export const unifiedCommands: UnifiedCommand[] = [
     },
     cliHandler: async (_args, context) => {
       try {
-        const client = context.client
+        const client = context.agentClient
         if (!client) {
           return {
             success: false,
@@ -478,7 +478,7 @@ export const unifiedCommands: UnifiedCommand[] = [
     usage: 'testvoice [duration_ms]',
     cliHandler: async (args, context) => {
       try {
-        const client = context.client
+        const client = context.agentClient
         if (!client) {
           return {
             success: false,

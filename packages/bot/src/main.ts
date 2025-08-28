@@ -338,7 +338,6 @@ async function main() {
         factory.getService<import('@metatell/sdk').IMessageService>('IMessageService'),
       logger: getLogger('CLI'),
       // Additional context for CLI commands
-      client: client,
       agentClient: client,
       botConfig: botConfig,
       organizationService:
