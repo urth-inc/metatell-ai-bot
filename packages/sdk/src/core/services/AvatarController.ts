@@ -40,7 +40,7 @@ export class AvatarController implements IAvatarController {
     })
   }
 
-  async spawn(avatarId: string, position?: Position): Promise<void> {
+  async spawn(avatarId: string, position?: Position, avatarSrc?: string): Promise<void> {
     if (!this.sessionId) {
       throw new Error('Cannot spawn avatar: Not connected to room')
     }
@@ -50,12 +50,18 @@ export class AvatarController implements IAvatarController {
     const networkId = this.sessionId
     const spawnPosition = position || { x: 0, y: 0.2, z: 0 }
 
-    // Determine avatar source URL based on avatar ID format
-    let avatarSrc: string
-    if (this.isOrganizationAvatar(avatarId)) {
-      // Organization avatar (UUID format) - use hub URL
+    // Determine avatar source URL
+    let finalAvatarSrc: string
+    if (avatarSrc) {
+      // Use provided avatar source URL
+      finalAvatarSrc = avatarSrc
+    } else if ((this as any)._organizationAvatarUrl) {
+      // Use pre-stored organization avatar URL from API
+      finalAvatarSrc = (this as any)._organizationAvatarUrl
+    } else if (this.isOrganizationAvatar(avatarId)) {
+      // Organization avatar (UUID format) - use hub URL as fallback
       const hubUrl = new URL(config.hubUrl || '')
-      avatarSrc = `${hubUrl.origin}/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`
+      finalAvatarSrc = `${hubUrl.origin}/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`
     } else {
       // Individual avatar (non-UUID format) - use storage URL
       let storageUrl = config.storageUrl
@@ -63,7 +69,7 @@ export class AvatarController implements IAvatarController {
         storageUrl = this.determineStorageUrl(config.hubUrl)
       }
       storageUrl = storageUrl || 'https://storage.metatell.app:443'
-      avatarSrc = `${storageUrl}/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`
+      finalAvatarSrc = `${storageUrl}/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`
     }
 
     // Update internal state
@@ -72,7 +78,7 @@ export class AvatarController implements IAvatarController {
       position: spawnPosition,
       rotation: { x: 0, y: 0, z: 0, w: 1 },
       avatarId,
-      avatarSrc,
+      avatarSrc: finalAvatarSrc,
       displayName: config.profile.displayName,
     }
 
@@ -114,7 +120,7 @@ export class AvatarController implements IAvatarController {
     // Emit event
     this.eventBus.emit(SystemEvents.AVATAR_SPAWNED, this.state)
     this.logger.debug(`✅ Avatar spawned with ID: ${avatarId}`, {
-      avatarSrc,
+      avatarSrc: finalAvatarSrc,
       isOrganization: this.isOrganizationAvatar(avatarId),
     })
   }
