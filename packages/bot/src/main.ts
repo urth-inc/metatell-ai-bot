@@ -16,23 +16,11 @@ import { ConfigManager } from './cli/config/config.js'
 import { startInkCli } from './cli/startInkCli.js'
 import { type CliArgs, parseCliArgs } from './schemas/cli.js'
 import { FileLogger } from './utils/logging/file-logger.js'
+import { processMetatellUrl } from './utils/metatell-url.js'
 
 // Register default logger provider at startup
 // Allow overwrite in case tests already registered one
 registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
-
-/**
- * Extract hub ID from Metatell URL
- */
-function extractHubIdFromUrl(url: string): string {
-  // https://metatell.app/DfueGup/palatable-hospitable-outing
-  // から DfueGup を抽出
-  const match = url.match(/metatell\.app\/([^/]+)/)
-  if (match) {
-    return match[1]
-  }
-  throw new Error('Invalid Metatell URL')
-}
 
 async function main() {
   // デバッグフラグを早期に検出してログを初期化
@@ -137,12 +125,18 @@ async function main() {
   let socketUrl: string
 
   try {
-    hubId = extractHubIdFromUrl(metatellUrl)
-    const url = new URL(metatellUrl)
-    // Use WebSocket protocol for Socket connection
-    socketUrl = `wss://${url.hostname}`
-  } catch (_error) {
-    mainLogger.error('Invalid URL format', { url: metatellUrl })
+    // メタテル固有のURL処理（テナントサブドメインの除去など）
+    const { serverUrl, hubId: extractedHubId } = processMetatellUrl(metatellUrl)
+    hubId = extractedHubId
+    socketUrl = serverUrl
+
+    mainLogger.debug('Processed Metatell URL:', {
+      original: metatellUrl,
+      serverUrl: socketUrl,
+      hubId: hubId,
+    })
+  } catch (error) {
+    mainLogger.error('Invalid URL format', { url: metatellUrl, error })
     process.exit(1)
   }
 
@@ -197,7 +191,7 @@ async function main() {
   })
 
   // AgentClient を作成
-  const client = createAgentClient(factory, {
+  const client = createAgentClient(botConfig, {
     profile: {
       displayName: botName,
       avatarId,
@@ -255,6 +249,9 @@ async function main() {
     cliLogger.log(`Connecting to: ${metatellUrl}`)
     await client.connect({
       url: metatellUrl,
+      serverUrl: socketUrl,
+      hubUrl: metatellUrl,
+      hubId: hubId,
       token: authToken,
     })
   } catch (error) {

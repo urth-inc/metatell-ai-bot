@@ -1,18 +1,18 @@
 import * as v from 'valibot'
 
-// Metatell URL validation schema
-const MetatellUrlSchema = v.pipe(
+// Room URL validation schema (any domain with hub ID)
+const RoomUrlSchema = v.pipe(
   v.string(),
   v.url('Invalid URL format'),
   v.regex(
-    /^https:\/\/metatell\.app\/[A-Za-z0-9]+\//,
-    'URL must be a Metatell room URL (e.g., https://metatell.app/LWF5w8n/)',
+    /^https?:\/\/[a-zA-Z0-9.-]+(:[0-9]+)?\/[A-Za-z0-9_-]+\/?/,
+    'URL must be a room URL with hub ID (e.g., https://example.com/hubId/)',
   ),
 )
 
 // Command-line arguments schema
 export const CliArgsSchema = v.object({
-  url: v.optional(MetatellUrlSchema),
+  url: v.optional(RoomUrlSchema),
   token: v.optional(v.string()),
   debug: v.optional(v.boolean()),
   profile: v.optional(v.string()),
