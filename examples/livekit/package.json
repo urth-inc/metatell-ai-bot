@@ -1,0 +1,26 @@
+{
+  "name": "livekit",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "build": "tsc",
+    "start": "node lib/main.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@livekit/agents": "^0.7.9",
+    "@livekit/rtc-node": "^0.13.18",
+    "dotenv": "^17.2.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.2",
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

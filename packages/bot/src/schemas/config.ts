@@ -14,10 +14,18 @@ import {
   UrlSchema,
 } from './common.js'
 
+// Avatar selection schema
+export const AvatarSelectionSchema = v.union([
+  v.literal('random'), // ランダム選択
+  v.literal('organization'), // 組織アバターから選択
+  AvatarIdSchema, // 特定のアバターID
+])
+
 // Profile schema
 export const ProfileSchema = v.object({
   displayName: v.optional(DisplayNameSchema),
   avatarId: v.optional(AvatarIdSchema),
+  avatarSelection: v.optional(AvatarSelectionSchema), // アバター選択方法
 })
 
 // Rate limiting schema
@@ -64,6 +72,7 @@ export const EnvVarsSchema = v.object({
   BOT_ACCESS_KEY: v.optional(v.string()),
   BOT_NAME: v.optional(v.string()),
   AVATAR_ID: v.optional(v.string()),
+  AVATAR_SELECTION: v.optional(v.string()), // random, organization, or specific avatar ID
   DEBUG: v.optional(BooleanStringSchema),
 })
 
