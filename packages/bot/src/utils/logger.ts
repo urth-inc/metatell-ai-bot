@@ -83,11 +83,8 @@ export class ConsoleLogger implements Logger {
   // CLI起動の通知
   notifyCliStarted(): void {
     this.cliStarted = true
-    // CLI開始時に構造化ログのコンソール出力を有効化（デバッグモードの場合のみ）
-    const provider = getLoggerProvider()
-    if (provider?.enableConsole) {
-      provider.enableConsole(this.debugEnabled)
-    }
+    // CLI開始時に構造化ログのコンソール出力は無効のままにする
+    // メインプロセスで制御されるため、ここでは変更しない
   }
 
   // バッファリングしたログを取得（前回以降の新規ログのみ）
