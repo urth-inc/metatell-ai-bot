@@ -178,16 +178,6 @@ export class OrganizationService implements IOrganizationService {
       return avatars[randomIndex].avatar_id
     }
 
-    // 組織名を含むアバターを優先選択
-    if (options?.organizationId) {
-      const preferredAvatar = avatars.find((a) =>
-        a.name.toLowerCase().includes(options.organizationId?.toLowerCase()),
-      )
-      if (preferredAvatar) {
-        return preferredAvatar.avatar_id
-      }
-    }
-
     // デフォルトは最初のアバター
     return avatars[0].avatar_id
   }

@@ -45,6 +45,12 @@ export class AvatarController implements IAvatarController {
       throw new Error('Cannot spawn avatar: Not connected to room')
     }
 
+    this.logger.debug('spawn() called with parameters:', {
+      avatarId,
+      position,
+      avatarSrc,
+    })
+
     const config = this.configProvider.getConfiguration()
     const timestamp = Date.now()
     const networkId = this.sessionId
@@ -55,8 +61,12 @@ export class AvatarController implements IAvatarController {
     if (avatarSrc) {
       // Use provided avatar source URL (organization avatar GLTF URLs are passed here)
       finalAvatarSrc = avatarSrc
+      this.logger.debug('Using provided avatar source URL', { avatarSrc })
     } else if (this.isOrganizationAvatar(avatarId)) {
-      // Organization avatar (UUID format) - use hub URL as fallback
+      // Organization avatar (UUID format) - should not reach here if avatarSrc is provided
+      this.logger.warn('Organization avatar without avatarSrc provided, using fallback URL', {
+        avatarId,
+      })
       const hubUrl = new URL(config.hubUrl || '')
       finalAvatarSrc = `${hubUrl.origin}/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`
     } else {

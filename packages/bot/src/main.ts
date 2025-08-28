@@ -123,7 +123,7 @@ async function main() {
   // デフォルト値
   const metatellUrl = config.url || ''
   const botName = config.profile?.displayName || 'AI Assistant'
-  let avatarId = config.profile?.avatarId // デフォルトアバターIDを削除、組織アバターから選択
+  const avatarId = config.profile?.avatarId // デフォルトは組織アバター
   const authToken = config.token
   const botAccessKey = config.botAccessKey
 
@@ -146,91 +146,107 @@ async function main() {
     process.exit(1)
   }
 
-  // アバター選択処理はBotConfigを作成してから、FactoryでOrganizationServiceが利用可能になってから実行
+  // アバター選択処理は上記で完了
+
+  // 組織アバターを事前に取得
+  let selectedAvatarId = avatarId
+  let selectedAvatarUrl: string | undefined
+  let selectedAvatarName: string | undefined
+
   const avatarSelection = config.profile?.avatarSelection
-  let pendingAvatarSelection:
-    | (() => Promise<{ avatarId: string; avatarName?: string; avatarUrl?: string }>)
-    | null = null
-
-  // 組織アバターから選択する（必須）
-  const shouldSelectFromOrganization = true
-
-  if (shouldSelectFromOrganization) {
-    // アバター選択を後で実行するための関数を準備
-    pendingAvatarSelection = async () => {
-      try {
-        const organizationService =
-          factory.getService<import('@metatell/sdk').IOrganizationService>('IOrganizationService')
-
-        // 組織情報を先に取得してデバッグ情報を出力
-        mainLogger.debug('Getting organization info for avatar selection...', {
-          metatellUrl,
-          hubId,
-        })
-        const orgInfo = await organizationService.getOrganizationInfo(metatellUrl, hubId)
-        mainLogger.debug('Organization info retrieved:', orgInfo)
-
-        mainLogger.debug('Fetching organization avatars...', {
-          metatellUrl,
-          organizationId: orgInfo.organizationId,
-        })
-        // 組織アバターAPIではテナントサブドメインを除去したベースURLを使用
-        const { serverUrl } = processMetatellUrl(metatellUrl)
-        const baseUrl = serverUrl.replace('wss://', 'https://') // WebSocketURLをHTTPSに変換
-        mainLogger.debug('Using base URL for organization avatars API:', {
-          original: metatellUrl,
-          baseUrl,
-        })
-
-        const orgAvatars = await organizationService.fetchOrganizationAvatars(
-          baseUrl,
-          orgInfo.organizationId,
-        )
-
-        if (orgAvatars.length > 0) {
-          const selectedAvatarId = organizationService.selectAvatar(orgAvatars, {
-            avatarId: config.profile?.avatarId,
-            preferRandom: !config.profile?.avatarId, // アバターID未指定時はランダム選択
-            organizationId: orgInfo.organizationId,
-          })
-
-          if (selectedAvatarId) {
-            const selectedAvatar = orgAvatars.find((a) => a.avatar_id === selectedAvatarId)
-            mainLogger.info('Selected organization avatar:', {
-              avatarId: selectedAvatarId,
-              avatarName: selectedAvatar?.name,
-              method: avatarSelection || 'organization-default',
-              availableCount: orgAvatars.length,
-            })
-            return {
-              avatarId: selectedAvatarId,
-              avatarName: selectedAvatar?.name,
-              avatarUrl: selectedAvatar?.url,
-            }
-          }
-        } else {
-          throw new Error('No organization avatars found')
-        }
-      } catch (error) {
-        mainLogger.error('Failed to fetch organization avatars:', { error })
-        throw error
-      }
-      // ここには達しない（上記でreturnする）
-      throw new Error('Avatar selection failed')
-    }
-  } else if (avatarSelection && avatarSelection !== avatarId) {
+  if (avatarSelection && avatarSelection !== 'organization') {
     // avatarSelectionに具体的なアバターIDが指定されている場合
-    avatarId = avatarSelection
+    selectedAvatarId = avatarSelection
   }
 
-  // Create bot configuration
+  // avatarIdが指定されていない、またはavatarSelectionが'organization'の場合は組織アバターから選択
+  if (!selectedAvatarId) {
+    // 組織アバターから選択する必要がある場合、直接APIを呼び出す
+    let realmUrl = ''
+    let avatarsUrl = ''
+    try {
+      // 組織情報を取得
+      const hubUrl = new URL(metatellUrl)
+      realmUrl = `${hubUrl.origin}/realm?room-id=${hubId}`
+      mainLogger.debug('Fetching realm info', { realmUrl })
+
+      const realmResponse = await fetch(realmUrl)
+
+      if (!realmResponse.ok) {
+        const errorText = await realmResponse.text()
+        throw new Error(
+          `Realm API failed: ${realmResponse.status} ${realmResponse.statusText} - ${errorText}`,
+        )
+      }
+
+      const realmData = (await realmResponse.json()) as { result?: { id?: string; realm?: string } }
+      const organizationId = realmData.result?.id
+
+      mainLogger.debug('Realm data received', {
+        hasResult: !!realmData.result,
+        organizationId: organizationId || 'not found',
+        realmId: realmData.result?.realm || 'not found',
+      })
+
+      if (organizationId) {
+        // 組織アバターを取得
+        const { serverUrl: baseUrl } = processMetatellUrl(metatellUrl)
+        const httpsUrl = baseUrl.replace('wss://', 'https://')
+        let apiPath = '/api/v1'
+        if (httpsUrl.includes('-stg.')) {
+          apiPath = '/api/admin/stg/api/v1'
+        }
+        avatarsUrl = `${httpsUrl}${apiPath}/organizations/${organizationId}/avatars/public`
+
+        mainLogger.debug('Fetching organization avatars directly', { avatarsUrl })
+
+        const avatarsResponse = await fetch(avatarsUrl)
+
+        if (!avatarsResponse.ok) {
+          const errorText = await avatarsResponse.text()
+          throw new Error(
+            `Organization avatars API failed: ${avatarsResponse.status} ${avatarsResponse.statusText} - ${errorText}`,
+          )
+        }
+
+        const avatarsData = (await avatarsResponse.json()) as {
+          result?: Array<{ id: string; name: string; gltf: { avatar: string } }>
+        }
+
+        if (avatarsData.result && avatarsData.result.length > 0) {
+          // ランダムに選択
+          const randomIndex = Math.floor(Math.random() * avatarsData.result.length)
+          const selectedAvatar = avatarsData.result[randomIndex]
+          selectedAvatarId = selectedAvatar.id
+          selectedAvatarUrl = selectedAvatar.gltf.avatar
+          selectedAvatarName = selectedAvatar.name
+
+          mainLogger.info('Pre-selected organization avatar', {
+            avatarId: selectedAvatarId,
+            avatarName: selectedAvatarName,
+            avatarUrl: selectedAvatarUrl,
+          })
+        }
+      }
+    } catch (error) {
+      mainLogger.error('Failed to pre-fetch organization avatars', {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        realmUrl,
+        avatarsUrl: avatarsUrl || 'not yet constructed',
+      })
+      // エラーが発生してもデフォルトアバターで続行
+    }
+  }
+
+  // Create bot configuration with organization avatar URL
   const botConfig: BotConfiguration = {
     serverUrl: socketUrl,
     hubUrl: metatellUrl,
     hubId: hubId,
     profile: {
       displayName: botName,
-      avatarId: '', // 一時的な値、組織アバター選択で設定される
+      avatarId: selectedAvatarId || avatarId || '', // 一時的に空文字列（後で組織アバターを必須にする）
     },
     context: {
       mobile: false,
@@ -239,6 +255,7 @@ async function main() {
     },
     debug: config.debug,
     botAccessKey: botAccessKey,
+    organizationAvatarUrl: selectedAvatarUrl,
   }
 
   // Initialize BotServiceFactory with configuration (includes bot-specific services)
@@ -284,41 +301,17 @@ async function main() {
 
   // clientの宣言（後で初期化）
   let client: DefaultAgentClient
+  const avatarName = selectedAvatarName
+  let organizationInfo: { organizationId?: string; realmId?: string } = {}
 
   try {
-    // 組織アバター選択が必要な場合は実行
-    let avatarName: string | undefined
-    let organizationInfo: { organizationId?: string; realmId?: string } = {}
-
-    if (pendingAvatarSelection) {
-      const result = await pendingAvatarSelection()
-      // 選択されたアバターIDでプロファイルを更新
-      if (!result.avatarId) {
-        mainLogger.error('Avatar selection failed: no avatar ID returned')
-        process.exit(1)
-      }
-      botConfig.profile.avatarId = result.avatarId
-      avatarName = result.avatarName
-      // AgentClientも更新が必要
-      const configProvider =
-        factory.getService<import('@metatell/sdk').IConfigurationProvider>('IConfigurationProvider')
-      configProvider.getConfiguration().profile.avatarId = result.avatarId
-
-      // 組織アバターの場合はGLTF URLも設定
-      if (result.avatarUrl) {
-        mainLogger.debug('Organization avatar GLTF URL:', result.avatarUrl)
-        // 組織アバターのGLTF URLをbotConfigに保存（spawn時に使用）
-        botConfig.organizationAvatarUrl = result.avatarUrl
-      }
-    }
-
-    // アバターIDが設定されていることを確認
+    // アバターIDが設定されていることを確認（組織アバターの取得に失敗した場合）
     if (!botConfig.profile.avatarId) {
-      mainLogger.error('Avatar ID is required but not set')
+      mainLogger.error('Failed to get organization avatar and no fallback avatar ID was provided')
       process.exit(1)
     }
 
-    // 組織アバター選択完了後にAgentClientを作成
+    // AgentClientを作成
     client = new DefaultAgentClient(factory, {
       profile: {
         displayName: botName,
@@ -361,13 +354,21 @@ async function main() {
     process.on('SIGINT', shutdown)
     process.on('SIGTERM', shutdown)
 
-    // 組織情報を取得（エラーが出ても続行）
-    try {
-      const organizationService =
-        factory.getService<import('@metatell/sdk').IOrganizationService>('IOrganizationService')
-      organizationInfo = await organizationService.getOrganizationInfo(metatellUrl, hubId)
-    } catch (error) {
-      mainLogger.debug('Failed to get organization info', { error })
+    // 組織情報を設定（事前取得した情報を使用）
+    if (selectedAvatarId) {
+      try {
+        const hubUrl = new URL(metatellUrl)
+        const realmResponse = await fetch(`${hubUrl.origin}/realm?room-id=${hubId}`)
+        const realmData = (await realmResponse.json()) as {
+          result?: { id?: string; realm?: string }
+        }
+        organizationInfo = {
+          organizationId: realmData.result?.id,
+          realmId: realmData.result?.realm,
+        }
+      } catch (error) {
+        mainLogger.debug('Failed to get organization info', { error })
+      }
     }
 
     // 現在の設定を表示（ログプロバイダーを無効化する前に実行）
