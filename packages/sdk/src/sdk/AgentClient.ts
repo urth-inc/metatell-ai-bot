@@ -277,7 +277,11 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
       const config = configProvider.getConfiguration()
 
       if (config.profile.avatarId) {
-        await this.avatarController.spawn(config.profile.avatarId)
+        await this.avatarController.spawn(
+          config.profile.avatarId,
+          undefined,
+          config.organizationAvatarUrl,
+        )
       }
 
       // 音声接続（有効な場合）
@@ -682,5 +686,15 @@ export function createAgentClient(
   clientConfig?: AgentClientConfig,
 ): AgentClient {
   const factory = new CoreServiceFactory(config)
+  return new DefaultAgentClient(factory, clientConfig)
+}
+
+/**
+ * Factory function to create agent client with existing factory
+ */
+export function createAgentClientWithFactory(
+  factory: CoreServiceFactory,
+  clientConfig?: AgentClientConfig,
+): AgentClient {
   return new DefaultAgentClient(factory, clientConfig)
 }

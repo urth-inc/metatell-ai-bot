@@ -307,11 +307,8 @@ async function main() {
       // 組織アバターの場合はGLTF URLも設定
       if (result.avatarUrl) {
         mainLogger.debug('Organization avatar GLTF URL:', result.avatarUrl)
-        // AvatarControllerに直接GLTF URLを渡す準備
-        const avatarController =
-          factory.getService<import('@metatell/sdk').IAvatarController>('IAvatarController')
-        // 接続後にavatarUrlを使ってspawnするため一時保存
-        ;(avatarController as any)._organizationAvatarUrl = result.avatarUrl
+        // 組織アバターのGLTF URLをbotConfigに保存（spawn時に使用）
+        botConfig.organizationAvatarUrl = result.avatarUrl
       }
     }
 
