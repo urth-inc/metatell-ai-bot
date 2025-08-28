@@ -199,6 +199,165 @@ export const unifiedCommands: UnifiedCommand[] = [
     },
   },
 
+  // Look command - Look at position or user
+  {
+    name: 'look',
+    pattern: /^look(?:\s+(?:(@?\S+)|(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)))?$/i,
+    cliAliases: ['look', 'lookat', 'face'],
+    description: 'Look at a position or user',
+    usage: 'look <x> <y> <z> or look @<username>',
+    botHandler: async (match, _sessionId, context) => {
+      if (!match[1]) {
+        return 'Usage: look <x> <y> <z> or look @<username>'
+      }
+
+      const avatarState = context.avatarController.getState()
+      if (!avatarState) {
+        return 'Bot avatar not spawned'
+      }
+
+      let targetPosition: { x: number; y: number; z: number } | null = null
+
+      if (match[1]?.startsWith('@')) {
+        // ユーザー名で検索
+        const username = match[1].substring(1).toLowerCase()
+        const users = context.userAvatarManager.getUsers()
+        const targetUser = users.find((user: UserAvatar) =>
+          user.nickname.toLowerCase().includes(username),
+        )
+
+        if (!targetUser) {
+          return `User "${username}" not found`
+        }
+
+        targetPosition = targetUser.position
+      } else if (match[2] && match[3] && match[4]) {
+        // 座標指定
+        const x = parseFloat(match[2])
+        const y = parseFloat(match[3])
+        const z = parseFloat(match[4])
+
+        if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(z)) {
+          return 'Invalid coordinates. Usage: look <x> <y> <z>'
+        }
+
+        targetPosition = { x, y, z }
+      }
+
+      if (!targetPosition) {
+        return 'Invalid command format'
+      }
+
+      // 現在の位置から目標への方向を計算
+      const dx = targetPosition.x - avatarState.position.x
+      const dz = targetPosition.z - avatarState.position.z
+
+      // Y軸周りの回転角度を計算（ラジアン）
+      const yaw = Math.atan2(dx, dz)
+
+      // クォータニオンに変換
+      const halfYaw = yaw * 0.5
+      const rotation = {
+        x: 0,
+        y: Math.sin(halfYaw),
+        z: 0,
+        w: Math.cos(halfYaw),
+      }
+
+      try {
+        await context.avatarController.rotate(rotation)
+        return `Looking at (${targetPosition.x.toFixed(1)}, ${targetPosition.y.toFixed(1)}, ${targetPosition.z.toFixed(1)}) 👀`
+      } catch (error) {
+        context.logger.error('Look command failed:', error)
+        return 'Failed to rotate avatar'
+      }
+    },
+    cliHandler: async (args, context) => {
+      if (args.length === 0) {
+        return {
+          success: false,
+          message: 'Usage: /look <x> <y> <z> or /look @<username>',
+        }
+      }
+
+      const avatarState = context.avatarController.getState()
+      if (!avatarState) {
+        return {
+          success: false,
+          message: 'Bot avatar not spawned',
+        }
+      }
+
+      let targetPosition: { x: number; y: number; z: number } | null = null
+
+      if (args[0].startsWith('@')) {
+        // ユーザー名で検索
+        const username = args[0].substring(1).toLowerCase()
+        const users = context.userAvatarManager.getUsers()
+        const targetUser = users.find((user: UserAvatar) =>
+          user.nickname.toLowerCase().includes(username),
+        )
+
+        if (!targetUser) {
+          return {
+            success: false,
+            message: `User "${username}" not found`,
+          }
+        }
+
+        targetPosition = targetUser.position
+      } else if (args.length === 3) {
+        // 座標指定
+        const x = parseFloat(args[0])
+        const y = parseFloat(args[1])
+        const z = parseFloat(args[2])
+
+        if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(z)) {
+          return {
+            success: false,
+            message: 'Invalid coordinates. All values must be numbers.',
+          }
+        }
+
+        targetPosition = { x, y, z }
+      } else {
+        return {
+          success: false,
+          message: 'Usage: /look <x> <y> <z> or /look @<username>',
+        }
+      }
+
+      // 現在の位置から目標への方向を計算
+      const dx = targetPosition.x - avatarState.position.x
+      const dz = targetPosition.z - avatarState.position.z
+
+      // Y軸周りの回転角度を計算（ラジアン）
+      const yaw = Math.atan2(dx, dz)
+
+      // クォータニオンに変換
+      const halfYaw = yaw * 0.5
+      const rotation = {
+        x: 0,
+        y: Math.sin(halfYaw),
+        z: 0,
+        w: Math.cos(halfYaw),
+      }
+
+      try {
+        await context.avatarController.rotate(rotation)
+        return {
+          success: true,
+          message: `Looking at (${targetPosition.x.toFixed(1)}, ${targetPosition.y.toFixed(1)}, ${targetPosition.z.toFixed(1)})`,
+        }
+      } catch (error) {
+        return {
+          success: false,
+          message: `Failed to rotate: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        }
+      }
+    },
+  },
+
   // Users command
   {
     name: 'users',

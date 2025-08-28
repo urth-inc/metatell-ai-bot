@@ -71,7 +71,7 @@ export class CommandExecutor {
       status: 'info',
       say: 'say',
       move: 'move',
-      look: 'nearby',
+      look: 'look',
       nearby: 'nearby',
       users: 'users',
       help: 'help',
@@ -102,7 +102,20 @@ export class CommandExecutor {
         break
       }
 
-      case 'look':
+      case 'look': {
+        if (plan.kind === 'look' && 'target' in plan && plan.target) {
+          if (plan.target.type === 'position') {
+            args = [plan.target.x.toString(), plan.target.y.toString(), plan.target.z.toString()]
+          } else if (plan.target.type === 'user') {
+            args = [`@${plan.target.id}`]
+          } else if (plan.target.type === 'nearest') {
+            // nearestはサポートされていない
+            args = []
+          }
+        }
+        break
+      }
+
       case 'nearby': {
         if (plan.kind === 'nearby') {
           args = plan.radius ? [plan.radius.toString()] : []
