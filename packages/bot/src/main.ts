@@ -124,7 +124,7 @@ async function main() {
   // デフォルト値
   const metatellUrl = config.url || ''
   const botName = config.profile?.displayName || 'AI Assistant'
-  let avatarId = config.profile?.avatarId || 'Esajk7B'
+  let avatarId = config.profile?.avatarId // デフォルトアバターIDを削除、組織アバターから選択
   const authToken = config.token
   const botAccessKey = config.botAccessKey
 
@@ -147,12 +147,16 @@ async function main() {
     process.exit(1)
   }
 
-  // 組織アバター選択処理はBotConfigを作成してから、FactoryでOrganizationServiceが利用可能になってから実行
+  // アバター選択処理はBotConfigを作成してから、FactoryでOrganizationServiceが利用可能になってから実行
   const avatarSelection = config.profile?.avatarSelection
   let pendingAvatarSelection: (() => Promise<{ avatarId: string; avatarName?: string }>) | null =
     null
 
-  if (avatarSelection && (avatarSelection === 'organization' || avatarSelection === 'random')) {
+  // アバターIDが指定されていない場合、組織アバターから選択する
+  const shouldSelectFromOrganization =
+    !avatarId || avatarSelection === 'organization' || avatarSelection === 'random'
+
+  if (shouldSelectFromOrganization) {
     // アバター選択を後で実行するための関数を準備
     pendingAvatarSelection = async () => {
       try {
@@ -176,7 +180,7 @@ async function main() {
             mainLogger.info('Selected organization avatar:', {
               avatarId: selectedAvatarId,
               avatarName: selectedAvatar?.name,
-              method: avatarSelection,
+              method: avatarSelection || 'organization-default',
               availableCount: orgAvatars.length,
             })
             return {
@@ -185,12 +189,14 @@ async function main() {
             }
           }
         } else {
-          mainLogger.warn('No organization avatars found, using default')
+          throw new Error('No organization avatars found. Cannot start bot without avatar.')
         }
       } catch (error) {
-        mainLogger.error('Failed to fetch organization avatars, using default', { error })
+        mainLogger.error('Failed to fetch organization avatars:', { error })
+        throw error
       }
-      return { avatarId } // デフォルトに戻す
+      // ここには達しない
+      throw new Error('Avatar selection failed')
     }
   } else if (avatarSelection && avatarSelection !== avatarId) {
     // avatarSelectionに具体的なアバターIDが指定されている場合
@@ -204,7 +210,7 @@ async function main() {
     hubId: hubId,
     profile: {
       displayName: botName,
-      avatarId,
+      avatarId: avatarId || '', // 組織アバター選択が必須、空文字列は一時的
     },
     context: {
       mobile: false,
@@ -254,7 +260,7 @@ async function main() {
   const client = new DefaultAgentClient(factory, {
     profile: {
       displayName: botName,
-      avatarId,
+      avatarId: avatarId || '', // 組織アバター選択が必須、空文字列は一時的
     },
     rateLimit: config.rate
       ? {
@@ -329,15 +335,23 @@ async function main() {
     console.log(``)
     console.log(`👤 Bot Profile:`)
     console.log(`   Name: ${botConfig.profile.displayName}`)
-    console.log(`   Avatar ID: ${botConfig.profile.avatarId}`)
+    if (botConfig.profile.avatarId) {
+      console.log(`   Avatar ID: ${botConfig.profile.avatarId}`)
+    } else {
+      console.log(`   Avatar: Will be selected from organization avatars`)
+    }
     if (avatarName) {
       console.log(`   Avatar Name: ${avatarName}`)
     }
-    if (avatarSelection) {
-      console.log(
-        `   Selection: ${avatarSelection === 'random' ? '🎲 Random' : avatarSelection === 'organization' ? '🏢 Organization Default' : '📌 Specified'}`,
-      )
-    }
+    const selectionMethod =
+      avatarSelection === 'random'
+        ? '🎲 Random from organization'
+        : avatarSelection === 'organization'
+          ? '🏢 Organization default'
+          : avatarSelection
+            ? `📌 Specified (${avatarSelection})`
+            : '🏢 Organization default'
+    console.log(`   Selection: ${selectionMethod}`)
     console.log(`\nConnecting to: ${metatellUrl}`)
 
     // 設定表示後にログプロバイダーのコンソール出力を制御
