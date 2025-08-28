@@ -19,6 +19,11 @@ export type CommandPlan =
   | { kind: 'help' }
   | { kind: 'quit' }
   | { kind: 'error'; message: string; usage?: string }
+  | { kind: 'voice'; action: 'on' | 'off' | 'status' }
+  | { kind: 'mute' }
+  | { kind: 'testvoice'; duration?: number }
+  | { kind: 'anime'; animationName: string }
+  | { kind: 'stop' }
 
 export interface CommandDefinition {
   command: string
@@ -62,6 +67,18 @@ export const COMMANDS: CommandDefinition[] = [
     command: '/logs',
     description: 'Manage logs',
     usage: '/logs tail|filter <regex>|clear',
+  },
+  {
+    command: '/anime',
+    description: 'Play VRM avatar animation',
+    usage: '/anime <animation_name>',
+    aliases: ['/animation', '/react', '/anim'],
+  },
+  {
+    command: '/stop',
+    description: 'Stop current animation',
+    usage: '/stop',
+    aliases: ['/idle'],
   },
   {
     command: '/help',
@@ -118,6 +135,21 @@ export function parseCommand(input: string): CommandPlan {
 
       case '/logs':
         return parseLogs(parts.slice(1))
+
+      case '/voice':
+        return parseVoice(parts.slice(1))
+
+      case '/mute':
+        return { kind: 'mute' }
+
+      case '/testvoice':
+        return parseTestVoice(parts.slice(1))
+
+      case '/anime':
+        return parseAnime(parts.slice(1))
+
+      case '/stop':
+        return { kind: 'stop' }
 
       case '/help':
         return { kind: 'help' }
@@ -248,6 +280,51 @@ function parseLogs(args: string[]): CommandPlan {
     kind: 'logs',
     subcommand: subcommand as 'tail' | 'filter' | 'clear',
     arg: args[1],
+  }
+}
+
+function parseVoice(args: string[]): CommandPlan {
+  if (args.length === 0) {
+    throw new ParseError('Missing action', '/voice on|off|status')
+  }
+
+  const action = args[0].toLowerCase()
+  if (!['on', 'off', 'status'].includes(action)) {
+    throw new ParseError('Invalid action', '/voice on|off|status')
+  }
+
+  return {
+    kind: 'voice',
+    action: action as 'on' | 'off' | 'status',
+  }
+}
+
+function parseTestVoice(args: string[]): CommandPlan {
+  if (args.length === 0) {
+    return { kind: 'testvoice' }
+  }
+
+  const duration = parseInt(args[0], 10)
+  if (Number.isNaN(duration) || duration < 100 || duration > 5000) {
+    throw new ParseError('Duration must be between 100 and 5000', '/testvoice [duration_ms]')
+  }
+
+  return {
+    kind: 'testvoice',
+    duration,
+  }
+}
+
+function parseAnime(args: string[]): CommandPlan {
+  if (args.length === 0) {
+    throw new ParseError('Missing animation name', '/anime <animation_name>')
+  }
+
+  const animationName = args[0].toLowerCase()
+
+  return {
+    kind: 'anime',
+    animationName,
   }
 }
 

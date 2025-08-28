@@ -76,6 +76,11 @@ export class CommandExecutor {
       users: 'users',
       help: 'help',
       logs: 'logs',
+      voice: 'voice',
+      mute: 'mute',
+      testvoice: 'testvoice',
+      anime: 'anime',
+      stop: 'stop',
     }
 
     const commandName = commandMapping[plan.kind] || plan.kind
@@ -102,6 +107,32 @@ export class CommandExecutor {
         if (plan.kind === 'nearby') {
           args = plan.radius ? [plan.radius.toString()] : []
         }
+        break
+      }
+
+      case 'voice': {
+        if (plan.kind === 'voice') {
+          args = [plan.action]
+        }
+        break
+      }
+
+      case 'testvoice': {
+        if (plan.kind === 'testvoice') {
+          args = plan.duration ? [plan.duration.toString()] : []
+        }
+        break
+      }
+
+      case 'anime': {
+        if (plan.kind === 'anime') {
+          args = [plan.animationName]
+        }
+        break
+      }
+
+      case 'stop': {
+        args = []
         break
       }
 
