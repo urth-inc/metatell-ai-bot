@@ -189,13 +189,14 @@ async function main() {
             }
           }
         } else {
-          throw new Error('No organization avatars found. Cannot start bot without avatar.')
+          mainLogger.warn('No organization avatars found, using fallback avatar')
+          return { avatarId: 'Esajk7B', avatarName: 'Box Sloth (fallback)' }
         }
       } catch (error) {
-        mainLogger.error('Failed to fetch organization avatars:', { error })
-        throw error
+        mainLogger.error('Failed to fetch organization avatars, using fallback avatar:', { error })
+        return { avatarId: 'Esajk7B', avatarName: 'Box Sloth (fallback)' }
       }
-      // ここには達しない
+      // ここには達しない（上記でreturnする）
       throw new Error('Avatar selection failed')
     }
   } else if (avatarSelection && avatarSelection !== avatarId) {
@@ -210,7 +211,7 @@ async function main() {
     hubId: hubId,
     profile: {
       displayName: botName,
-      avatarId: avatarId || '', // 組織アバター選択が必須、空文字列は一時的
+      avatarId: avatarId || 'Esajk7B', // フォールバックアバター
     },
     context: {
       mobile: false,
@@ -260,7 +261,7 @@ async function main() {
   const client = new DefaultAgentClient(factory, {
     profile: {
       displayName: botName,
-      avatarId: avatarId || '', // 組織アバター選択が必須、空文字列は一時的
+      avatarId: avatarId || 'Esajk7B', // フォールバックアバター
     },
     rateLimit: config.rate
       ? {
