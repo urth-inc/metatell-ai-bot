@@ -64,7 +64,6 @@ export interface CommandContext {
   presenceManager: IPresenceManager
   messageService: IMessageService
   logger: Logger
-  client?: AgentClient // Optional for backward compatibility
   // Additional context for CLI commands
   agentClient?: AgentClient
   botConfig?: import('@metatell/sdk').BotConfiguration
