@@ -342,6 +342,9 @@ async function main() {
       globalLoggerProvider.enableConsole(false)
     }
 
+    // ユーザーが情報を確認できるよう少し待機
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+
     // 自動接続
     await client.connect({
       url: metatellUrl,
@@ -353,7 +356,7 @@ async function main() {
 
     // 接続後にコマンドコンテキストのmessageServiceを更新（一時的な回避策）
     // client内部のmessageServiceを使うようにする
-    const clientWithMessageService = client as {
+    const clientWithMessageService = client as unknown as {
       messageService?: typeof commandContext.messageService
     }
     commandContext.messageService =
@@ -365,6 +368,17 @@ async function main() {
     // CLI起動完了を通知
     const { logger: cliLogger } = await import('./utils/logger.js')
     cliLogger.notifyCliStarted?.()
+
+    // CLI起動後にアバター情報を再表示
+    cliLogger.log(
+      `🤖 Connected as: ${botConfig.profile.displayName} (${botConfig.profile.avatarId})`,
+    )
+    if (avatarName) {
+      cliLogger.log(`🎨 Avatar: ${avatarName}`)
+    }
+    if (organizationInfo.organizationId) {
+      cliLogger.log(`🏢 Organization: ${organizationInfo.organizationId}`)
+    }
 
     // デバッグモードの場合は構造化ログのコンソール出力を再有効化
     if (config.debug && globalLoggerProvider) {
