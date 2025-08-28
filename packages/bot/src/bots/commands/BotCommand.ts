@@ -67,8 +67,8 @@ export interface CommandContext {
   client?: AgentClient // Optional for backward compatibility
   // Additional context for CLI commands
   agentClient?: AgentClient
-  botConfig?: any
-  organizationService?: any
+  botConfig?: import('@metatell/sdk').BotConfiguration
+  organizationService?: import('@metatell/sdk').IOrganizationService
 }
 
 /**

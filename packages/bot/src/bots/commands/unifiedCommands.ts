@@ -1,4 +1,4 @@
-import type { PresenceUser, UserAvatar } from '@metatell/sdk'
+import type { UserAvatar } from '@metatell/sdk'
 import type { UnifiedCommand } from './BotCommand.js'
 
 /**
@@ -69,7 +69,7 @@ export const unifiedCommands: UnifiedCommand[] = [
     },
     cliHandler: async (_args, context) => {
       // CLI側ではより詳細な情報を表示（AgentClientがアクセス可能）
-      const agentClient = (context as any).agentClient
+      const agentClient = context.agentClient
       if (!agentClient) {
         return {
           success: false,
@@ -78,19 +78,19 @@ export const unifiedCommands: UnifiedCommand[] = [
       }
 
       const status = agentClient.getStatus()
-      const config = (context as any).botConfig
+      const config = context.botConfig
 
       // 組織情報を取得
       let organizationInfo: { organizationId?: string; realmId?: string } = {}
       try {
-        const organizationService = (context as any).organizationService
+        const organizationService = context.organizationService
         if (organizationService && config?.hubId) {
           organizationInfo = await organizationService.getOrganizationInfo(
             config.hubUrl,
             config.hubId,
           )
         }
-      } catch (error) {
+      } catch (_error) {
         // 組織情報の取得に失敗しても続行
       }
 
@@ -320,7 +320,7 @@ export const unifiedCommands: UnifiedCommand[] = [
       const message = args.join(' ')
       try {
         // AgentClientを使ってメッセージを送信
-        const client = (context as any).agentClient || (context as any).client
+        const client = context.agentClient || context.client
         if (!client) {
           throw new Error('AgentClient not available in context')
         }
@@ -345,7 +345,7 @@ export const unifiedCommands: UnifiedCommand[] = [
     cliAliases: ['voice', 'v'],
     description: 'Control voice features',
     usage: 'voice <on|off|status>',
-    botHandler: async (match, _sessionId, context) => {
+    botHandler: async (match, _sessionId, _context) => {
       const action = match[1].toLowerCase()
 
       switch (action) {
@@ -485,7 +485,7 @@ export const unifiedCommands: UnifiedCommand[] = [
             message: 'Test voice command requires AgentClient context',
           }
         }
-        const duration = args[0] ? parseInt(args[0]) : 1000 // デフォルト1秒
+        const duration = args[0] ? parseInt(args[0], 10) : 1000 // デフォルト1秒
 
         if (Number.isNaN(duration) || duration < 100 || duration > 5000) {
           return {
@@ -528,6 +528,103 @@ export const unifiedCommands: UnifiedCommand[] = [
         return {
           success: false,
           message: `Failed to send test audio: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        }
+      }
+    },
+  },
+
+  // Animation/reaction command
+  {
+    name: 'anime',
+    pattern: /^(anime|animation|react)(?:\s+(.+))?$/i,
+    cliAliases: ['anime', 'animation', 'react', 'anim'],
+    description: 'Play VRM avatar animation',
+    usage: 'anime <animation_name>',
+    botHandler: async (match, _sessionId, context) => {
+      const animationId = match[2]?.trim().toLowerCase()
+
+      if (!animationId) {
+        return '使用方法: anime <animation_name>\n利用可能なアニメーション: wave, dance, nod, bow, clap'
+      }
+
+      try {
+        await context.avatarController.playAnimation(animationId)
+        return `アニメーション「${animationId}」を実行しました 🎭`
+      } catch (error) {
+        context.logger.error('Animation command failed:', error)
+        if (error instanceof Error && error.message.includes('not spawned')) {
+          return 'アバターがスポーンされていません'
+        } else if (error instanceof Error && error.message.includes('not found')) {
+          return `アニメーション「${animationId}」が見つかりません。利用可能なアニメーション: wave, dance, nod, bow, clap`
+        }
+        return `アニメーションの実行に失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    },
+    cliHandler: async (args, context) => {
+      if (args.length === 0) {
+        return {
+          success: false,
+          message: 'Usage: /anime <animation_name>\n例: /anime wave, /anime dance, /anime nod',
+        }
+      }
+
+      const animationId = args[0].toLowerCase()
+
+      try {
+        const result = await context.avatarController.playAnimation(animationId)
+        return {
+          success: true,
+          message: `🎭 アニメーション「${animationId}」を実行しました\n再生ID: ${result.playbackId}${
+            result.expectedDuration ? `\n予想時間: ${result.expectedDuration}ms` : ''
+          }`,
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('not spawned')) {
+          return {
+            success: false,
+            message: 'アバターがスポーンされていません',
+          }
+        } else if (error instanceof Error && error.message.includes('not found')) {
+          return {
+            success: false,
+            message: `アニメーション「${animationId}」が見つかりません。\n\n利用可能なアニメーション例:\n• wave - 手を振る\n• dance - ダンス\n• nod - うなずき\n• bow - お辞儀\n• clap - 拍手`,
+          }
+        }
+        return {
+          success: false,
+          message: `アニメーションの実行に失敗: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        }
+      }
+    },
+  },
+
+  // Stop animation command
+  {
+    name: 'stop',
+    pattern: /^(stop|idle)$/i,
+    cliAliases: ['stop', 'idle'],
+    description: 'Stop current animation and return to idle',
+    usage: 'stop',
+    botHandler: async (_match, _sessionId, context) => {
+      try {
+        await context.avatarController.stopAnimation()
+        return 'アニメーションを停止し、待機状態に戻りました'
+      } catch (error) {
+        context.logger.error('Stop animation failed:', error)
+        return 'アニメーションの停止に失敗しました'
+      }
+    },
+    cliHandler: async (_args, context) => {
+      try {
+        await context.avatarController.stopAnimation()
+        return {
+          success: true,
+          message: '⏹️ アニメーションを停止し、待機状態に戻りました',
+        }
+      } catch (error) {
+        return {
+          success: false,
+          message: `停止に失敗: ${error instanceof Error ? error.message : 'Unknown error'}`,
         }
       }
     },
