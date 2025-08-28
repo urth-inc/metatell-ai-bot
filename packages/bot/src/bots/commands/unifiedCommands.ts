@@ -320,7 +320,7 @@ export const unifiedCommands: UnifiedCommand[] = [
       const message = args.join(' ')
       try {
         // AgentClientを使ってメッセージを送信
-        const client = context.agentClient || context.client
+        const client = context.agentClient
         if (!client) {
           throw new Error('AgentClient not available in context')
         }
