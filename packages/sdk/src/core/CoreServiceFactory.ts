@@ -3,6 +3,8 @@
  * This factory only includes core services needed for the SDK, without any application-specific services
  */
 
+import type { RealtimeTransport } from '@metatell/realtime'
+import { LiveKitAdapter, MockAdapter } from '@metatell/realtime'
 import { getLogger } from '../sdk/logging/index.js'
 import type { IAnimationService } from './interfaces/IAnimationService.js'
 import type { IAppSettings } from './interfaces/IAppSettings.js'
@@ -15,6 +17,7 @@ import type {
 import type { IConnectionManager } from './interfaces/IConnectionManager.js'
 import type { IEventBus } from './interfaces/IEventBus.js'
 import type { IMessageService } from './interfaces/IMessageService.js'
+import type { IOrganizationService } from './interfaces/IOrganizationService.js'
 import type { IPresenceManager } from './interfaces/IPresenceManager.js'
 import type { IUserAvatarManager } from './interfaces/IUserAvatarManager.js'
 import { ServiceContainer } from './ServiceContainer.js'
@@ -24,8 +27,8 @@ import { AuthenticationService } from './services/AuthenticationService.js'
 import { AvatarController } from './services/AvatarController.js'
 import { ConfigurationProvider } from './services/ConfigurationProvider.js'
 import { EventBus } from './services/EventBus.js'
-import { type ILiveKitService, LiveKitService } from './services/LiveKitService.js'
 import { MessageService } from './services/MessageService.js'
+import { OrganizationService } from './services/OrganizationService.js'
 import { PresenceManager } from './services/PresenceManager.js'
 import { UserAvatarManager } from './services/UserAvatarManager.js'
 import { WebSocketConnectionManager } from './services/WebSocketConnectionManager.js'
@@ -46,7 +49,7 @@ export class CoreServiceFactory {
     // Register AppSettings (singleton) - initialized with config if provided
     this.container.register<IAppSettings>(
       'IAppSettings',
-      () => new AppSettings(config?.debug || false, 'info', config?.livekitUrl, config?.apiBaseUrl),
+      () => new AppSettings(config?.debug || false, 'info'),
       { singleton: true },
     )
 
@@ -141,17 +144,25 @@ export class CoreServiceFactory {
       { singleton: true },
     )
 
-    // Register LiveKitService
-    this.container.register<ILiveKitService>(
-      'ILiveKitService',
-      (container) =>
-        new LiveKitService(
-          container.get<IEventBus>('IEventBus'),
-          container.get<IConnectionManager>('IConnectionManager'),
-          container.get<IAppSettings>('IAppSettings'),
-        ),
+    // Register OrganizationService
+    this.container.register<IOrganizationService>(
+      'IOrganizationService',
+      () => new OrganizationService(),
       { singleton: true },
     )
+
+    // Register RealtimeTransport (音声機能が有効な場合のみ)
+    const voiceConfig = config?.voice
+    if (voiceConfig?.enabled) {
+      this.container.register<RealtimeTransport>(
+        'RealtimeTransport',
+        () => {
+          const TransportImpl = voiceConfig.useMock ? MockAdapter : LiveKitAdapter
+          return new TransportImpl()
+        },
+        { singleton: true },
+      )
+    }
   }
 
   public getContainer(): ServiceContainer {

@@ -17,6 +17,7 @@ import { startInkCli } from './cli/startInkCli.js'
 import { type CliArgs, parseCliArgs } from './schemas/cli.js'
 import { FileLogger } from './utils/logging/file-logger.js'
 import { processMetatellUrl } from './utils/metatell-url.js'
+import { fetchOrganizationAvatarsForBot } from './utils/organization-avatar.js'
 
 // Register default logger provider at startup
 // Allow overwrite in case tests already registered one
@@ -117,7 +118,7 @@ async function main() {
   // デフォルト値
   const metatellUrl = config.url || ''
   const botName = config.profile?.displayName || 'AI Assistant'
-  const avatarId = config.profile?.avatarId || 'hsBHyUu2'
+  let avatarId = config.profile?.avatarId || 'Esajk7B'
   const authToken = config.token
   const botAccessKey = config.botAccessKey
 
@@ -138,6 +139,56 @@ async function main() {
   } catch (error) {
     mainLogger.error('Invalid URL format', { url: metatellUrl, error })
     process.exit(1)
+  }
+
+  // 組織アバター選択処理はBotConfigを作成してから、FactoryでOrganizationServiceが利用可能になってから実行
+  const avatarSelection = config.profile?.avatarSelection
+  let pendingAvatarSelection: (() => Promise<{ avatarId: string; avatarName?: string }>) | null =
+    null
+
+  if (avatarSelection && (avatarSelection === 'organization' || avatarSelection === 'random')) {
+    // アバター選択を後で実行するための関数を準備
+    pendingAvatarSelection = async () => {
+      try {
+        const organizationService =
+          factory.getService<import('@metatell/sdk').IOrganizationService>('IOrganizationService')
+        mainLogger.debug('Fetching organization avatars...')
+        const orgAvatars = await fetchOrganizationAvatarsForBot(
+          organizationService,
+          metatellUrl,
+          hubId,
+        )
+
+        if (orgAvatars.length > 0) {
+          const selectedAvatarId = organizationService.selectAvatar(orgAvatars, {
+            avatarId: config.profile?.avatarId,
+            preferRandom: avatarSelection === 'random',
+          })
+
+          if (selectedAvatarId) {
+            const selectedAvatar = orgAvatars.find((a) => a.avatar_id === selectedAvatarId)
+            mainLogger.info('Selected organization avatar:', {
+              avatarId: selectedAvatarId,
+              avatarName: selectedAvatar?.name,
+              method: avatarSelection,
+              availableCount: orgAvatars.length,
+            })
+            return {
+              avatarId: selectedAvatarId,
+              avatarName: selectedAvatar?.name,
+            }
+          }
+        } else {
+          mainLogger.warn('No organization avatars found, using default')
+        }
+      } catch (error) {
+        mainLogger.error('Failed to fetch organization avatars, using default', { error })
+      }
+      return { avatarId } // デフォルトに戻す
+    }
+  } else if (avatarSelection && avatarSelection !== avatarId) {
+    // avatarSelectionに具体的なアバターIDが指定されている場合
+    avatarId = avatarSelection
   }
 
   // Create bot configuration
@@ -215,6 +266,12 @@ async function main() {
       factory.getService<import('@metatell/sdk').IPresenceManager>('IPresenceManager'),
     messageService: factory.getService<import('@metatell/sdk').IMessageService>('IMessageService'),
     logger: getLogger('CLI'),
+    // Additional context for CLI commands
+    client: client,
+    agentClient: client,
+    botConfig: botConfig,
+    organizationService:
+      factory.getService<import('@metatell/sdk').IOrganizationService>('IOrganizationService'),
   }
 
   // デバッグモードの設定はAppSettingsで管理される
@@ -245,8 +302,52 @@ async function main() {
       }, 1000)
     }
 
+    // 組織アバター選択が必要な場合は実行
+    let avatarName: string | undefined
+    let organizationInfo: { organizationId?: string; realmId?: string } = {}
+
+    if (pendingAvatarSelection) {
+      const result = await pendingAvatarSelection()
+      // 選択されたアバターIDでプロファイルを更新
+      botConfig.profile.avatarId = result.avatarId
+      avatarName = result.avatarName
+      // AgentClientも更新が必要
+      const configProvider =
+        factory.getService<import('@metatell/sdk').IConfigurationProvider>('IConfigurationProvider')
+      configProvider.getConfiguration().profile.avatarId = result.avatarId
+    }
+
+    // 組織情報を取得（エラーが出ても続行）
+    try {
+      const organizationService =
+        factory.getService<import('@metatell/sdk').IOrganizationService>('IOrganizationService')
+      organizationInfo = await organizationService.getOrganizationInfo(metatellUrl, hubId)
+    } catch (error) {
+      mainLogger.debug('Failed to get organization info', { error })
+    }
+
+    // 現在の設定を表示
+    cliLogger.log(`🤖 Bot Configuration:`)
+    cliLogger.log(`   Room URL: ${metatellUrl}`)
+    cliLogger.log(`   Hub ID: ${hubId}`)
+    if (organizationInfo.organizationId) {
+      cliLogger.log(`   Organization: ${organizationInfo.organizationId}`)
+    }
+    cliLogger.log(``)
+    cliLogger.log(`👤 Bot Profile:`)
+    cliLogger.log(`   Name: ${botConfig.profile.displayName}`)
+    cliLogger.log(`   Avatar ID: ${botConfig.profile.avatarId}`)
+    if (avatarName) {
+      cliLogger.log(`   Avatar Name: ${avatarName}`)
+    }
+    if (avatarSelection) {
+      cliLogger.log(
+        `   Selection: ${avatarSelection === 'random' ? '🎲 Random' : avatarSelection === 'organization' ? '🏢 Organization Default' : '📌 Specified'}`,
+      )
+    }
+
     // 自動接続（CLIのloggerを使用）
-    cliLogger.log(`Connecting to: ${metatellUrl}`)
+    cliLogger.log(`\nConnecting to: ${metatellUrl}`)
     await client.connect({
       url: metatellUrl,
       serverUrl: socketUrl,
@@ -254,6 +355,10 @@ async function main() {
       hubId: hubId,
       token: authToken,
     })
+
+    // 接続後にコマンドコンテキストのmessageServiceを更新（一時的な回避策）
+    // client内部のmessageServiceを使うようにする
+    commandContext.messageService = (client as any).messageService || commandContext.messageService
   } catch (error) {
     console.error('Failed to start bot:', error)
     process.exit(1)
