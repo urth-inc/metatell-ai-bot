@@ -343,31 +343,17 @@ export class AvatarController implements IAvatarController {
     this.state.currentAnimation = animationId
 
     // v-air_clientと同じ形式でNAFメッセージを構築
-    // vrm-avatar-status-managerコンポーネント（インデックス13）を使用
+    // vrm-avatar-status-managerコンポーネント（インデックス13）のみを送信
     const nafMessage = new NafMessageBuilder()
       .withDataType('um')
       .withNetworkId(this.state.networkId)
       .withOwner(this.sessionId)
       .withCreator(this.sessionId)
+      .withCustomComponent('13', {
+        status: animationId,
+        animationRunId: playbackId,
+      })
       .build()
-
-    // components[13]にアニメーション情報を設定
-    if (nafMessage.data && 'components' in nafMessage.data && nafMessage.data.components) {
-      nafMessage.data.components[13] = {
-        status: animationId,
-        animationRunId: playbackId,
-      }
-    } else if (
-      nafMessage.data &&
-      'd' in nafMessage.data &&
-      nafMessage.data.d &&
-      nafMessage.data.d.length > 0
-    ) {
-      nafMessage.data.d[0].components[13] = {
-        status: animationId,
-        animationRunId: playbackId,
-      }
-    }
 
     // Send via NAFR for reliability
     await this.messageService.sendNAFR(nafMessage)
@@ -420,25 +406,11 @@ export class AvatarController implements IAvatarController {
       .withNetworkId(this.state.networkId)
       .withOwner(this.sessionId)
       .withCreator(this.sessionId)
+      .withCustomComponent('13', {
+        status: 'idle',
+        animationRunId: playbackId,
+      })
       .build()
-
-    // components[13]にアニメーション情報を設定（idleに戻る）
-    if (nafMessage.data && 'components' in nafMessage.data && nafMessage.data.components) {
-      nafMessage.data.components[13] = {
-        status: 'idle',
-        animationRunId: playbackId,
-      }
-    } else if (
-      nafMessage.data &&
-      'd' in nafMessage.data &&
-      nafMessage.data.d &&
-      nafMessage.data.d.length > 0
-    ) {
-      nafMessage.data.d[0].components[13] = {
-        status: 'idle',
-        animationRunId: playbackId,
-      }
-    }
 
     await this.messageService.sendNAFR(nafMessage)
 
@@ -458,6 +430,15 @@ export class AvatarController implements IAvatarController {
     options?: AnimationPlayOptions,
   ): Promise<number | undefined> {
     if (!this.animationService) {
+      return undefined
+    }
+
+    // UUID形式のアニメーションかチェック
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    const isCustomAnimation = uuidRegex.test(animationId)
+
+    // カスタムアニメーション（UUID）の場合はdurationを取得できない
+    if (isCustomAnimation) {
       return undefined
     }
 
