@@ -61,7 +61,8 @@ export function processMetatellUrl(url: string): { serverUrl: string; hubId: str
 
   // Hub IDを取得
   const pathParts = urlObj.pathname.split('/').filter(Boolean)
-  const hubId = pathParts[0]
+  // 'a' プレフィックスをスキップ
+  const hubId = pathParts[0] === 'a' && pathParts.length > 1 ? pathParts[1] : pathParts[0]
 
   if (!hubId) {
     throw new Error('Invalid room URL: hub ID not found')

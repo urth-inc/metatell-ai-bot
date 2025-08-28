@@ -12,11 +12,7 @@ import type {
 import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
-import type {
-  AnimationNAFMessage,
-  AnimationPlaybackResult,
-  AnimationPlayOptions,
-} from '../types/animation.js'
+import type { AnimationPlaybackResult, AnimationPlayOptions } from '../types/animation.js'
 
 // Constants for default values
 const DEFAULT_TEMPLATE = '#remote-avatar'
@@ -341,21 +337,35 @@ export class AvatarController implements IAvatarController {
     this.currentAnimation = animationId
     this.state.currentAnimation = animationId
 
-    // Build animation NAF message
-    const animationMessage: AnimationNAFMessage = {
-      dataType: 'animation',
-      data: {
-        networkId: this.state.networkId,
-        owner: this.sessionId,
-        animationId,
-        playbackId,
-        options,
-        timestamp,
-      },
+    // v-air_clientと同じ形式でNAFメッセージを構築
+    // vrm-avatar-status-managerコンポーネント（インデックス13）を使用
+    const nafMessage = new NafMessageBuilder()
+      .withDataType('um')
+      .withNetworkId(this.state.networkId)
+      .withOwner(this.sessionId)
+      .withCreator(this.sessionId)
+      .build()
+
+    // components[13]にアニメーション情報を設定
+    if (nafMessage.data && 'components' in nafMessage.data && nafMessage.data.components) {
+      nafMessage.data.components[13] = {
+        status: animationId,
+        animationRunId: playbackId,
+      }
+    } else if (
+      nafMessage.data &&
+      'd' in nafMessage.data &&
+      nafMessage.data.d &&
+      nafMessage.data.d.length > 0
+    ) {
+      nafMessage.data.d[0].components[13] = {
+        status: animationId,
+        animationRunId: playbackId,
+      }
     }
 
     // Send via NAFR for reliability
-    await this.messageService.sendNAFR(animationMessage)
+    await this.messageService.sendNAFR(nafMessage)
 
     // Emit event
     this.eventBus.emit('animation:played', {
@@ -397,25 +407,42 @@ export class AvatarController implements IAvatarController {
     this.currentAnimation = null
     this.state.currentAnimation = undefined
 
-    // Send stop animation message
-    const stopMessage: AnimationNAFMessage = {
-      dataType: 'animation',
-      data: {
-        networkId: this.state.networkId,
-        owner: this.sessionId,
-        animationId: 'idle', // Return to idle animation
-        playbackId: uuidv4(),
-        timestamp: Date.now(),
-      },
+    const playbackId = uuidv4()
+
+    // v-air_clientと同じ形式でNAFメッセージを構築
+    const nafMessage = new NafMessageBuilder()
+      .withDataType('um')
+      .withNetworkId(this.state.networkId)
+      .withOwner(this.sessionId)
+      .withCreator(this.sessionId)
+      .build()
+
+    // components[13]にアニメーション情報を設定（idleに戻る）
+    if (nafMessage.data && 'components' in nafMessage.data && nafMessage.data.components) {
+      nafMessage.data.components[13] = {
+        status: 'idle',
+        animationRunId: playbackId,
+      }
+    } else if (
+      nafMessage.data &&
+      'd' in nafMessage.data &&
+      nafMessage.data.d &&
+      nafMessage.data.d.length > 0
+    ) {
+      nafMessage.data.d[0].components[13] = {
+        status: 'idle',
+        animationRunId: playbackId,
+      }
     }
 
-    await this.messageService.sendNAFR(stopMessage)
+    await this.messageService.sendNAFR(nafMessage)
 
     this.eventBus.emit('animation:stopped', {
-      previousAnimation: this.currentAnimation,
+      animationId: 'idle',
+      playbackId,
     })
 
-    this.logger.debug('Animation stopped')
+    this.logger.info('Animation stopped, returned to idle')
   }
 
   /**
