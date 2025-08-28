@@ -207,7 +207,7 @@ export const unifiedCommands: UnifiedCommand[] = [
     description: 'Look at a position or user',
     usage: 'look <x> <y> <z> or look @<username>',
     botHandler: async (match, _sessionId, context) => {
-      if (!match[1]) {
+      if (!match[1] && !match[2]) {
         return 'Usage: look <x> <y> <z> or look @<username>'
       }
 
