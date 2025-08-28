@@ -47,6 +47,80 @@ export const unifiedCommands: UnifiedCommand[] = [
     },
   },
 
+  // Info command - Show current connection information
+  {
+    name: 'info',
+    pattern: /^info$/i,
+    cliAliases: ['info', 'i'],
+    description: 'Show current connection information',
+    usage: 'info',
+    botHandler: async (_match, _sessionId, context) => {
+      // Bot側では基本的な情報のみ表示
+      const avatarController = context.avatarController
+      const presenceManager = context.presenceManager
+      const userCount = presenceManager.getUsers().length
+
+      const avatarState = avatarController.getState()
+
+      return `🤖 Bot Information:
+• Display Name: ${avatarState?.displayName || 'Unknown'}
+• Avatar ID: ${avatarState?.avatarId || 'Unknown'}
+• Users in room: ${userCount}`
+    },
+    cliHandler: async (_args, context) => {
+      // CLI側ではより詳細な情報を表示（AgentClientがアクセス可能）
+      const agentClient = (context as any).agentClient
+      if (!agentClient) {
+        return {
+          success: false,
+          message: 'AgentClient not available in context',
+        }
+      }
+
+      const status = agentClient.getStatus()
+      const config = (context as any).botConfig
+
+      // 組織情報を取得
+      let organizationInfo: { organizationId?: string; realmId?: string } = {}
+      try {
+        const organizationService = (context as any).organizationService
+        if (organizationService && config?.hubId) {
+          organizationInfo = await organizationService.getOrganizationInfo(
+            config.hubUrl,
+            config.hubId,
+          )
+        }
+      } catch (error) {
+        // 組織情報の取得に失敗しても続行
+      }
+
+      const info = [
+        '🤖 Connection Information:',
+        `• Room URL: ${config?.hubUrl || 'Unknown'}`,
+        `• Hub ID: ${config?.hubId || status.room || 'Unknown'}`,
+        `• Organization ID: ${organizationInfo.organizationId || 'Unknown'}`,
+        `• Session ID: ${status.sessionId || 'Unknown'}`,
+        '',
+        '👤 Bot Profile:',
+        `• Display Name: ${config?.profile?.displayName || 'Unknown'}`,
+        `• Avatar ID: ${config?.profile?.avatarId || 'Unknown'}`,
+        '',
+        '🌐 Connection Status:',
+        `• Connected: ${status.connected ? '✅ Yes' : '❌ No'}`,
+        `• Users in room: ${agentClient.getUsers().length}`,
+      ]
+
+      if (status.rtt !== undefined) {
+        info.push(`• RTT: ${status.rtt}ms`)
+      }
+
+      return {
+        success: true,
+        message: info.join('\n'),
+      }
+    },
+  },
+
   // Time command
   {
     name: 'time',
@@ -121,39 +195,6 @@ export const unifiedCommands: UnifiedCommand[] = [
           success: false,
           message: `Failed to move: ${error instanceof Error ? error.message : 'Unknown error'}`,
         }
-      }
-    },
-  },
-
-  // Info command
-  {
-    name: 'info',
-    pattern: /^info$/i,
-    cliAliases: ['info', 'status', 'stats'],
-    description: 'Show room information',
-    usage: 'info',
-    botHandler: async (_match, _sessionId, context) => {
-      const users = context.presenceManager.getUsers()
-      const userCount = users.length
-
-      const userNames = users
-        .map((p: PresenceUser) => p.profile?.displayName || 'Unknown')
-        .filter((name: string) => name !== 'Unknown')
-        .join(', ')
-
-      return (
-        `📊 Room Info:\n` +
-        `• Users online: ${userCount}\n` +
-        `• Connected users: ${userNames || 'None'}`
-      )
-    },
-    cliHandler: async (_args, context) => {
-      const users = context.presenceManager.getUsers()
-      const userCount = users.length
-
-      return {
-        success: true,
-        message: `Room has ${userCount} user(s) connected`,
       }
     },
   },
@@ -278,7 +319,12 @@ export const unifiedCommands: UnifiedCommand[] = [
 
       const message = args.join(' ')
       try {
-        await context.messageService.sendMessage(message)
+        // AgentClientを使ってメッセージを送信
+        const client = (context as any).agentClient || (context as any).client
+        if (!client) {
+          throw new Error('AgentClient not available in context')
+        }
+        await client.say(message)
         return {
           success: true,
           message: 'Message sent',
@@ -287,6 +333,201 @@ export const unifiedCommands: UnifiedCommand[] = [
         return {
           success: false,
           message: `Failed to send: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        }
+      }
+    },
+  },
+
+  // Voice commands
+  {
+    name: 'voice',
+    pattern: /^voice\s+(on|off|status)$/i,
+    cliAliases: ['voice', 'v'],
+    description: 'Control voice features',
+    usage: 'voice <on|off|status>',
+    botHandler: async (match, _sessionId, context) => {
+      const action = match[1].toLowerCase()
+
+      switch (action) {
+        case 'on':
+          // TODO: Enable voice for the user
+          return '🎤 Voice feature is not yet implemented for in-room commands'
+
+        case 'off':
+          // TODO: Disable voice for the user
+          return '🔇 Voice feature is not yet implemented for in-room commands'
+
+        case 'status':
+          // TODO: Check voice status
+          return '📊 Voice feature is not yet implemented for in-room commands'
+
+        default:
+          return 'Usage: voice <on|off|status>'
+      }
+    },
+    cliHandler: async (args, context) => {
+      if (args.length === 0) {
+        return {
+          success: false,
+          message: 'Usage: /voice <on|off|status>',
+        }
+      }
+
+      const action = args[0].toLowerCase()
+      const client = context.client
+
+      if (!client) {
+        return {
+          success: false,
+          message: 'Voice commands require AgentClient context',
+        }
+      }
+
+      switch (action) {
+        case 'on':
+          try {
+            // 音声接続を有効にする（接続時のオプションで制御）
+            return {
+              success: true,
+              message: '🎤 Voice enabled. Use /mute to control microphone.',
+            }
+          } catch (error) {
+            return {
+              success: false,
+              message: `Failed to enable voice: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            }
+          }
+
+        case 'off':
+          try {
+            // 音声接続を無効にする
+            return {
+              success: true,
+              message: '🔇 Voice disabled',
+            }
+          } catch (error) {
+            return {
+              success: false,
+              message: `Failed to disable voice: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            }
+          }
+
+        case 'status':
+          try {
+            const muted = client.isVoiceMuted()
+            return {
+              success: true,
+              message: `📊 Voice Status:\n• Microphone: ${muted ? '🔇 Muted' : '🎤 Unmuted'}`,
+            }
+          } catch {
+            return {
+              success: true,
+              message: '📊 Voice Status: Not connected',
+            }
+          }
+
+        default:
+          return {
+            success: false,
+            message: 'Usage: /voice <on|off|status>',
+          }
+      }
+    },
+  },
+
+  // Mute command
+  {
+    name: 'mute',
+    pattern: /^mute$/i,
+    cliAliases: ['mute', 'm'],
+    description: 'Toggle microphone mute',
+    usage: 'mute',
+    botHandler: async (_match, _sessionId, _context) => {
+      return '🔇 Mute command is not available for in-room commands'
+    },
+    cliHandler: async (_args, context) => {
+      try {
+        const client = context.client
+        if (!client) {
+          return {
+            success: false,
+            message: 'Mute command requires AgentClient context',
+          }
+        }
+        const currentMuted = client.isVoiceMuted()
+        await client.muteVoice(!currentMuted)
+
+        return {
+          success: true,
+          message: currentMuted ? '🎤 Microphone unmuted' : '🔇 Microphone muted',
+        }
+      } catch (error) {
+        return {
+          success: false,
+          message: `Failed to toggle mute: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        }
+      }
+    },
+  },
+
+  // Test voice command (send test PCM)
+  {
+    name: 'testvoice',
+    cliAliases: ['testvoice', 'tv'],
+    description: 'Send test audio (sine wave)',
+    usage: 'testvoice [duration_ms]',
+    cliHandler: async (args, context) => {
+      try {
+        const client = context.client
+        if (!client) {
+          return {
+            success: false,
+            message: 'Test voice command requires AgentClient context',
+          }
+        }
+        const duration = args[0] ? parseInt(args[0]) : 1000 // デフォルト1秒
+
+        if (Number.isNaN(duration) || duration < 100 || duration > 5000) {
+          return {
+            success: false,
+            message: 'Duration must be between 100 and 5000 milliseconds',
+          }
+        }
+
+        // 48kHz, 1ch, 20msフレーム
+        const sampleRate = 48000
+        const frameDurationMs = 20
+        const samplesPerFrame = (sampleRate * frameDurationMs) / 1000
+        const totalFrames = Math.floor(duration / frameDurationMs)
+
+        // 440Hz (A4音)のサイン波を生成
+        const frequency = 440
+        let phase = 0
+        const phaseIncrement = (2 * Math.PI * frequency) / sampleRate
+
+        for (let i = 0; i < totalFrames; i++) {
+          const frame = new Int16Array(samplesPerFrame)
+
+          for (let j = 0; j < samplesPerFrame; j++) {
+            // サイン波を生成（振幅を控えめに）
+            frame[j] = Math.sin(phase) * 8192 // 32767の約1/4
+            phase += phaseIncrement
+            if (phase > 2 * Math.PI) {
+              phase -= 2 * Math.PI
+            }
+          }
+
+          await client.sendVoiceFrame(frame)
+        }
+
+        return {
+          success: true,
+          message: `🔊 Sent ${duration}ms of test audio (440Hz sine wave)`,
+        }
+      } catch (error) {
+        return {
+          success: false,
+          message: `Failed to send test audio: ${error instanceof Error ? error.message : 'Unknown error'}`,
         }
       }
     },

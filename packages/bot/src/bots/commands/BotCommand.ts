@@ -47,6 +47,7 @@ export interface BotCommand extends UnifiedCommand {
 }
 
 import type {
+  AgentClient,
   IAvatarController,
   IMessageService,
   IPresenceManager,
@@ -63,6 +64,11 @@ export interface CommandContext {
   presenceManager: IPresenceManager
   messageService: IMessageService
   logger: Logger
+  client?: AgentClient // Optional for backward compatibility
+  // Additional context for CLI commands
+  agentClient?: AgentClient
+  botConfig?: any
+  organizationService?: any
 }
 
 /**
