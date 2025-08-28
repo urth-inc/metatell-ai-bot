@@ -3,7 +3,7 @@
 import './websocket-polyfill.js'
 import {
   type BotConfiguration,
-  createAgentClient,
+  DefaultAgentClient,
   DefaultLoggerProvider,
   getLogger,
   registerLoggerProvider,
@@ -19,9 +19,13 @@ import { FileLogger } from './utils/logging/file-logger.js'
 import { processMetatellUrl } from './utils/metatell-url.js'
 import { fetchOrganizationAvatarsForBot } from './utils/organization-avatar.js'
 
+// グローバルLoggerProviderインスタンス（重複を避けるため）
+let globalLoggerProvider: DefaultLoggerProvider | null = null
+
 // Register default logger provider at startup
 // Allow overwrite in case tests already registered one
-registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
+globalLoggerProvider = new DefaultLoggerProvider()
+registerLoggerProvider(globalLoggerProvider, { allowOverwrite: true })
 
 async function main() {
   // デバッグフラグを早期に検出してログを初期化
@@ -29,14 +33,16 @@ async function main() {
   let debugLogPath: string | undefined
 
   if (hasDebugFlag) {
-    // デバッグログを最初に初期化
-    const provider = new DefaultLoggerProvider()
-    provider.setLogLevel('debug')
+    // 既存のproviderインスタンスを再利用
+    if (!globalLoggerProvider) {
+      globalLoggerProvider = new DefaultLoggerProvider()
+      registerLoggerProvider(globalLoggerProvider, { allowOverwrite: true })
+    }
+    globalLoggerProvider.setLogLevel('debug')
     const fileLogger = new FileLogger()
-    provider.registerSink(fileLogger)
+    globalLoggerProvider.registerSink(fileLogger)
     debugLogPath = fileLogger.getFilePath()
-    provider.enableConsole(false) // CLIモードではコンソールを無効化
-    registerLoggerProvider(provider, { allowOverwrite: true })
+    globalLoggerProvider.enableConsole(false) // CLIモードではコンソールを無効化
 
     const debugLogger = getLogger('Main')
     debugLogger.info('Debug logging initialized', {
@@ -241,8 +247,8 @@ async function main() {
     }
   })
 
-  // AgentClient を作成
-  const client = createAgentClient(botConfig, {
+  // AgentClient を作成（既存のfactoryを使用してサービスの重複を避ける）
+  const client = new DefaultAgentClient(factory, {
     profile: {
       displayName: botName,
       avatarId,
@@ -286,22 +292,6 @@ async function main() {
   process.on('SIGTERM', shutdown)
 
   try {
-    // CLI を起動
-    const _cliApp = startInkCli(client, commandContext)
-
-    // CLI起動完了を通知
-    const { logger: cliLogger } = await import('./utils/logger.js')
-    cliLogger.notifyCliStarted?.()
-
-    // デバッグモードの場合、ログファイルパスを表示（CLIのloggerを使用）
-    if (debugLogPath) {
-      cliLogger.log(`📝 Debug logging enabled: ${debugLogPath}`)
-      // 少し待ってからも表示（CLIが安定してから）
-      setTimeout(() => {
-        cliLogger.log(`Debug logs are being written to: ${debugLogPath}`)
-      }, 1000)
-    }
-
     // 組織アバター選択が必要な場合は実行
     let avatarName: string | undefined
     let organizationInfo: { organizationId?: string; realmId?: string } = {}
@@ -326,28 +316,33 @@ async function main() {
       mainLogger.debug('Failed to get organization info', { error })
     }
 
-    // 現在の設定を表示
-    cliLogger.log(`🤖 Bot Configuration:`)
-    cliLogger.log(`   Room URL: ${metatellUrl}`)
-    cliLogger.log(`   Hub ID: ${hubId}`)
+    // 現在の設定を表示（ログプロバイダーを無効化する前に実行）
+    console.log(`🤖 Bot Configuration:`)
+    console.log(`   Room URL: ${metatellUrl}`)
+    console.log(`   Hub ID: ${hubId}`)
     if (organizationInfo.organizationId) {
-      cliLogger.log(`   Organization: ${organizationInfo.organizationId}`)
+      console.log(`   Organization: ${organizationInfo.organizationId}`)
     }
-    cliLogger.log(``)
-    cliLogger.log(`👤 Bot Profile:`)
-    cliLogger.log(`   Name: ${botConfig.profile.displayName}`)
-    cliLogger.log(`   Avatar ID: ${botConfig.profile.avatarId}`)
+    console.log(``)
+    console.log(`👤 Bot Profile:`)
+    console.log(`   Name: ${botConfig.profile.displayName}`)
+    console.log(`   Avatar ID: ${botConfig.profile.avatarId}`)
     if (avatarName) {
-      cliLogger.log(`   Avatar Name: ${avatarName}`)
+      console.log(`   Avatar Name: ${avatarName}`)
     }
     if (avatarSelection) {
-      cliLogger.log(
+      console.log(
         `   Selection: ${avatarSelection === 'random' ? '🎲 Random' : avatarSelection === 'organization' ? '🏢 Organization Default' : '📌 Specified'}`,
       )
     }
+    console.log(`\nConnecting to: ${metatellUrl}`)
 
-    // 自動接続（CLIのloggerを使用）
-    cliLogger.log(`\nConnecting to: ${metatellUrl}`)
+    // 設定表示後にログプロバイダーのコンソール出力を制御
+    if (globalLoggerProvider) {
+      globalLoggerProvider.enableConsole(false)
+    }
+
+    // 自動接続
     await client.connect({
       url: metatellUrl,
       serverUrl: socketUrl,
@@ -358,7 +353,29 @@ async function main() {
 
     // 接続後にコマンドコンテキストのmessageServiceを更新（一時的な回避策）
     // client内部のmessageServiceを使うようにする
-    commandContext.messageService = (client as any).messageService || commandContext.messageService
+    const clientWithMessageService = client as {
+      messageService?: typeof commandContext.messageService
+    }
+    commandContext.messageService =
+      clientWithMessageService.messageService || commandContext.messageService
+
+    // CLI を起動（接続後に起動）
+    const _cliApp = startInkCli(client, commandContext)
+
+    // CLI起動完了を通知
+    const { logger: cliLogger } = await import('./utils/logger.js')
+    cliLogger.notifyCliStarted?.()
+
+    // デバッグモードの場合は構造化ログのコンソール出力を再有効化
+    if (config.debug && globalLoggerProvider) {
+      globalLoggerProvider.enableConsole(true)
+    }
+
+    // デバッグモードの場合、ログファイルパスを表示
+    if (debugLogPath) {
+      // CLIのloggerで表示
+      cliLogger.log(`📝 Debug logging enabled: ${debugLogPath}`)
+    }
   } catch (error) {
     console.error('Failed to start bot:', error)
     process.exit(1)
