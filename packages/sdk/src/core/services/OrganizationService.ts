@@ -26,7 +26,27 @@ interface RealmResponse {
 }
 
 interface OrganizationAvatarsResponse {
-  avatars: OrganizationAvatar[]
+  status: string
+  result: Array<{
+    id: string
+    name: string
+    url: string
+    type: string
+    allow_remixing: boolean
+    attributions: { creator: string }
+    description: string | null
+    gltf: {
+      avatar: string
+      base: string
+    }
+    images: {
+      preview: {
+        url: string
+        height: number
+        width: number
+      }
+    }
+  }>
 }
 
 export class OrganizationService implements IOrganizationService {
@@ -78,20 +98,56 @@ export class OrganizationService implements IOrganizationService {
 
       const endpoint = `${url.origin}${apiPath}/organizations/${organizationId}/avatars/public`
 
-      this.logger.debug('Fetching organization avatars', { endpoint })
+      this.logger.debug('Fetching organization avatars', {
+        hubUrl,
+        organizationId,
+        hostname: url.hostname,
+        apiPath,
+        endpoint,
+      })
 
       const response = await fetch(endpoint)
 
+      this.logger.debug('Organization avatars API response', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+      })
+
       if (!response.ok) {
+        const errorText = await response.text()
+        this.logger.error('Organization avatars API failed', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText,
+        })
         throw new Error(
-          `Failed to fetch organization avatars: ${response.status} ${response.statusText}`,
+          `Failed to fetch organization avatars: ${response.status} ${response.statusText} - ${errorText}`,
         )
       }
 
       const data = (await response.json()) as OrganizationAvatarsResponse
-      return data.avatars || []
+
+      // APIレスポンスをOrganizationAvatar形式に変換
+      const avatars: OrganizationAvatar[] = (data.result || []).map((item) => ({
+        avatar_id: item.id,
+        name: item.name,
+        url: item.gltf.avatar,
+        preview_url: item.images.preview.url,
+      }))
+
+      this.logger.debug('Organization avatars data received', {
+        avatarCount: avatars.length,
+        avatars: avatars.map((a) => ({ id: a.avatar_id, name: a.name })),
+      })
+
+      return avatars
     } catch (error) {
-      this.logger.error('Error fetching organization avatars:', { error })
+      this.logger.error('Error fetching organization avatars:', {
+        hubUrl,
+        organizationId,
+        error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+      })
       throw error
     }
   }
@@ -101,6 +157,7 @@ export class OrganizationService implements IOrganizationService {
     options?: {
       avatarId?: string
       preferRandom?: boolean
+      organizationId?: string
     },
   ): string | null {
     if (!avatars || avatars.length === 0) {
@@ -115,10 +172,20 @@ export class OrganizationService implements IOrganizationService {
       }
     }
 
-    // ランダム選択またはデフォルトで最初のアバター
+    // ランダム選択の場合
     if (options?.preferRandom) {
       const randomIndex = Math.floor(Math.random() * avatars.length)
       return avatars[randomIndex].avatar_id
+    }
+
+    // 組織名を含むアバターを優先選択
+    if (options?.organizationId) {
+      const preferredAvatar = avatars.find((a) =>
+        a.name.toLowerCase().includes(options.organizationId?.toLowerCase()),
+      )
+      if (preferredAvatar) {
+        return preferredAvatar.avatar_id
+      }
     }
 
     // デフォルトは最初のアバター

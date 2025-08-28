@@ -12,8 +12,10 @@ export interface OrganizationInfo {
 export interface OrganizationAvatar {
   avatar_id: string
   name: string
+  url: string
   thumbnail_url?: string
   description?: string
+  preview_url?: string
 }
 
 /**
@@ -38,6 +40,7 @@ export interface IOrganizationService {
     options?: {
       avatarId?: string
       preferRandom?: boolean
+      organizationId?: string
     },
   ): string | null
 }

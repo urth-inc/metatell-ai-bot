@@ -17,7 +17,6 @@ import { startInkCli } from './cli/startInkCli.js'
 import { type CliArgs, parseCliArgs } from './schemas/cli.js'
 import { FileLogger } from './utils/logging/file-logger.js'
 import { processMetatellUrl } from './utils/metatell-url.js'
-import { fetchOrganizationAvatarsForBot } from './utils/organization-avatar.js'
 
 // グローバルLoggerProviderインスタンス（重複を避けるため）
 let globalLoggerProvider: DefaultLoggerProvider | null = null
@@ -149,12 +148,12 @@ async function main() {
 
   // アバター選択処理はBotConfigを作成してから、FactoryでOrganizationServiceが利用可能になってから実行
   const avatarSelection = config.profile?.avatarSelection
-  let pendingAvatarSelection: (() => Promise<{ avatarId: string; avatarName?: string }>) | null =
-    null
+  let pendingAvatarSelection:
+    | (() => Promise<{ avatarId: string; avatarName?: string; avatarUrl?: string }>)
+    | null = null
 
-  // アバターIDが指定されていない場合、組織アバターから選択する
-  const shouldSelectFromOrganization =
-    !avatarId || avatarSelection === 'organization' || avatarSelection === 'random'
+  // 組織アバターから選択する（必須）
+  const shouldSelectFromOrganization = true
 
   if (shouldSelectFromOrganization) {
     // アバター選択を後で実行するための関数を準備
@@ -162,17 +161,37 @@ async function main() {
       try {
         const organizationService =
           factory.getService<import('@metatell/sdk').IOrganizationService>('IOrganizationService')
-        mainLogger.debug('Fetching organization avatars...')
-        const orgAvatars = await fetchOrganizationAvatarsForBot(
-          organizationService,
+
+        // 組織情報を先に取得してデバッグ情報を出力
+        mainLogger.debug('Getting organization info for avatar selection...', {
           metatellUrl,
           hubId,
+        })
+        const orgInfo = await organizationService.getOrganizationInfo(metatellUrl, hubId)
+        mainLogger.debug('Organization info retrieved:', orgInfo)
+
+        mainLogger.debug('Fetching organization avatars...', {
+          metatellUrl,
+          organizationId: orgInfo.organizationId,
+        })
+        // 組織アバターAPIではテナントサブドメインを除去したベースURLを使用
+        const { serverUrl } = processMetatellUrl(metatellUrl)
+        const baseUrl = serverUrl.replace('wss://', 'https://') // WebSocketURLをHTTPSに変換
+        mainLogger.debug('Using base URL for organization avatars API:', {
+          original: metatellUrl,
+          baseUrl,
+        })
+
+        const orgAvatars = await organizationService.fetchOrganizationAvatars(
+          baseUrl,
+          orgInfo.organizationId,
         )
 
         if (orgAvatars.length > 0) {
           const selectedAvatarId = organizationService.selectAvatar(orgAvatars, {
             avatarId: config.profile?.avatarId,
-            preferRandom: avatarSelection === 'random',
+            preferRandom: !config.profile?.avatarId, // アバターID未指定時はランダム選択
+            organizationId: orgInfo.organizationId,
           })
 
           if (selectedAvatarId) {
@@ -186,15 +205,15 @@ async function main() {
             return {
               avatarId: selectedAvatarId,
               avatarName: selectedAvatar?.name,
+              avatarUrl: selectedAvatar?.url,
             }
           }
         } else {
-          mainLogger.warn('No organization avatars found, using fallback avatar')
-          return { avatarId: 'Esajk7B', avatarName: 'Box Sloth (fallback)' }
+          throw new Error('No organization avatars found')
         }
       } catch (error) {
-        mainLogger.error('Failed to fetch organization avatars, using fallback avatar:', { error })
-        return { avatarId: 'Esajk7B', avatarName: 'Box Sloth (fallback)' }
+        mainLogger.error('Failed to fetch organization avatars:', { error })
+        throw error
       }
       // ここには達しない（上記でreturnする）
       throw new Error('Avatar selection failed')
@@ -211,7 +230,7 @@ async function main() {
     hubId: hubId,
     profile: {
       displayName: botName,
-      avatarId: avatarId || 'Esajk7B', // フォールバックアバター
+      avatarId: '', // 一時的な値、組織アバター選択で設定される
     },
     context: {
       mobile: false,
@@ -257,49 +276,14 @@ async function main() {
     }
   })
 
-  // AgentClient を作成（既存のfactoryを使用してサービスの重複を避ける）
-  const client = new DefaultAgentClient(factory, {
-    profile: {
-      displayName: botName,
-      avatarId: avatarId || 'Esajk7B', // フォールバックアバター
-    },
-    rateLimit: config.rate
-      ? {
-          messages: config.rate.messagesPerSec,
-          moves: config.rate.movesPerSec,
-          looks: config.rate.looksPerSec,
-        }
-      : undefined,
-  })
+  // AgentClient作成は組織アバター選択後に行う
 
-  // Create command context for CLI with proper typing
-  const commandContext: CommandContext = {
-    avatarController:
-      factory.getService<import('@metatell/sdk').IAvatarController>('IAvatarController'),
-    userAvatarManager:
-      factory.getService<import('@metatell/sdk').IUserAvatarManager>('IUserAvatarManager'),
-    presenceManager:
-      factory.getService<import('@metatell/sdk').IPresenceManager>('IPresenceManager'),
-    messageService: factory.getService<import('@metatell/sdk').IMessageService>('IMessageService'),
-    logger: getLogger('CLI'),
-    // Additional context for CLI commands
-    client: client,
-    agentClient: client,
-    botConfig: botConfig,
-    organizationService:
-      factory.getService<import('@metatell/sdk').IOrganizationService>('IOrganizationService'),
-  }
+  // CommandContextはAgentClient作成後に設定
 
   // デバッグモードの設定はAppSettingsで管理される
 
-  // Handle shutdown gracefully
-  const shutdown = async () => {
-    await client.disconnect()
-    process.exit(0)
-  }
-
-  process.on('SIGINT', shutdown)
-  process.on('SIGTERM', shutdown)
+  // clientの宣言（後で初期化）
+  let client: DefaultAgentClient
 
   try {
     // 組織アバター選択が必要な場合は実行
@@ -309,13 +293,76 @@ async function main() {
     if (pendingAvatarSelection) {
       const result = await pendingAvatarSelection()
       // 選択されたアバターIDでプロファイルを更新
+      if (!result.avatarId) {
+        mainLogger.error('Avatar selection failed: no avatar ID returned')
+        process.exit(1)
+      }
       botConfig.profile.avatarId = result.avatarId
       avatarName = result.avatarName
       // AgentClientも更新が必要
       const configProvider =
         factory.getService<import('@metatell/sdk').IConfigurationProvider>('IConfigurationProvider')
       configProvider.getConfiguration().profile.avatarId = result.avatarId
+
+      // 組織アバターの場合はGLTF URLも設定
+      if (result.avatarUrl) {
+        mainLogger.debug('Organization avatar GLTF URL:', result.avatarUrl)
+        // AvatarControllerに直接GLTF URLを渡す準備
+        const avatarController =
+          factory.getService<import('@metatell/sdk').IAvatarController>('IAvatarController')
+        // 接続後にavatarUrlを使ってspawnするため一時保存
+        ;(avatarController as any)._organizationAvatarUrl = result.avatarUrl
+      }
     }
+
+    // アバターIDが設定されていることを確認
+    if (!botConfig.profile.avatarId) {
+      mainLogger.error('Avatar ID is required but not set')
+      process.exit(1)
+    }
+
+    // 組織アバター選択完了後にAgentClientを作成
+    client = new DefaultAgentClient(factory, {
+      profile: {
+        displayName: botName,
+        avatarId: botConfig.profile.avatarId, // 正しく設定されたavatarIdを使用
+      },
+      rateLimit: config.rate
+        ? {
+            messages: config.rate.messagesPerSec,
+            moves: config.rate.movesPerSec,
+            looks: config.rate.looksPerSec,
+          }
+        : undefined,
+    })
+
+    // Create command context for CLI with proper typing
+    const commandContext: CommandContext = {
+      avatarController:
+        factory.getService<import('@metatell/sdk').IAvatarController>('IAvatarController'),
+      userAvatarManager:
+        factory.getService<import('@metatell/sdk').IUserAvatarManager>('IUserAvatarManager'),
+      presenceManager:
+        factory.getService<import('@metatell/sdk').IPresenceManager>('IPresenceManager'),
+      messageService:
+        factory.getService<import('@metatell/sdk').IMessageService>('IMessageService'),
+      logger: getLogger('CLI'),
+      // Additional context for CLI commands
+      client: client,
+      agentClient: client,
+      botConfig: botConfig,
+      organizationService:
+        factory.getService<import('@metatell/sdk').IOrganizationService>('IOrganizationService'),
+    }
+
+    // Handle shutdown gracefully
+    const shutdown = async () => {
+      await client.disconnect()
+      process.exit(0)
+    }
+
+    process.on('SIGINT', shutdown)
+    process.on('SIGTERM', shutdown)
 
     // 組織情報を取得（エラーが出ても続行）
     try {
