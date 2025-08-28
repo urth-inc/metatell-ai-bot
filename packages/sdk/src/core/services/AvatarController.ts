@@ -53,11 +53,8 @@ export class AvatarController implements IAvatarController {
     // Determine avatar source URL
     let finalAvatarSrc: string
     if (avatarSrc) {
-      // Use provided avatar source URL
+      // Use provided avatar source URL (organization avatar GLTF URLs are passed here)
       finalAvatarSrc = avatarSrc
-    } else if ((this as any)._organizationAvatarUrl) {
-      // Use pre-stored organization avatar URL from API
-      finalAvatarSrc = (this as any)._organizationAvatarUrl
     } else if (this.isOrganizationAvatar(avatarId)) {
       // Organization avatar (UUID format) - use hub URL as fallback
       const hubUrl = new URL(config.hubUrl || '')
