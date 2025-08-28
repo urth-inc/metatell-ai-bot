@@ -83,6 +83,7 @@ export class ConsoleLogger implements Logger {
   // CLI起動の通知
   notifyCliStarted(): void {
     this.cliStarted = true
+    // CLI開始時に構造化ログのコンソール出力を有効化（デバッグモードの場合のみ）
     const provider = getLoggerProvider()
     if (provider?.enableConsole) {
       provider.enableConsole(this.debugEnabled)
@@ -114,15 +115,36 @@ export class ConsoleLogger implements Logger {
 
   debug(message: string, data?: unknown): void {
     if (!this.debugEnabled) return
-    this.getStructuredLogger().debug(message, data)
+    // CLI開始前のみコンソールに直接出力、開始後は構造化ログに委譲
+    if (!this.cliStarted) {
+      const timestamp = new Date().toISOString()
+      const dataStr = data ? ` ${JSON.stringify(data)}` : ''
+      console.debug(`[${timestamp}] [DEBUG] [CLI] ${message}${dataStr}`)
+    } else {
+      this.getStructuredLogger().debug(message, data)
+    }
   }
 
   log(message: string, data?: unknown): void {
-    this.getStructuredLogger().info(message, data)
+    // CLI開始前のみコンソールに直接出力、開始後は構造化ログに委譲
+    if (!this.cliStarted) {
+      const timestamp = new Date().toISOString()
+      const dataStr = data ? ` ${JSON.stringify(data)}` : ''
+      console.info(`[${timestamp}] [INFO] [CLI] ${message}${dataStr}`)
+    } else {
+      this.getStructuredLogger().info(message, data)
+    }
   }
 
   error(message: string, data?: unknown): void {
-    this.getStructuredLogger().error(message, data)
+    // CLI開始前のみコンソールに直接出力、開始後は構造化ログに委譲
+    if (!this.cliStarted) {
+      const timestamp = new Date().toISOString()
+      const dataStr = data ? ` ${JSON.stringify(data)}` : ''
+      console.error(`[${timestamp}] [ERROR] [CLI] ${message}${dataStr}`)
+    } else {
+      this.getStructuredLogger().error(message, data)
+    }
   }
 
   setDebugMode(enabled: boolean): void {
