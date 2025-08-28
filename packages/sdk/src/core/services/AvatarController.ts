@@ -50,8 +50,13 @@ export class AvatarController implements IAvatarController {
     const networkId = this.sessionId
     const spawnPosition = position || { x: 0, y: 0.2, z: 0 }
 
-    // Get storage URL from config or use default
-    const storageUrl = config.storageUrl || 'https://storage.metatell.app:443'
+    // Get storage URL from config or determine from hubUrl
+    let storageUrl = config.storageUrl
+    if (!storageUrl && config.hubUrl) {
+      storageUrl = this.determineStorageUrl(config.hubUrl)
+    }
+    // Fallback to default if still not set
+    storageUrl = storageUrl || 'https://storage.metatell.app:443'
 
     // Update internal state
     this.state = {
@@ -101,6 +106,29 @@ export class AvatarController implements IAvatarController {
     // Emit event
     this.eventBus.emit(SystemEvents.AVATAR_SPAWNED, this.state)
     this.logger.debug(`✅ Avatar spawned with ID: ${avatarId}`)
+  }
+
+  /**
+   * Determine storage URL based on hub URL environment
+   */
+  private determineStorageUrl(hubUrl: string): string {
+    try {
+      const url = new URL(hubUrl)
+      const hostname = url.hostname
+
+      // Map hub domains to storage domains
+      if (hostname.includes('metatell-stg.app') || hostname.includes('-stg.')) {
+        return 'https://storage.metatell-stg.app:443'
+      } else if (hostname.includes('metatell-dev.app') || hostname.includes('-dev.')) {
+        return 'https://storage.metatell-dev.app:443'
+      } else {
+        // Production or default
+        return 'https://storage.metatell.app:443'
+      }
+    } catch (error) {
+      this.logger.warn('Failed to parse hub URL for storage URL determination', { hubUrl, error })
+      return 'https://storage.metatell.app:443'
+    }
   }
 
   async move(position: Position): Promise<void> {
