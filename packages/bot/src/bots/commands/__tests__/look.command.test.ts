@@ -1,9 +1,20 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import type {
+  IAvatarController,
+  IEventBus,
+  IMessageService,
+  IPresenceManager,
+  UserAvatar,
+} from '@metatell/sdk'
 import { DefaultLoggerProvider, registerLoggerProvider } from '@metatell/sdk'
-import type { IAvatarController, IEventBus, IMessageService, IPresenceManager } from '@metatell/sdk'
-import type { UserAvatar } from '@metatell/sdk'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CommandContext } from '../BotCommand.js'
 import { unifiedCommands } from '../unifiedCommands.js'
+
+interface MockUserAvatarManager {
+  getUsers: () => UserAvatar[]
+  getUser: (sessionId: string) => UserAvatar | undefined
+  getUsersInRange: (position: { x: number; y: number; z: number }, radius: number) => UserAvatar[]
+}
 
 /**
  * Tests for the /look command functionality
@@ -24,7 +35,7 @@ const mockAvatarController: IAvatarController = {
   stopAnimation: vi.fn(),
 }
 
-const mockUserAvatarManager = {
+const mockUserAvatarManager: MockUserAvatarManager = {
   getUsers: vi.fn(),
   getUser: vi.fn(),
   getUsersInRange: vi.fn(),
@@ -64,7 +75,7 @@ const mockLogger = {
 
 const mockContext: CommandContext = {
   avatarController: mockAvatarController,
-  userAvatarManager: mockUserAvatarManager as any,
+  userAvatarManager: mockUserAvatarManager,
   presenceManager: mockPresenceManager,
   eventBus: mockEventBus,
   messageService: mockMessageService,
@@ -74,7 +85,8 @@ const mockContext: CommandContext = {
 }
 
 describe('/look Command', () => {
-  const lookCommand = unifiedCommands.find(cmd => cmd.name === 'look')!
+  const lookCommand = unifiedCommands.find((cmd) => cmd.name === 'look')
+  if (!lookCommand) throw new Error('Look command not found')
   const sessionId = 'test-session-id'
 
   beforeAll(() => {
@@ -83,7 +95,7 @@ describe('/look Command', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     // Mock avatar state
     vi.mocked(mockAvatarController.getState).mockReturnValue({
       networkId: 'test-network',
@@ -101,7 +113,8 @@ describe('/look Command', () => {
   describe('Bot Handler', () => {
     it('should show usage when no arguments provided', async () => {
       const match = ['look']
-      const result = await lookCommand.botHandler!(match, sessionId, mockContext)
+      if (!lookCommand.botHandler) throw new Error('Bot handler not found')
+      const result = await lookCommand.botHandler(match, sessionId, mockContext)
 
       expect(result).toContain('Usage: look <x> <y> <z> or look @<username>')
     })
@@ -110,7 +123,8 @@ describe('/look Command', () => {
       // Pattern: /^look(?:\s+(?:(@?\S+)|(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)))?$/i
       // Groups: [full_match, group1_@user_or_x, group2_x, group3_y, group4_z]
       const match = ['look 1.0 2.0 3.0', undefined, '1.0', '2.0', '3.0']
-      const result = await lookCommand.botHandler!(match, sessionId, mockContext)
+      if (!lookCommand.botHandler) throw new Error('Bot handler not found')
+      const result = await lookCommand.botHandler(match, sessionId, mockContext)
 
       // Verify rotation was called with correct quaternion
       expect(mockAvatarController.rotate).toHaveBeenCalledWith(
@@ -119,7 +133,7 @@ describe('/look Command', () => {
           y: expect.any(Number), // sin(yaw/2)
           z: 0,
           w: expect.any(Number), // cos(yaw/2)
-        })
+        }),
       )
 
       expect(result).toContain('Looking at (1.0, 2.0, 3.0)')
@@ -138,7 +152,8 @@ describe('/look Command', () => {
       vi.mocked(mockUserAvatarManager.getUsers).mockReturnValue([testUser])
 
       const match = ['look @testuser', '@testuser']
-      const result = await lookCommand.botHandler!(match, sessionId, mockContext)
+      if (!lookCommand.botHandler) throw new Error('Bot handler not found')
+      const result = await lookCommand.botHandler(match, sessionId, mockContext)
 
       expect(mockAvatarController.rotate).toHaveBeenCalled()
       expect(result).toContain('Looking at (5.0, 1.6, 10.0)')
@@ -148,7 +163,8 @@ describe('/look Command', () => {
       vi.mocked(mockUserAvatarManager.getUsers).mockReturnValue([])
 
       const match = ['look @nonexistent', '@nonexistent']
-      const result = await lookCommand.botHandler!(match, sessionId, mockContext)
+      if (!lookCommand.botHandler) throw new Error('Bot handler not found')
+      const result = await lookCommand.botHandler(match, sessionId, mockContext)
 
       expect(mockAvatarController.rotate).not.toHaveBeenCalled()
       expect(result).toContain('User "nonexistent" not found')
@@ -156,8 +172,9 @@ describe('/look Command', () => {
 
     it('should handle invalid coordinates', async () => {
       // Invalid input that doesn't match the regex would return null, but let's test invalid coordinates that do match
-      const match = ['look abc def ghi', undefined, 'abc', 'def', 'ghi']  
-      const result = await lookCommand.botHandler!(match, sessionId, mockContext)
+      const match = ['look abc def ghi', undefined, 'abc', 'def', 'ghi']
+      if (!lookCommand.botHandler) throw new Error('Bot handler not found')
+      const result = await lookCommand.botHandler(match, sessionId, mockContext)
 
       expect(mockAvatarController.rotate).not.toHaveBeenCalled()
       expect(result).toContain('Invalid coordinates')
@@ -168,7 +185,8 @@ describe('/look Command', () => {
 
       // match[1] is undefined for coordinates, so we need to check match[2], match[3], match[4]
       const match = ['look 1 2 3', undefined, '1', '2', '3']
-      const result = await lookCommand.botHandler!(match, sessionId, mockContext)
+      if (!lookCommand.botHandler) throw new Error('Bot handler not found')
+      const result = await lookCommand.botHandler(match, sessionId, mockContext)
 
       expect(mockAvatarController.rotate).not.toHaveBeenCalled()
       expect(result).toBe('Bot avatar not spawned')
@@ -178,7 +196,8 @@ describe('/look Command', () => {
       vi.mocked(mockAvatarController.rotate).mockRejectedValue(new Error('Rotation failed'))
 
       const match = ['look 1 2 3', undefined, '1', '2', '3']
-      const result = await lookCommand.botHandler!(match, sessionId, mockContext)
+      if (!lookCommand.botHandler) throw new Error('Bot handler not found')
+      const result = await lookCommand.botHandler(match, sessionId, mockContext)
 
       expect(mockLogger.error).toHaveBeenCalledWith('Look command failed:', expect.any(Error))
       expect(result).toBe('Failed to rotate avatar')
@@ -188,11 +207,14 @@ describe('/look Command', () => {
   describe('CLI Handler', () => {
     const cliContext = {
       ...mockContext,
-      agentClient: { /* mock agent client */ },
+      agentClient: {
+        /* mock agent client */
+      },
     }
 
     it('should show usage when no arguments provided', async () => {
-      const result = await lookCommand.cliHandler!([], cliContext)
+      if (!lookCommand.cliHandler) throw new Error('CLI handler not found')
+      const result = await lookCommand.cliHandler([], cliContext)
 
       expect(result.success).toBe(false)
       expect(result.message).toContain('Usage: /look <x> <y> <z> or /look @<username>')
@@ -200,7 +222,8 @@ describe('/look Command', () => {
 
     it('should handle coordinate-based look via CLI', async () => {
       const args = ['1.5', '2.5', '3.5']
-      const result = await lookCommand.cliHandler!(args, cliContext)
+      if (!lookCommand.cliHandler) throw new Error('CLI handler not found')
+      const result = await lookCommand.cliHandler(args, cliContext)
 
       expect(result.success).toBe(true)
       expect(result.message).toContain('Looking at (1.5, 2.5, 3.5)')
@@ -219,7 +242,8 @@ describe('/look Command', () => {
       vi.mocked(mockUserAvatarManager.getUsers).mockReturnValue([testUser])
 
       const args = ['@TestUser']
-      const result = await lookCommand.cliHandler!(args, cliContext)
+      if (!lookCommand.cliHandler) throw new Error('CLI handler not found')
+      const result = await lookCommand.cliHandler(args, cliContext)
 
       expect(result.success).toBe(true)
       expect(result.message).toContain('Looking at (-2.0, 1.6, 8.0)')
@@ -227,7 +251,8 @@ describe('/look Command', () => {
 
     it('should handle invalid argument count', async () => {
       const args = ['1', '2'] // Missing z coordinate
-      const result = await lookCommand.cliHandler!(args, cliContext)
+      if (!lookCommand.cliHandler) throw new Error('CLI handler not found')
+      const result = await lookCommand.cliHandler(args, cliContext)
 
       expect(result.success).toBe(false)
       expect(result.message).toContain('Usage: /look <x> <y> <z> or /look @<username>')
@@ -237,7 +262,8 @@ describe('/look Command', () => {
       vi.mocked(mockAvatarController.rotate).mockRejectedValue(new Error('Network error'))
 
       const args = ['0', '0', '0']
-      const result = await lookCommand.cliHandler!(args, cliContext)
+      if (!lookCommand.cliHandler) throw new Error('CLI handler not found')
+      const result = await lookCommand.cliHandler(args, cliContext)
 
       expect(result.success).toBe(false)
       expect(result.message).toContain('Failed to rotate: Network error')
@@ -247,11 +273,12 @@ describe('/look Command', () => {
   describe('Quaternion Rotation Calculation', () => {
     it('should calculate correct rotation for positive X direction', async () => {
       const match = ['look 10 0 0', undefined, '10', '0', '0']
-      
-      await lookCommand.botHandler!(match, sessionId, mockContext)
+
+      if (!lookCommand.botHandler) throw new Error('Bot handler not found')
+      await lookCommand.botHandler(match, sessionId, mockContext)
 
       const rotationCall = vi.mocked(mockAvatarController.rotate).mock.calls[0][0]
-      
+
       // Looking towards positive X should result in Y rotation (yaw) of π/2
       const expectedYaw = Math.PI / 2
       const expectedSinHalfYaw = Math.sin(expectedYaw / 2)
@@ -265,11 +292,12 @@ describe('/look Command', () => {
 
     it('should calculate correct rotation for negative Z direction', async () => {
       const match = ['look 0 0 -5', undefined, '0', '0', '-5']
-      
-      await lookCommand.botHandler!(match, sessionId, mockContext)
+
+      if (!lookCommand.botHandler) throw new Error('Bot handler not found')
+      await lookCommand.botHandler(match, sessionId, mockContext)
 
       const rotationCall = vi.mocked(mockAvatarController.rotate).mock.calls[0][0]
-      
+
       // Looking towards negative Z should result in Y rotation (yaw) of π
       const expectedYaw = Math.PI
       const expectedSinHalfYaw = Math.sin(expectedYaw / 2)
@@ -305,7 +333,8 @@ describe('/look Command', () => {
 
       // Test lowercase search finding uppercase nickname
       const match = ['look @alice', '@alice']
-      const result = await lookCommand.botHandler!(match, sessionId, mockContext)
+      if (!lookCommand.botHandler) throw new Error('Bot handler not found')
+      const result = await lookCommand.botHandler(match, sessionId, mockContext)
 
       expect(result).toContain('Looking at (1.0, 1.0, 1.0)')
     })
@@ -324,7 +353,8 @@ describe('/look Command', () => {
       vi.mocked(mockUserAvatarManager.getUsers).mockReturnValue(testUsers)
 
       const match = ['look @super', '@super']
-      const result = await lookCommand.botHandler!(match, sessionId, mockContext)
+      if (!lookCommand.botHandler) throw new Error('Bot handler not found')
+      const result = await lookCommand.botHandler(match, sessionId, mockContext)
 
       expect(result).toContain('Looking at (7.0, 8.0, 9.0)')
     })
