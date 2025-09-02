@@ -16,7 +16,7 @@ export const LogPane: React.FC<LogPaneProps> = ({ logs, filterRegex, height }) =
   const { stdout } = useStdout()
   const columns = stdout?.columns || 80
 
-  // フィルタリングとフォーマット
+  // Filtering and formatting
   const processedLogs = useMemo(() => {
     let filtered = logs
     if (filterRegex) {
@@ -25,31 +25,31 @@ export const LogPane: React.FC<LogPaneProps> = ({ logs, filterRegex, height }) =
 
     return filtered.map((log) => ({
       ...log,
-      lines: wrapText(formatLogMessage(log), columns - 4), // パディング分を引く
+      lines: wrapText(formatLogMessage(log), columns - 4), // Subtract padding
     }))
   }, [logs, filterRegex, columns])
 
-  // 表示する行数を計算
+  // Calculate number of lines to display
   const visibleLines = useMemo(() => {
     const lines: Array<{ log: LogRecord; line: string; isFirst: boolean }> = []
     let totalLines = 0
 
-    // 最新のログから逆順に処理
+    // Process from newest logs in reverse order
     for (let i = processedLogs.length - 1; i >= 0 && totalLines < height; i--) {
       const log = processedLogs[i]
-      const logLines = log.lines.slice().reverse() // 各ログ内の行も逆順に
+      const logLines = log.lines.slice().reverse() // Reverse lines within each log too
 
       for (let j = 0; j < logLines.length && totalLines < height; j++) {
         lines.unshift({
           log: log,
           line: logLines[j],
-          isFirst: j === logLines.length - 1, // 元の順序での最初の行
+          isFirst: j === logLines.length - 1, // First line in original order
         })
         totalLines++
       }
     }
 
-    // 隠れているメッセージ数を計算
+    // Calculate number of hidden messages
     const hiddenCount = logs.length - processedLogs.length
     const hasMore = totalLines < processedLogs.reduce((sum, log) => sum + log.lines.length, 0)
 
@@ -72,7 +72,7 @@ export const LogPane: React.FC<LogPaneProps> = ({ logs, filterRegex, height }) =
   }
 
   const getLogColor = (_level: string): string | undefined => {
-    // 色は使わない（ユーザーの要望により）
+    // No colors (as per user request)
     return undefined
   }
 
@@ -139,7 +139,7 @@ function wrapText(text: string, width: number): string[] {
         lines.push(currentLine)
         currentLine = word
       } else {
-        // 単語が幅より長い場合は強制的に分割
+        // Force split if word is longer than width
         let remaining = word
         while (remaining.length > 0) {
           lines.push(remaining.substring(0, width))

@@ -14,7 +14,7 @@ const SimpleCliTest: React.FC = () => {
   useEffect(() => {
     console.log('SimpleCliTest useEffect running')
 
-    // 明示的にログを追加
+    // Explicitly add logs
     const testLogs: LogEntry[] = [
       {
         id: 'test-1',
@@ -58,7 +58,7 @@ const SimpleCliTest: React.FC = () => {
   )
 }
 
-// 直接実行できるようにする（ESM対応）
+// Allow direct execution (ESM support)
 if (import.meta.url === `file://${process.argv[1]}`) {
   const app = render(<SimpleCliTest />)
   setTimeout(() => {

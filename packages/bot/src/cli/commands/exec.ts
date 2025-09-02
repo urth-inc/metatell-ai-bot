@@ -109,7 +109,7 @@ export class CommandExecutor {
           } else if (plan.target.type === 'user') {
             args = [`@${plan.target.id}`]
           } else if (plan.target.type === 'nearest') {
-            // nearestはサポートされていない
+            // nearest is not supported
             args = []
           }
         }

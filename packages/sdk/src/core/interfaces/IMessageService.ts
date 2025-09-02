@@ -7,7 +7,7 @@ export interface Message {
   timestamp?: number
 }
 
-// Legacy NAF message interface (for backward compatibility)
+// NAF message interface
 export interface NAFMessage {
   dataType: string
   data: unknown

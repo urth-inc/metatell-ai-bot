@@ -72,14 +72,14 @@ export class ConfigManager {
 
         const validatedData = result.output
 
-        // メイン設定
+        // Main configuration
         if (validatedData.url) this.config.url = validatedData.url
         if (validatedData.token) this.config.token = validatedData.token
         if (validatedData.profile) this.config.profile = validatedData.profile
         if (validatedData.rate) this.config.rate = validatedData.rate
         if (validatedData.debug !== undefined) this.config.debug = validatedData.debug
 
-        // プロファイル
+        // Profile
         if (validatedData.profiles) {
           Object.entries(validatedData.profiles).forEach(([name, profile]) => {
             this.profiles.set(name, { name, ...profile })
@@ -142,7 +142,7 @@ export class ConfigManager {
 
     const result: Config = { ...this.config }
 
-    // プロファイルの適用
+    // Apply profile
     if (flags['--profile'] && typeof flags['--profile'] === 'string') {
       const profile = this.profiles.get(flags['--profile'])
       if (profile) {
@@ -150,7 +150,7 @@ export class ConfigManager {
       }
     }
 
-    // フラグによる上書き
+    // Override with flags
     if (flags['--url'] && typeof flags['--url'] === 'string') {
       result.url = flags['--url']
     }

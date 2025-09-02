@@ -2,7 +2,7 @@ import type { BotCommand, UnifiedCommand } from './BotCommand.js'
 import { unifiedCommands } from './unifiedCommands.js'
 
 /**
- * Convert unified commands to legacy BotCommand format for backward compatibility
+ * Convert unified commands to BotCommand format
  */
 export const defaultCommands: BotCommand[] = unifiedCommands
   .filter(

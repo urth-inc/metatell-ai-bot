@@ -3,7 +3,7 @@
  * This factory only includes core services needed for the SDK, without any application-specific services
  */
 
-import { LiveKitAdapter, MockAdapter } from '@metatell/realtime'
+// Realtime adapters are registered by the consuming package to avoid circular dependencies
 import { getLogger } from '../sdk/logging/index.js'
 // 型安全な実装のために、インターフェースとトークンの両方をインポート
 import { AnimationService as AnimationServiceToken } from './interfaces/IAnimationService.js'
@@ -121,16 +121,7 @@ export class CoreServiceFactory {
       )
       .register(OrganizationServiceToken, () => new OrganizationServiceImpl())
 
-    // Conditional registration for voice features
-
-    const voiceConfig = config?.voice
-    if (voiceConfig?.enabled) {
-      if (voiceConfig.useMock) {
-        this.container.register(MockAdapter, () => new MockAdapter())
-      } else {
-        this.container.register(LiveKitAdapter, () => new LiveKitAdapter())
-      }
-    }
+    // Voice adapters are registered by consuming packages to avoid circular dependencies
   }
 
   public getContainer(): ServiceContainer {
