@@ -1,3 +1,4 @@
+import { ServiceIdentifier } from '../ServiceIdentifier.js'
 import type { VRMAnimation } from '../types/animation.js'
 
 /**
@@ -36,3 +37,6 @@ export interface IAnimationService {
    */
   clearCache(): void
 }
+
+// Service identifier token for dependency injection
+export abstract class AnimationService extends ServiceIdentifier<IAnimationService> {}

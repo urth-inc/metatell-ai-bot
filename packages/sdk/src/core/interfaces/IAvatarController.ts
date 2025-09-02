@@ -1,3 +1,4 @@
+import { ServiceIdentifier } from '../ServiceIdentifier.js'
 import type { AnimationPlaybackResult, AnimationPlayOptions } from '../types/animation.js'
 
 export interface Position {
@@ -58,3 +59,6 @@ export interface IAvatarController {
    */
   stopAnimation(): Promise<void>
 }
+
+// Service identifier token for dependency injection
+export abstract class AvatarController extends ServiceIdentifier<IAvatarController> {}

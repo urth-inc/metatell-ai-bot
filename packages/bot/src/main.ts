@@ -2,11 +2,23 @@
 
 import './websocket-polyfill.js'
 import {
+  AppSettings,
+  AvatarController,
   type BotConfiguration,
   DefaultAgentClient,
   DefaultLoggerProvider,
   getLogger,
+  type IAppSettings,
+  type IAvatarController,
+  type IMessageService,
+  type IOrganizationService,
+  type IPresenceManager,
+  type IUserAvatarManager,
+  MessageService,
+  OrganizationService,
+  PresenceManager,
   registerLoggerProvider,
+  UserAvatarManager,
 } from '@metatell/sdk'
 import { Command } from 'commander'
 import * as v from 'valibot'
@@ -265,7 +277,7 @@ async function main() {
   let avatarInfoDisplayed = false
 
   // AppSettingsを取得してLoggingシステムを設定
-  const appSettings = factory.getService<import('@metatell/sdk').IAppSettings>('IAppSettings')
+  const appSettings = factory.getService(AppSettings) as IAppSettings
 
   // デバッグモードの場合はAppSettingsも更新
   if (config.debug) {
@@ -328,20 +340,15 @@ async function main() {
 
     // Create command context for CLI with proper typing
     const commandContext: CommandContext = {
-      avatarController:
-        factory.getService<import('@metatell/sdk').IAvatarController>('IAvatarController'),
-      userAvatarManager:
-        factory.getService<import('@metatell/sdk').IUserAvatarManager>('IUserAvatarManager'),
-      presenceManager:
-        factory.getService<import('@metatell/sdk').IPresenceManager>('IPresenceManager'),
-      messageService:
-        factory.getService<import('@metatell/sdk').IMessageService>('IMessageService'),
+      avatarController: factory.getService(AvatarController) as IAvatarController,
+      userAvatarManager: factory.getService(UserAvatarManager) as IUserAvatarManager,
+      presenceManager: factory.getService(PresenceManager) as IPresenceManager,
+      messageService: factory.getService(MessageService) as IMessageService,
       logger: getLogger('CLI'),
       // Additional context for CLI commands
       agentClient: client,
       botConfig: botConfig,
-      organizationService:
-        factory.getService<import('@metatell/sdk').IOrganizationService>('IOrganizationService'),
+      organizationService: factory.getService(OrganizationService) as IOrganizationService,
     }
 
     // Handle shutdown gracefully
