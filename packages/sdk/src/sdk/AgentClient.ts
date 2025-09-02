@@ -10,16 +10,17 @@ import {
   AnimationPlaybackError,
   AvatarNotSpawnedError,
 } from '../core/errors/animation-errors.js'
-import type { IAnimationService } from '../core/interfaces/IAnimationService.js'
-import type { IAvatarController } from '../core/interfaces/IAvatarController.js'
-import type {
-  BotConfiguration,
-  BotVoiceConfig,
-  IConfigurationProvider,
-} from '../core/interfaces/IConfigurationProvider.js'
-import type { IConnectionManager } from '../core/interfaces/IConnectionManager.js'
-import type { IMessageService } from '../core/interfaces/IMessageService.js'
+import { AnimationService, type IAnimationService } from '../core/interfaces/IAnimationService.js'
+import { AvatarController, type IAvatarController } from '../core/interfaces/IAvatarController.js'
+import type { BotConfiguration, BotVoiceConfig } from '../core/interfaces/IConfigurationProvider.js'
+import { ConfigurationProvider } from '../core/interfaces/IConfigurationProvider.js'
+import {
+  ConnectionManager,
+  type IConnectionManager,
+} from '../core/interfaces/IConnectionManager.js'
+import { type IMessageService, MessageService } from '../core/interfaces/IMessageService.js'
 import type { IUserAvatarManager, UserAvatar } from '../core/interfaces/IUserAvatarManager.js'
+import { UserAvatarManager } from '../core/interfaces/IUserAvatarManager.js'
 import { getLogger } from './logging/index.js'
 import { RateLimitedQueue } from './rate.js'
 
@@ -169,25 +170,21 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
     super()
     this.factory = factory
     // コアサービスインターフェースのみに依存
-    this.avatarController = factory.getService('IAvatarController') as IAvatarController
-    this.messageService = factory.getService('IMessageService') as IMessageService
-    this.userAvatarManager = factory.getService('IUserAvatarManager') as IUserAvatarManager
-    this.connectionManager = factory.getService('IConnectionManager') as IConnectionManager
+    this.avatarController = factory.getService(AvatarController)
+    this.messageService = factory.getService(MessageService)
+    this.userAvatarManager = factory.getService(UserAvatarManager)
+    this.connectionManager = factory.getService(ConnectionManager)
 
     // Optional services
     try {
-      this.animationService = factory.getService('IAnimationService') as IAnimationService
+      this.animationService = factory.getService(AnimationService)
     } catch {
       // Animation service is optional
       this.logger.debug('Animation service not available')
     }
 
-    try {
-      this.realtimeTransport = factory.getService('RealtimeTransport') as RealtimeTransport
-    } catch {
-      // RealtimeTransport service is optional
-      this.logger.debug('RealtimeTransport service not available')
-    }
+    // RealtimeTransport は実装クラスで登録されているため、直接取得できない
+    // 将来的にはインターフェーストークンを作成すべき
 
     // Setup event handlers for user join
     this.setupEventHandlers()
@@ -271,9 +268,7 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
       })
 
       // Get avatar configuration and spawn
-      const configProvider = this.factory.getService(
-        'IConfigurationProvider',
-      ) as IConfigurationProvider
+      const configProvider = this.factory.getService(ConfigurationProvider)
       const config = configProvider.getConfiguration()
 
       if (config.profile.avatarId) {
@@ -513,7 +508,7 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
       return []
     }
 
-    const config = this.factory.getService('IConfigurationProvider') as IConfigurationProvider
+    const config = this.factory.getService(ConfigurationProvider)
     const avatarId = config.getConfiguration().profile.avatarId
 
     if (!avatarId) {

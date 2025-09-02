@@ -1,7 +1,12 @@
+import { MockAdapter } from '@metatell/realtime'
 import { describe, expect, it, vi } from 'vitest'
 import { CoreServiceFactory } from '../core/CoreServiceFactory.js'
 import type { BotConfiguration } from '../core/interfaces/IConfigurationProvider.js'
 import { createAgentClient } from './AgentClient.js'
+import { DefaultLoggerProvider, registerLoggerProvider } from './logging/index.js'
+
+// Register logger provider for tests
+registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
 
 describe('AgentClient Voice Integration', () => {
   it('should handle voice-disabled configuration', async () => {
@@ -45,7 +50,7 @@ describe('AgentClient Voice Integration', () => {
     const _client = createAgentClient(factory)
 
     // MockAdapterが使用される
-    const transport = factory.getService('RealtimeTransport')
+    const transport = factory.getService(MockAdapter)
     expect(transport).toBeDefined()
   })
 
