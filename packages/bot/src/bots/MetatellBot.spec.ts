@@ -178,7 +178,7 @@ describe('MetatellBot', () => {
       await messageHandler({ body: '@TestBot info', session_id: 'user-123' })
 
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
-        expect.stringContaining('Room Info:'),
+        expect.stringContaining('Bot Information:'),
       )
     })
 
@@ -453,8 +453,9 @@ describe('MetatellBot', () => {
       const messageHandler = onCalls[0][1] as MessageHandler
       await messageHandler({ body: '@TestBot info', session_id: 'user-123' })
 
-      const expectedMessage = expect.stringContaining('Users online: 2')
-      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(expectedMessage)
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Users in room: 2'),
+      )
     })
 
     it('should handle bot names with spaces correctly', async () => {
@@ -512,7 +513,7 @@ describe('MetatellBot', () => {
       await messageHandler({ body: '@TestBot info', session_id: 'user-123' })
 
       expect(mockMessageService.sendMessage).toHaveBeenCalledWith(
-        expect.stringContaining('Connected users: None'),
+        expect.stringContaining('Users in room: 1'),
       )
     })
   })

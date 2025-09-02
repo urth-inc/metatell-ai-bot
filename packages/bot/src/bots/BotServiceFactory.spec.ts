@@ -1,4 +1,10 @@
-import { type BotConfiguration, DefaultLoggerProvider, registerLoggerProvider } from '@metatell/sdk'
+import {
+  type BotConfiguration,
+  ConfigurationProvider,
+  DefaultLoggerProvider,
+  EventBus,
+  registerLoggerProvider,
+} from '@metatell/sdk'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { BotServiceFactory } from './BotServiceFactory.js'
 import { MetatellBot } from './MetatellBot.js'
@@ -31,25 +37,25 @@ describe('BotServiceFactory', () => {
 
     it('should extend CoreServiceFactory', () => {
       // Check that core services are available
-      const configProvider = factory.getService('IConfigurationProvider')
+      const configProvider = factory.getService(ConfigurationProvider)
       expect(configProvider).toBeDefined()
 
-      const eventBus = factory.getService('IEventBus')
+      const eventBus = factory.getService(EventBus)
       expect(eventBus).toBeDefined()
     })
   })
 
   describe('service container', () => {
     it('should create MetatellBot instance from container', () => {
-      const bot = factory.getService<MetatellBot>('MetatellBot')
+      const bot = factory.getService(MetatellBot)
 
       expect(bot).toBeDefined()
       expect(bot).toBeInstanceOf(MetatellBot)
     })
 
     it('should create singleton MetatellBot', () => {
-      const bot1 = factory.getService<MetatellBot>('MetatellBot')
-      const bot2 = factory.getService<MetatellBot>('MetatellBot')
+      const bot1 = factory.getService(MetatellBot)
+      const bot2 = factory.getService(MetatellBot)
 
       expect(bot1).toBe(bot2)
     })
@@ -58,21 +64,21 @@ describe('BotServiceFactory', () => {
       const container = factory.getContainer()
       expect(container).toBeDefined()
 
-      const bot = container.get<MetatellBot>('MetatellBot')
+      const bot = container.get(MetatellBot)
       expect(bot).toBeInstanceOf(MetatellBot)
     })
   })
 
   describe('service registration', () => {
     it('should register MetatellBot service', () => {
-      const bot = factory.getService('MetatellBot')
+      const bot = factory.getService(MetatellBot)
 
       expect(bot).toBeDefined()
       expect(bot).toBeInstanceOf(MetatellBot)
     })
 
     it('should provide bot with all required dependencies', () => {
-      const bot = factory.getService<MetatellBot>('MetatellBot')
+      const bot = factory.getService(MetatellBot)
 
       // Bot should be properly initialized
       // We can't easily test internal dependencies without exposing them,
@@ -86,7 +92,7 @@ describe('BotServiceFactory', () => {
 
   describe('configuration', () => {
     it('should pass configuration to core services', () => {
-      const configProvider = factory.getService('IConfigurationProvider')
+      const configProvider = factory.getService(ConfigurationProvider)
       const actualConfig = configProvider.getConfiguration()
 
       expect(actualConfig.serverUrl).toBe(config.serverUrl)
