@@ -41,11 +41,34 @@ interface MetatellConfig {
   profile?: {
     displayName: string  // Display name in the room
     avatarId?: string   // Avatar identifier
+    avatarSelection?: 'random' | 'organization' | string  // Avatar selection method
   }
   context?: object       // Additional context data
   sessionToken?: string  // Session token for reconnection
   debug?: boolean       // Enable debug logging
 }
+```
+
+### Avatar Selection
+
+The bot supports multiple avatar selection methods:
+
+1. **Specific Avatar ID**: Set `avatarId` to use a specific avatar
+2. **Organization Avatar**: Set `avatarSelection: 'organization'` to use the first avatar from your organization
+3. **Random Organization Avatar**: Set `avatarSelection: 'random'` to randomly select from organization avatars
+4. **Direct Avatar ID**: Set `avatarSelection` to a specific avatar ID
+
+Environment variable support:
+- `AVATAR_ID`: Specific avatar ID
+- `AVATAR_SELECTION`: Can be 'random', 'organization', or a specific avatar ID
+
+Example:
+```bash
+# Use random organization avatar
+AVATAR_SELECTION=random npm start https://urth.metatell-stg.app/hubId/
+
+# Use specific avatar
+AVATAR_ID=hsBHyUu2 npm start https://urth.metatell-stg.app/hubId/
 ```
 
 ## API Reference

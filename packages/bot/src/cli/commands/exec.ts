@@ -71,11 +71,16 @@ export class CommandExecutor {
       status: 'info',
       say: 'say',
       move: 'move',
-      look: 'nearby',
+      look: 'look',
       nearby: 'nearby',
       users: 'users',
       help: 'help',
       logs: 'logs',
+      voice: 'voice',
+      mute: 'mute',
+      testvoice: 'testvoice',
+      anime: 'anime',
+      stop: 'stop',
     }
 
     const commandName = commandMapping[plan.kind] || plan.kind
@@ -97,11 +102,50 @@ export class CommandExecutor {
         break
       }
 
-      case 'look':
+      case 'look': {
+        if (plan.kind === 'look' && 'target' in plan && plan.target) {
+          if (plan.target.type === 'position') {
+            args = [plan.target.x.toString(), plan.target.y.toString(), plan.target.z.toString()]
+          } else if (plan.target.type === 'user') {
+            args = [`@${plan.target.id}`]
+          } else if (plan.target.type === 'nearest') {
+            // nearestはサポートされていない
+            args = []
+          }
+        }
+        break
+      }
+
       case 'nearby': {
         if (plan.kind === 'nearby') {
           args = plan.radius ? [plan.radius.toString()] : []
         }
+        break
+      }
+
+      case 'voice': {
+        if (plan.kind === 'voice') {
+          args = [plan.action]
+        }
+        break
+      }
+
+      case 'testvoice': {
+        if (plan.kind === 'testvoice') {
+          args = plan.duration ? [plan.duration.toString()] : []
+        }
+        break
+      }
+
+      case 'anime': {
+        if (plan.kind === 'anime') {
+          args = [plan.animationName]
+        }
+        break
+      }
+
+      case 'stop': {
+        args = []
         break
       }
 

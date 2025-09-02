@@ -24,7 +24,7 @@ export interface AvatarState {
 }
 
 export interface IAvatarController {
-  spawn(avatarId: string, position?: Position): Promise<void>
+  spawn(avatarId: string, position?: Position, avatarSrc?: string): Promise<void>
   move(position: Position): Promise<void>
   rotate(rotation: Rotation): Promise<void>
   updateState(state: Partial<AvatarState>): Promise<void>

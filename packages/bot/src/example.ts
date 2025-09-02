@@ -30,8 +30,8 @@ async function main() {
   const hubId = url.pathname.split('/')[1]
   const serverUrl = `wss://${url.host}`
 
-  // Create service factory with configuration
-  const factory = new CoreServiceFactory({
+  // Create configuration
+  const config = {
     serverUrl: serverUrl,
     hubUrl: roomUrl,
     hubId: hubId,
@@ -39,10 +39,13 @@ async function main() {
       displayName: 'Example Bot',
       avatarId: 'bot',
     },
-  })
+  }
+
+  // Create service factory with configuration
+  const _factory = new CoreServiceFactory(config)
 
   // Create agent client
-  const client = createAgentClient(factory)
+  const client = createAgentClient(config)
 
   // Connect to the room
   try {

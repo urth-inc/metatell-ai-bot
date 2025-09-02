@@ -2,7 +2,9 @@
  * Agent Client - facade for CLI/SDK usage
  */
 
-import type { CoreServiceFactory } from '../core/CoreServiceFactory.js'
+import { EventEmitter } from 'node:events'
+import type { RealtimeEvent, RealtimeTransport } from '@metatell/realtime'
+import { CoreServiceFactory } from '../core/CoreServiceFactory.js'
 import {
   AnimationNotFoundError,
   AnimationPlaybackError,
@@ -10,9 +12,12 @@ import {
 } from '../core/errors/animation-errors.js'
 import type { IAnimationService } from '../core/interfaces/IAnimationService.js'
 import type { IAvatarController } from '../core/interfaces/IAvatarController.js'
-import type { IConfigurationProvider } from '../core/interfaces/IConfigurationProvider.js'
+import type {
+  BotConfiguration,
+  BotVoiceConfig,
+  IConfigurationProvider,
+} from '../core/interfaces/IConfigurationProvider.js'
 import type { IConnectionManager } from '../core/interfaces/IConnectionManager.js'
-import type { IEventBus } from '../core/interfaces/IEventBus.js'
 import type { IMessageService } from '../core/interfaces/IMessageService.js'
 import type { IUserAvatarManager, UserAvatar } from '../core/interfaces/IUserAvatarManager.js'
 import { getLogger } from './logging/index.js'
@@ -48,6 +53,12 @@ export interface AgentClientEvents {
     position: { x: number; y: number; z: number }
   }) => void
   'avatar:moved': (state: { position: { x: number; y: number; z: number } }) => void
+
+  // Voice events
+  voiceFrameReceived: (data: { participantId: string; pcmData: Int16Array }) => void
+  voiceConnected: () => void
+  voiceDisconnected: () => void
+  voiceError: (error: Error) => void
   'avatar:updated': (state: unknown) => void
 
   // Error events
@@ -60,6 +71,7 @@ export interface ConnectionOptions {
   serverUrl?: string // Allow passing serverUrl directly (WebSocket URL)
   hubUrl?: string // Allow passing hubUrl directly (HTTP API URL)
   hubId?: string // Allow passing hubId directly
+  voice?: BotVoiceConfig // Allow voice configuration at connection time
 }
 
 export interface AgentClientConfig {
@@ -119,9 +131,14 @@ export interface AgentClient {
   getUser(id: string): UserAvatar | undefined
   getUsersNearby(radius: number): UserAvatar[]
 
+  // Voice controls
+  sendVoiceFrame(pcmData: Int16Array): Promise<void>
+  muteVoice(muted: boolean): Promise<void>
+  isVoiceMuted(): boolean
+
   // Event handling (type-safe)
-  on<E extends keyof AgentClientEvents>(event: E, handler: AgentClientEvents[E]): void
-  off<E extends keyof AgentClientEvents>(event: E, handler: AgentClientEvents[E]): void
+  on<E extends keyof AgentClientEvents>(event: E, handler: AgentClientEvents[E]): this
+  off<E extends keyof AgentClientEvents>(event: E, handler: AgentClientEvents[E]): this
 
   // Utilities
   setRateLimit(key: 'messages' | 'moves' | 'looks', perSecond: number): void
@@ -131,16 +148,17 @@ export interface AgentClient {
 /**
  * Default implementation using existing services
  */
-export class DefaultAgentClient implements AgentClient {
+export class DefaultAgentClient extends EventEmitter implements AgentClient {
   private avatarController: IAvatarController
   private messageService: IMessageService
   private userAvatarManager: IUserAvatarManager
   private connectionManager: IConnectionManager
-  private eventBus: IEventBus
   private animationService?: IAnimationService
+  private realtimeTransport?: RealtimeTransport
   private rateLimiter = new RateLimitedQueue()
   private logger = getLogger('AgentClient')
   private factory: CoreServiceFactory
+  private voiceMuted = false
   private status: ConnectionStatus = {
     connected: false,
     connecting: false,
@@ -148,13 +166,13 @@ export class DefaultAgentClient implements AgentClient {
   }
 
   constructor(factory: CoreServiceFactory, config: AgentClientConfig = {}) {
+    super()
     this.factory = factory
     // コアサービスインターフェースのみに依存
     this.avatarController = factory.getService('IAvatarController') as IAvatarController
     this.messageService = factory.getService('IMessageService') as IMessageService
     this.userAvatarManager = factory.getService('IUserAvatarManager') as IUserAvatarManager
     this.connectionManager = factory.getService('IConnectionManager') as IConnectionManager
-    this.eventBus = factory.getService('IEventBus') as IEventBus
 
     // Optional services
     try {
@@ -162,6 +180,13 @@ export class DefaultAgentClient implements AgentClient {
     } catch {
       // Animation service is optional
       this.logger.debug('Animation service not available')
+    }
+
+    try {
+      this.realtimeTransport = factory.getService('RealtimeTransport') as RealtimeTransport
+    } catch {
+      // RealtimeTransport service is optional
+      this.logger.debug('RealtimeTransport service not available')
     }
 
     // Setup event handlers for user join
@@ -188,7 +213,7 @@ export class DefaultAgentClient implements AgentClient {
       let hubId: string
 
       // Use provided values or parse from URL
-      if (options.serverUrl && options.hubUrl && options.hubId) {
+      if (options.serverUrl && options.hubId) {
         serverUrl = options.serverUrl
         hubId = options.hubId
       } else {
@@ -197,7 +222,8 @@ export class DefaultAgentClient implements AgentClient {
 
         // HTTPSからWSSに変換
         const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
-        serverUrl = `${protocol}//${url.host}`
+        const port = url.port ? `:${url.port}` : ''
+        serverUrl = `${protocol}//${url.hostname}${port}`
 
         // hubIdを取得（パスから'/'を除去）
         const pathParts = url.pathname.split('/').filter(Boolean)
@@ -218,20 +244,31 @@ export class DefaultAgentClient implements AgentClient {
       const sessionId = this.connectionManager.getSessionId()
       this.status.sessionId = sessionId || undefined
 
-      // Send room entry events
-      const channel = this.connectionManager.getHubChannel()
-      if (channel) {
-        channel.push('events:entering', {})
-        channel.push('events:entered', {
-          initialOccupantCount: 0,
-          isNewDaily: true,
-          isNewMonthly: true,
-          isNewDayWindow: true,
-          isNewMonthWindow: true,
-          entryDisplayType: 'Bot',
-          userAgent: 'MetatellBot/1.0',
-        })
+      // ハブチャンネルが準備できるまで待機
+      let channel = this.connectionManager.getHubChannel()
+      let retries = 0
+      while (!channel && retries < 50) {
+        // 最大5秒待機
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        channel = this.connectionManager.getHubChannel()
+        retries++
       }
+
+      if (!channel) {
+        throw new Error('Failed to get hub channel after connection')
+      }
+
+      // Send room entry events
+      channel.push('events:entering', {})
+      channel.push('events:entered', {
+        initialOccupantCount: 0,
+        isNewDaily: true,
+        isNewMonthly: true,
+        isNewDayWindow: true,
+        isNewMonthWindow: true,
+        entryDisplayType: 'Bot',
+        userAgent: 'MetatellBot/1.0',
+      })
 
       // Get avatar configuration and spawn
       const configProvider = this.factory.getService(
@@ -240,7 +277,21 @@ export class DefaultAgentClient implements AgentClient {
       const config = configProvider.getConfiguration()
 
       if (config.profile.avatarId) {
-        await this.avatarController.spawn(config.profile.avatarId)
+        this.logger.debug('Spawning avatar', {
+          avatarId: config.profile.avatarId,
+          organizationAvatarUrl: config.organizationAvatarUrl,
+        })
+        await this.avatarController.spawn(
+          config.profile.avatarId,
+          undefined,
+          config.organizationAvatarUrl,
+        )
+      }
+
+      // 音声接続（有効な場合）
+      const voiceConfig = options.voice || config.voice
+      if (this.realtimeTransport && voiceConfig?.enabled) {
+        await this.connectVoice({ ...config, voice: voiceConfig })
       }
 
       this.status.connected = true
@@ -249,6 +300,7 @@ export class DefaultAgentClient implements AgentClient {
         serverUrl,
         hubId,
         sessionId: this.status.sessionId,
+        voiceEnabled: voiceConfig?.enabled || false,
       })
     } catch (error) {
       this.status.connecting = false
@@ -260,6 +312,16 @@ export class DefaultAgentClient implements AgentClient {
 
   async disconnect(): Promise<void> {
     this.logger.info('Disconnecting from server')
+
+    // 音声接続を切断
+    if (this.realtimeTransport) {
+      try {
+        await this.realtimeTransport.disconnect()
+      } catch (error) {
+        this.logger.error('Error disconnecting voice', { error })
+      }
+    }
+
     await this.connectionManager.disconnect()
     this.status.connected = false
     this.status.room = undefined
@@ -370,14 +432,28 @@ export class DefaultAgentClient implements AgentClient {
     return this.userAvatarManager.getUsersInRange(avatarState.position, radius)
   }
 
-  on<E extends keyof AgentClientEvents>(event: E, handler: AgentClientEvents[E]): void {
-    // Proxy to internal event bus (cast needed for compatibility with existing EventBus interface)
-    this.eventBus.on(event as string, handler as (...args: unknown[]) => void)
+  on<E extends keyof AgentClientEvents>(event: E, handler: AgentClientEvents[E]): this {
+    super.on(event, handler as (...args: unknown[]) => void)
+    return this
   }
 
-  off<E extends keyof AgentClientEvents>(event: E, handler: AgentClientEvents[E]): void {
-    // Proxy to internal event bus (cast needed for compatibility with existing EventBus interface)
-    this.eventBus.off(event as string, handler as (...args: unknown[]) => void)
+  off<E extends keyof AgentClientEvents>(event: E, handler: AgentClientEvents[E]): this {
+    super.off(event, handler as (...args: unknown[]) => void)
+    return this
+  }
+
+  // Override EventEmitter methods to return this for chaining
+  override addListener(eventName: string | symbol, listener: (...args: unknown[]) => void): this {
+    super.addListener(eventName, listener)
+    return this
+  }
+
+  override removeListener(
+    eventName: string | symbol,
+    listener: (...args: unknown[]) => void,
+  ): this {
+    super.removeListener(eventName, listener)
+    return this
   }
 
   setRateLimit(key: 'messages' | 'moves' | 'looks', perSecond: number): void {
@@ -460,6 +536,135 @@ export class DefaultAgentClient implements AgentClient {
     return this.avatarController.getCurrentAnimation()
   }
 
+  /**
+   * Send voice frame
+   */
+  async sendVoiceFrame(pcmData: Int16Array): Promise<void> {
+    if (!this.realtimeTransport) {
+      throw new Error('Voice not enabled')
+    }
+
+    if (this.voiceMuted) {
+      // ミュート中は送信しない
+      return
+    }
+
+    await this.realtimeTransport.pushPcmFrame(pcmData)
+  }
+
+  /**
+   * Mute/unmute voice
+   */
+  async muteVoice(muted: boolean): Promise<void> {
+    this.voiceMuted = muted
+
+    // RealtimeTransportのsetMicEnabledを呼ぶ
+    if (this.realtimeTransport?.setMicEnabled) {
+      await this.realtimeTransport.setMicEnabled(!muted)
+    }
+
+    this.logger.debug(`Voice ${muted ? 'muted' : 'unmuted'}`)
+  }
+
+  /**
+   * Check if voice is muted
+   */
+  isVoiceMuted(): boolean {
+    return this.voiceMuted
+  }
+
+  private async connectVoice(config: BotConfiguration): Promise<void> {
+    if (!this.realtimeTransport || !config.voice) return
+
+    // RealtimeTransportのイベントハンドラを設定
+    this.realtimeTransport.on((event: RealtimeEvent) => {
+      switch (event.type) {
+        case 'state':
+          if (event.state === 'connected') {
+            this.emit('voiceConnected')
+          } else if (event.state === 'disconnected') {
+            this.emit('voiceDisconnected')
+          }
+          break
+
+        case 'data':
+          // 音声フレームデータの場合
+          if (event.topic === 'audio' && event.payload instanceof Uint8Array) {
+            const pcmData = new Int16Array(
+              event.payload.buffer,
+              event.payload.byteOffset,
+              event.payload.byteLength / 2,
+            )
+            const frameData = {
+              participantId: event.from || 'unknown',
+              pcmData,
+            }
+            this.emit('voiceFrameReceived', frameData)
+          }
+          break
+
+        case 'error':
+          this.emit('voiceError', new Error(`Voice error: ${event.message}`))
+          break
+      }
+    })
+
+    // LiveKitトークンプロバイダー
+    const tokenProvider = async () => {
+      try {
+        // v-air_clientの実装を参考にAPIコールでトークンを取得
+        const hubUrl = config.hubUrl
+        const roomName = config.hubId
+        const identity = this.status.sessionId || 'anonymous'
+
+        const response = await fetch(`${hubUrl}/livekit/api/token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            roomName,
+            identity,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to get LiveKit token')
+        }
+
+        const data = (await response.json()) as { token?: string }
+        if (!data.token) {
+          throw new Error('LiveKit token not found in response')
+        }
+
+        return data.token
+      } catch (error) {
+        this.logger.error('Failed to get LiveKit token', { error })
+        throw error
+      }
+    }
+
+    // RealtimeTransportに接続
+    const voiceUrl = config.voice.livekitUrl || 'wss://livekit.metatell.app'
+    const audioConfig = {
+      sampleRate: config.voice.audioConfig?.sampleRate || 48000,
+      channels: config.voice.audioConfig?.channels || 1,
+      frameDurationMs: config.voice.audioConfig?.frameDurationMs || 20,
+    } as const
+
+    await this.realtimeTransport.connect({
+      url: voiceUrl,
+      tokenProvider,
+      topics: ['control', 'events', 'transcript', 'audio'],
+      audioPublish: audioConfig,
+    })
+
+    // 音声パブリッシャーを開始
+    await this.realtimeTransport.startAudioPublisher()
+
+    this.logger.info('Voice connected', { url: voiceUrl })
+  }
+
   private setupEventHandlers(): void {
     // Listen for user join events to resync avatar
     this.userAvatarManager.on('userJoined', async (user) => {
@@ -481,8 +686,19 @@ export class DefaultAgentClient implements AgentClient {
  * Factory function to create agent client
  */
 export function createAgentClient(
-  factory: CoreServiceFactory,
-  config?: AgentClientConfig,
+  config: BotConfiguration,
+  clientConfig?: AgentClientConfig,
 ): AgentClient {
-  return new DefaultAgentClient(factory, config)
+  const factory = new CoreServiceFactory(config)
+  return new DefaultAgentClient(factory, clientConfig)
+}
+
+/**
+ * Factory function to create agent client with existing factory
+ */
+export function createAgentClientWithFactory(
+  factory: CoreServiceFactory,
+  clientConfig?: AgentClientConfig,
+): AgentClient {
+  return new DefaultAgentClient(factory, clientConfig)
 }
