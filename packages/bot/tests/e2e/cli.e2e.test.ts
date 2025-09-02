@@ -198,7 +198,9 @@ describe('CLI E2E Tests', () => {
         await execAsync(`node ${CLI_PATH} "http://not-metatell.com/room"`)
         expect.fail('Should have thrown an error')
       } catch (error) {
-        expect((error as { stderr: string }).stderr).toContain('Invalid')
+        expect((error as { stderr: string }).stderr).toContain(
+          'Failed to pre-fetch organization avatars',
+        )
       }
     })
   })
