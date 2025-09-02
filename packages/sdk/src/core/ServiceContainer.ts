@@ -28,10 +28,11 @@ interface ServiceRegistration {
  * Type-safe Service Container for Dependency Injection
  *
  * Features:
- * - Full type safety with TypeScript
- * - Automatic type inference
+ * - Full type safety with TypeScript - no string-based APIs
+ * - Automatic type inference using ServiceIdentifier tokens
  * - Support for both interface tokens and concrete classes
  * - Singleton and transient lifetime management
+ * - Compile-time type checking for all service registrations and retrievals
  */
 export class ServiceContainer {
   private readonly services = new Map<ServiceKey<unknown>, ServiceInstance>()
@@ -39,10 +40,13 @@ export class ServiceContainer {
   private readonly options = new Map<ServiceKey<unknown>, ServiceOptions>()
 
   /**
-   * Register a service with the container
-   * @param key Service identifier (interface token or class)
+   * Register a service with the container using type-safe keys
+   * @param key Service identifier (interface token or class) - strings are not supported
    * @param factory Factory function to create the service
    * @param options Service registration options
+   * @example
+   * container.register(MessageService, () => new MessageServiceImpl())
+   * container.register(AppSettings, () => new AppSettingsImpl())
    */
   register<T>(
     key: ServiceKey<T>,
@@ -55,10 +59,13 @@ export class ServiceContainer {
   }
 
   /**
-   * Get a service from the container
-   * @param key Service identifier
-   * @returns Service instance
+   * Get a service from the container with automatic type inference
+   * @param key Service identifier (interface token or class) - strings are not supported
+   * @returns Service instance with correct type inferred from the key
    * @throws Error if service is not registered
+   * @example
+   * const messageService = container.get(MessageService) // Type is inferred as IMessageService
+   * const appSettings = container.get(AppSettings) // Type is inferred as IAppSettings
    */
   get<T>(key: ServiceKey<T>): ServiceType<T> {
     const options = this.options.get(key as ServiceKey<unknown>)
