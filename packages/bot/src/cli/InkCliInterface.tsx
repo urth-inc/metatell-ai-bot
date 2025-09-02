@@ -31,16 +31,16 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
     [client, commandContext],
   )
 
-  // 初期化：バッファされたログを取得とイベント購読
+  // Initialize: Get buffered logs and subscribe to events
   useEffect(() => {
-    // 既存のバッファされたログを取得
+    // Get existing buffered logs
     const rb = getRingBuffer() as RingBufferLike
     const logs = rb.drainNew ? rb.drainNew() : rb.drain()
     if (logs.length > 0) {
       addLogs(logs)
     }
 
-    // イベント駆動でログを受信
+    // Receive logs via event-driven updates
     const logEmitter = getLogEventEmitter()
     const unsubscribe = logEmitter.onNewLogs((newLogs) => {
       if (newLogs.length > 0) {
@@ -53,13 +53,13 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
     }
   }, [addLogs])
 
-  // 高さ計算
+  // Height calculation
   const terminalHeight = stdout?.rows || 24
   const headerHeight = state.filterRegex || client.getStatus().connecting ? 4 : 3
   const footerHeight = state.suggestions.length > 0 ? 6 : 4
   const logPaneHeight = Math.max(5, terminalHeight - headerHeight - footerHeight)
 
-  // コマンド補完
+  // Command completion
   useEffect(() => {
     if (!state.isSearching && state.input.startsWith('/')) {
       const filtered = COMMANDS.filter((cmd) => cmd.command.startsWith(state.input))
@@ -73,7 +73,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
     }
   }, [state.input, state.isSearching, dispatch])
 
-  // ログコマンドの処理
+  // Log command processing
   const handleLogsCommand = useCallback(
     (plan: Extract<CommandPlan, { kind: 'logs' }>) => {
       switch (plan.subcommand) {
@@ -96,28 +96,28 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
           break
 
         case 'tail':
-          // デフォルト動作
+          // Default behavior
           break
       }
     },
     [logger, dispatch],
   )
 
-  // コマンド実行
+  // Command execution
   const handleCommand = useCallback(
     async (input: string) => {
       if (!input.trim()) return
 
-      // コマンド履歴に追加
+      // Add to command history
       dispatch({ type: 'ADD_TO_HISTORY', command: input })
 
-      // ログに記録
+      // Record to log
       logger.info(input, { type: 'command' })
 
-      // コマンド解析と実行
+      // Parse and execute command
       const plan = parseCommand(input)
 
-      // 特殊コマンドの処理
+      // Special command handling
       if (plan.kind === 'quit') {
         exit()
         return
@@ -128,7 +128,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
         return
       }
 
-      // 通常コマンドの実行
+      // Execute normal command
       try {
         const result = await executor.execute(plan)
         if (result.message) {
@@ -145,15 +145,15 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
     [executor, exit, logger, dispatch, handleLogsCommand, showModal],
   )
 
-  // キーボード入力処理
+  // Keyboard input handling
   useInput(
     (input, key) => {
-      // モーダル表示中は無視
+      // Ignore when modal is showing
       if (state.modalContent) {
         return
       }
 
-      // Ctrl+C処理
+      // Ctrl+C handling
       if (key.ctrl && input === 'c') {
         const now = Date.now()
         if (now - state.lastCtrlC < 2000) {
@@ -166,13 +166,13 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
         return
       }
 
-      // Ctrl+R: 履歴検索
+      // Ctrl+R: History search
       if (key.ctrl && input === 'r') {
         dispatch({ type: 'SET_SEARCH_MODE', isSearching: true })
         return
       }
 
-      // Esc: フィルタ解除・検索終了
+      // Esc: Clear filter/end search
       if (key.escape) {
         dispatch({ type: 'CLEAR_FILTER' })
         dispatch({ type: 'SET_SEARCH_MODE', isSearching: false })
@@ -180,7 +180,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
         return
       }
 
-      // 履歴ナビゲーション
+      // History navigation
       if (key.upArrow) {
         if (state.suggestions.length > 0) {
           dispatch({ type: 'SELECT_PREVIOUS_SUGGESTION' })
@@ -203,7 +203,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
         return
       }
 
-      // Tab補完
+      // Tab completion
       if (key.tab && state.suggestions.length > 0) {
         const selected = state.suggestions[state.selectedSuggestionIndex]
         if (selected) {
@@ -216,7 +216,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
     { isActive: process.stdin.isTTY },
   )
 
-  // 接続状態の取得
+  // Get connection status
   const status = client.getStatus()
   const userCount = client.getUsers().length
 
@@ -232,7 +232,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
         reconnectProgress={
           status.connecting
             ? {
-                retryIn: 5, // TODO: 実際の値を取得
+                retryIn: 5, // TODO: Get actual value
                 progress: 0.3,
               }
             : undefined

@@ -22,7 +22,7 @@ export const Footer: React.FC<FooterProps> = ({
 }) => {
   return (
     <Box flexDirection="column">
-      {/* 提案表示エリア（常に高さを確保） */}
+      {/* Suggestion display area (always reserves height) */}
       <Box paddingX={2} height={suggestions.length > 0 ? 2 : 0}>
         {suggestions.length > 0 && (
           <Box flexDirection="column">
@@ -44,13 +44,13 @@ export const Footer: React.FC<FooterProps> = ({
         <Text dimColor>{'─'.repeat(80)}</Text>
       </Box>
 
-      {/* 入力フィールド */}
+      {/* Input field */}
       <Box paddingX={2}>
         <Text bold>❯ </Text>
         <TextInput value={input} onChange={onChange} onSubmit={onSubmit} />
       </Box>
 
-      {/* ヘルプテキスト */}
+      {/* Help text */}
       <Box paddingX={2}>
         <Text dimColor>
           ↑/↓ History • Tab Complete • Ctrl+R Search • Esc Clear filter • Ctrl+C×2 Exit

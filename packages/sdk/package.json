@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@livekit/agents": "^0.7.9",
-    "@metatell/realtime": "1.0.0",
     "@types/uuid": "^10.0.0",
     "phoenix": "1.8.1",
     "uuid": "^11.1.0",
