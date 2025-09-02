@@ -111,9 +111,6 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
       // Add to command history
       dispatch({ type: 'ADD_TO_HISTORY', command: input })
 
-      // Record to log
-      logger.info(input, { type: 'command' })
-
       // Parse and execute command
       const plan = parseCommand(input)
 

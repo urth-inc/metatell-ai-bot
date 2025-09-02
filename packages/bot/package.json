@@ -16,6 +16,7 @@
   "dependencies": {
     "@metatell/sdk": "file:../sdk",
     "commander": "14.0.0",
+    "cosmiconfig": "^9.0.0",
     "dotenv": "17.2.1",
     "ink": "6.2.3",
     "ink-gradient": "3.0.0",
