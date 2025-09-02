@@ -1,8 +1,15 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { UserAvatar } from '@metatell/sdk'
 import { DefaultLoggerProvider, registerLoggerProvider } from '@metatell/sdk'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CommandContext } from '../../bots/commands/BotCommand.js'
 import { CommandExecutor } from '../exec.js'
 import type { CommandPlan } from '../plan.js'
+
+interface MockUserAvatarManager {
+  getUsers: () => UserAvatar[]
+  getUser: (sessionId: string) => UserAvatar | undefined
+  getUsersInRange: (position: { x: number; y: number; z: number }, radius: number) => UserAvatar[]
+}
 
 // Mock dependencies
 const mockAgentClient = {
@@ -27,19 +34,37 @@ const mockAvatarController = {
   stopAnimation: vi.fn(),
 }
 
-const mockUserAvatarManager = {
+const mockUserAvatarManager: MockUserAvatarManager = {
   getUsers: vi.fn(),
   getUser: vi.fn(),
   getUsersInRange: vi.fn(),
 }
 
 const mockContext: CommandContext = {
-  agentClient: mockAgentClient as any,
-  avatarController: mockAvatarController as any,
-  userAvatarManager: mockUserAvatarManager as any,
-  presenceManager: {} as any,
-  eventBus: {} as any,
-  messageService: {} as any,
+  agentClient: mockAgentClient,
+  avatarController: mockAvatarController,
+  userAvatarManager: mockUserAvatarManager,
+  presenceManager: {
+    on: vi.fn(),
+    off: vi.fn(),
+    getUsers: vi.fn(),
+    getUser: vi.fn(),
+    getBroadcaster: vi.fn(),
+  },
+  eventBus: {
+    on: vi.fn(),
+    off: vi.fn(),
+    emit: vi.fn(),
+    once: vi.fn(),
+    removeAllListeners: vi.fn(),
+  },
+  messageService: {
+    sendMessage: vi.fn(),
+    sendNAF: vi.fn(),
+    sendNAFR: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+  },
   logger: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -64,7 +89,7 @@ describe('CommandExecutor - /look Command', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    executor = new CommandExecutor(mockAgentClient as any, mockContext)
+    executor = new CommandExecutor(mockAgentClient, mockContext)
 
     // Mock avatar state
     vi.mocked(mockAvatarController.getState).mockReturnValue({
@@ -102,7 +127,7 @@ describe('CommandExecutor - /look Command', () => {
           y: expect.any(Number),
           z: 0,
           w: expect.any(Number),
-        })
+        }),
       )
     })
 
@@ -120,11 +145,11 @@ describe('CommandExecutor - /look Command', () => {
       await executor.execute(plan)
 
       const rotationCall = vi.mocked(mockAvatarController.rotate).mock.calls[0][0]
-      
+
       // Looking east should result in yaw = π/2
       const expectedYaw = Math.atan2(10.0 - 0, 0.0 - 0) // atan2(dx, dz)
       const expectedHalfYaw = expectedYaw * 0.5
-      
+
       expect(rotationCall.x).toBe(0)
       expect(rotationCall.y).toBeCloseTo(Math.sin(expectedHalfYaw), 5)
       expect(rotationCall.z).toBe(0)
@@ -199,9 +224,7 @@ describe('CommandExecutor - /look Command', () => {
     })
 
     it('should handle rotation failure', async () => {
-      vi.mocked(mockAvatarController.rotate).mockRejectedValue(
-        new Error('Network connection lost')
-      )
+      vi.mocked(mockAvatarController.rotate).mockRejectedValue(new Error('Network connection lost'))
 
       const plan: CommandPlan = {
         kind: 'look',
@@ -253,7 +276,7 @@ describe('CommandExecutor - /look Command', () => {
 
       // Check that the rotation calculation uses the correct position
       const rotationCall = vi.mocked(mockAvatarController.rotate).mock.calls[0][0]
-      
+
       // Calculate expected rotation from avatar position (0,1.6,0) to target (1.23,4.56,-7.89)
       const dx = 1.23 - 0
       const dz = -7.89 - 0
