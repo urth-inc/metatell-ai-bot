@@ -1,3 +1,5 @@
+import { ServiceIdentifier } from '../ServiceIdentifier.js'
+
 /**
  * ユーザーアバター情報
  */
@@ -82,3 +84,6 @@ export interface IUserAvatarManager {
    */
   off(event: UserAvatarEvent, handler: (user: UserAvatar) => void): void
 }
+
+// Service identifier token for dependency injection
+export abstract class UserAvatarManager extends ServiceIdentifier<IUserAvatarManager> {}

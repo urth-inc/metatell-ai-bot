@@ -1,3 +1,5 @@
+import { ServiceIdentifier } from '../ServiceIdentifier.js'
+
 export interface AuthToken {
   token: string
   expiresAt?: number
@@ -16,3 +18,6 @@ export interface IAuthenticationService {
   isAuthenticated(): boolean
   logout(): void
 }
+
+// Service identifier token for dependency injection
+export abstract class AuthenticationService extends ServiceIdentifier<IAuthenticationService> {}

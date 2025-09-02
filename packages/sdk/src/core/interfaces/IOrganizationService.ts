@@ -1,3 +1,5 @@
+import { ServiceIdentifier } from '../ServiceIdentifier.js'
+
 /**
  * Organization information from realm endpoint
  */
@@ -44,3 +46,6 @@ export interface IOrganizationService {
     },
   ): string | null
 }
+
+// Service identifier token for dependency injection
+export abstract class OrganizationService extends ServiceIdentifier<IOrganizationService> {}

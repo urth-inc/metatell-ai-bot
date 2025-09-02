@@ -1,61 +1,161 @@
+import type { ServiceKey, ServiceType } from './ServiceIdentifier.js'
+
+export type { ServiceKey } from './ServiceIdentifier.js'
+
 type ServiceFactory<T> = (container: ServiceContainer) => T
 type ServiceInstance = unknown
 
-export class ServiceContainer {
-  private services = new Map<string, ServiceInstance>()
-  private factories = new Map<string, ServiceFactory<unknown>>()
-  private singletons = new Map<string, boolean>()
+/**
+ * Service registration options
+ */
+interface ServiceOptions {
+  singleton?: boolean
+  // Future extensibility
+  eager?: boolean
+  dispose?: () => void
+}
 
-  register<T>(name: string, factory: ServiceFactory<T>, options?: { singleton?: boolean }): void {
-    this.factories.set(name, factory)
-    this.singletons.set(name, options?.singleton ?? true)
+/**
+ * Service registration configuration
+ */
+interface ServiceRegistration {
+  key: ServiceKey<unknown>
+  factory: ServiceFactory<unknown>
+  options?: ServiceOptions
+}
+
+/**
+ * Type-safe Service Container for Dependency Injection
+ *
+ * Features:
+ * - Full type safety with TypeScript
+ * - Automatic type inference
+ * - Support for both interface tokens and concrete classes
+ * - Singleton and transient lifetime management
+ */
+export class ServiceContainer {
+  private readonly services = new Map<ServiceKey<unknown>, ServiceInstance>()
+  private readonly factories = new Map<ServiceKey<unknown>, ServiceFactory<unknown>>()
+  private readonly options = new Map<ServiceKey<unknown>, ServiceOptions>()
+
+  /**
+   * Register a service with the container
+   * @param key Service identifier (interface token or class)
+   * @param factory Factory function to create the service
+   * @param options Service registration options
+   */
+  register<T>(
+    key: ServiceKey<T>,
+    factory: ServiceFactory<ServiceType<T>>,
+    options: ServiceOptions = {},
+  ): this {
+    this.factories.set(key as ServiceKey<unknown>, factory as ServiceFactory<unknown>)
+    this.options.set(key as ServiceKey<unknown>, { singleton: true, ...options })
+    return this // Fluent API
   }
 
-  get<T>(name: string): T {
-    // Check if singleton instance exists
-    if (this.singletons.get(name) && this.services.has(name)) {
-      return this.services.get(name) as T
+  /**
+   * Get a service from the container
+   * @param key Service identifier
+   * @returns Service instance
+   * @throws Error if service is not registered
+   */
+  get<T>(key: ServiceKey<T>): ServiceType<T> {
+    const options = this.options.get(key as ServiceKey<unknown>)
+
+    // Check for singleton instance
+    if (options?.singleton && this.services.has(key as ServiceKey<unknown>)) {
+      return this.services.get(key as ServiceKey<unknown>) as ServiceType<T>
     }
 
     // Get factory
-    const factory = this.factories.get(name)
+    const factory = this.factories.get(key as ServiceKey<unknown>)
     if (!factory) {
-      throw new Error(`Service "${name}" not registered`)
+      const keyName = this.getServiceName(key as ServiceKey<unknown>)
+      throw new Error(`Service "${keyName}" not registered`)
     }
 
     // Create instance
     const instance = factory(this)
 
     // Store singleton
-    if (this.singletons.get(name)) {
-      this.services.set(name, instance)
+    if (options?.singleton) {
+      this.services.set(key as ServiceKey<unknown>, instance)
     }
 
-    return instance as T
+    return instance as ServiceType<T>
   }
 
-  has(name: string): boolean {
-    return this.factories.has(name)
+  /**
+   * Check if a service is registered
+   * @param key Service identifier
+   * @returns true if the service is registered
+   */
+  has<T>(key: ServiceKey<T>): boolean {
+    return this.factories.has(key as ServiceKey<unknown>)
   }
 
+  /**
+   * Clear all singleton instances
+   * Useful for testing or resetting the container
+   */
   clear(): void {
+    // Call dispose handlers if available
+    for (const [key, options] of this.options) {
+      if (options.dispose && this.services.has(key as ServiceKey<unknown>)) {
+        options.dispose()
+      }
+    }
     this.services.clear()
   }
 
-  // Helper method for binding interfaces to implementations
-  bind<T>(interfaceName: string, implementation: new (...args: unknown[]) => T): void {
-    this.register(interfaceName, () => new implementation())
+  /**
+   * Bind a class to itself (syntactic sugar)
+   * @param implementation Class constructor
+   * @param options Service options
+   */
+  bind<T>(implementation: new (...args: unknown[]) => T, options?: ServiceOptions): this {
+    // For concrete classes, T = ServiceType<T>, so we can bypass type checking
+    this.factories.set(implementation as ServiceKey<unknown>, () => new implementation())
+    this.options.set(implementation as ServiceKey<unknown>, { singleton: true, ...options })
+    return this
   }
 
-  // Helper method for binding with dependencies
-  bindWithDependencies<T>(
-    interfaceName: string,
-    implementation: new (...args: unknown[]) => T,
-    dependencies: string[],
-  ): void {
-    this.register(interfaceName, (container) => {
-      const resolvedDeps = dependencies.map((dep) => container.get(dep))
-      return new implementation(...resolvedDeps)
-    })
+  /**
+   * Register all services at once (bulk registration)
+   * @param registrations Array of service registrations
+   */
+  registerAll(registrations: ServiceRegistration[]): this {
+    for (const reg of registrations) {
+      this.register(reg.key, reg.factory, reg.options)
+    }
+    return this
+  }
+
+  /**
+   * Create a scoped container (child container)
+   * Useful for request-scoped services
+   */
+  createScope(): ServiceContainer {
+    const scoped = new ServiceContainer()
+    // Copy factories but not singleton instances
+    for (const [key, factory] of this.factories) {
+      scoped.factories.set(key, factory)
+      const options = this.options.get(key)
+      if (options) {
+        scoped.options.set(key, options)
+      }
+    }
+    return scoped
+  }
+
+  /**
+   * Get service name for error messages
+   */
+  private getServiceName(key: ServiceKey<unknown>): string {
+    if (typeof key === 'function') {
+      return key.name || 'AnonymousService'
+    }
+    return 'UnknownService'
   }
 }

@@ -12,17 +12,26 @@
  * - Dependency Injection: main.ts retrieves services and orchestrates application startup
  */
 
-import type { IConnectionManager } from '@metatell/sdk'
 import {
+  AppSettings,
+  AvatarController,
   type BotConfiguration,
+  ConfigurationProvider,
+  ConnectionManager,
   CoreServiceFactory,
   type IAppSettings,
   type IAvatarController,
   type IConfigurationProvider,
+  type IConnectionManager,
   type IMessageService,
   type IPresenceManager,
   type IUserAvatarManager,
+  MessageService,
+  PresenceManager,
   type ServiceContainer,
+  type ServiceKey,
+  type ServiceType,
+  UserAvatarManager,
 } from '@metatell/sdk'
 import { MetatellBot } from './MetatellBot.js'
 
@@ -42,19 +51,18 @@ export class BotServiceFactory extends CoreServiceFactory {
    */
   private registerBotServices(): void {
     // Register MetatellBot as an application service
-    this.container.register<MetatellBot>(
-      'MetatellBot',
+    this.container.register(
+      MetatellBot,
       (container) =>
         new MetatellBot(
-          container.get<IConnectionManager>('IConnectionManager'),
-          container.get<IMessageService>('IMessageService'),
-          container.get<IAvatarController>('IAvatarController'),
-          container.get<IPresenceManager>('IPresenceManager'),
-          container.get<IConfigurationProvider>('IConfigurationProvider'),
-          container.get<IUserAvatarManager>('IUserAvatarManager'),
-          container.get<IAppSettings>('IAppSettings'),
+          container.get(ConnectionManager) as IConnectionManager,
+          container.get(MessageService) as IMessageService,
+          container.get(AvatarController) as IAvatarController,
+          container.get(PresenceManager) as IPresenceManager,
+          container.get(ConfigurationProvider) as IConfigurationProvider,
+          container.get(UserAvatarManager) as IUserAvatarManager,
+          container.get(AppSettings) as IAppSettings,
         ),
-      { singleton: true },
     )
   }
 
@@ -67,10 +75,11 @@ export class BotServiceFactory extends CoreServiceFactory {
   }
 
   /**
-   * Get a service by name
-   * Convenience method for accessing services
+   * Get a service from the container
+   * @param key Service identifier token or class
+   * @returns Service instance
    */
-  public getService<T>(name: string): T {
-    return this.container.get<T>(name)
+  public getService<T>(key: ServiceKey<T>): ServiceType<T> {
+    return this.container.get(key) as ServiceType<T>
   }
 }

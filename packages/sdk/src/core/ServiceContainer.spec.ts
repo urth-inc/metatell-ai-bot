@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ServiceContainer } from './ServiceContainer.js'
+import { ServiceIdentifier } from './ServiceIdentifier.js'
 
 describe('ServiceContainer', () => {
   let container: ServiceContainer
@@ -10,39 +11,50 @@ describe('ServiceContainer', () => {
 
   describe('register', () => {
     it('should register a service factory', () => {
-      const factory = () => ({ name: 'test' })
-      container.register('test', factory)
+      class TestService {
+        name = 'test'
+      }
+      const factory = () => new TestService()
+      container.register(TestService, factory)
 
-      expect(container.has('test')).toBe(true)
+      expect(container.has(TestService)).toBe(true)
     })
 
     it('should register a service as singleton by default', () => {
+      class CounterService {
+        constructor(public id: number) {}
+      }
+
       let callCount = 0
       const factory = () => {
         callCount++
-        return { id: callCount }
+        return new CounterService(callCount)
       }
 
-      container.register('counter', factory)
+      container.register(CounterService, factory)
 
-      const instance1 = container.get('counter')
-      const instance2 = container.get('counter')
+      const instance1 = container.get(CounterService)
+      const instance2 = container.get(CounterService)
 
       expect(instance1).toBe(instance2)
       expect(callCount).toBe(1)
     })
 
     it('should allow non-singleton services', () => {
+      class CounterService {
+        constructor(public id: number) {}
+      }
+
       let callCount = 0
       const factory = () => {
         callCount++
-        return { id: callCount }
+        return new CounterService(callCount)
       }
 
-      container.register('counter', factory, { singleton: false })
+      container.register(CounterService, factory, { singleton: false })
 
-      const instance1 = container.get('counter')
-      const instance2 = container.get('counter')
+      const instance1 = container.get(CounterService)
+      const instance2 = container.get(CounterService)
 
       expect(instance1).not.toBe(instance2)
       expect(callCount).toBe(2)
@@ -51,112 +63,243 @@ describe('ServiceContainer', () => {
 
   describe('get', () => {
     it('should retrieve a registered service', () => {
-      const service = { name: 'test' }
-      container.register('test', () => service)
+      class TestService {
+        name = 'test'
+      }
+      const service = new TestService()
+      container.register(TestService, () => service)
 
-      const retrieved = container.get('test')
+      const retrieved = container.get(TestService)
       expect(retrieved).toBe(service)
     })
 
     it('should throw an error for unregistered service', () => {
-      expect(() => container.get('unknown')).toThrow('Service "unknown" not registered')
+      class UnknownService {}
+      expect(() => container.get(UnknownService)).toThrow('Service "UnknownService" not registered')
     })
 
     it('should pass container to factory function', () => {
-      container.register('dep', () => ({ value: 42 }))
-      container.register('service', (c) => ({
-        dep: c.get('dep'),
-      }))
+      class DependencyService {
+        value = 42
+      }
+      class MainService {
+        constructor(public dep: DependencyService) {}
+      }
 
-      const service = container.get<{ dep: { value: number } }>('service')
+      container.register(DependencyService, () => new DependencyService())
+      container.register(MainService, (c) => new MainService(c.get(DependencyService)))
+
+      const service = container.get(MainService)
       expect(service.dep.value).toBe(42)
     })
   })
 
   describe('has', () => {
     it('should return true for registered services', () => {
-      container.register('test', () => ({}))
-      expect(container.has('test')).toBe(true)
+      class TestService {}
+      container.register(TestService, () => new TestService())
+      expect(container.has(TestService)).toBe(true)
     })
 
     it('should return false for unregistered services', () => {
-      expect(container.has('unknown')).toBe(false)
+      class UnknownService {}
+      expect(container.has(UnknownService)).toBe(false)
     })
   })
 
   describe('clear', () => {
     it('should clear singleton instances', () => {
+      class CounterService {
+        constructor(public id: number) {}
+      }
+
       let callCount = 0
       const factory = () => {
         callCount++
-        return { id: callCount }
+        return new CounterService(callCount)
       }
 
-      container.register('counter', factory)
+      container.register(CounterService, factory)
 
-      container.get('counter')
+      container.get(CounterService)
       expect(callCount).toBe(1)
 
       container.clear()
-      container.get('counter')
+      container.get(CounterService)
       expect(callCount).toBe(2)
     })
   })
 
   describe('bind', () => {
-    it('should bind interface to implementation', () => {
+    it('should bind class to itself', () => {
       class TestService {
         getName() {
           return 'TestService'
         }
       }
 
-      container.bind('ITestService', TestService)
+      container.bind(TestService)
 
-      const instance = container.get<TestService>('ITestService')
+      const instance = container.get(TestService)
       expect(instance).toBeInstanceOf(TestService)
       expect(instance.getName()).toBe('TestService')
     })
   })
 
-  describe('bindWithDependencies', () => {
-    it('should bind with resolved dependencies', () => {
-      class Logger {
-        log(message: string) {
-          return `[LOG] ${message}`
+  describe('registerAll', () => {
+    it('should register multiple services at once', () => {
+      class Service1 {}
+      class Service2 {}
+      class Service3 {}
+
+      container.registerAll([
+        { key: Service1, factory: () => new Service1() },
+        { key: Service2, factory: () => new Service2() },
+        { key: Service3, factory: () => new Service3() },
+      ])
+
+      expect(container.has(Service1)).toBe(true)
+      expect(container.has(Service2)).toBe(true)
+      expect(container.has(Service3)).toBe(true)
+    })
+  })
+
+  describe('createScope', () => {
+    it('should create a scoped container', () => {
+      class SharedService {
+        constructor(public id: number) {}
+      }
+
+      let id = 0
+      container.register(SharedService, () => new SharedService(++id))
+
+      const scoped = container.createScope()
+
+      const instance1 = container.get(SharedService)
+      const instance2 = scoped.get(SharedService)
+
+      expect(instance1.id).toBe(1)
+      expect(instance2.id).toBe(2)
+      expect(instance1).not.toBe(instance2)
+    })
+  })
+
+  describe('Interface token support', () => {
+    // テスト用のインターフェースとトークン
+    interface ITestService {
+      getValue(): string
+    }
+
+    abstract class TestService extends ServiceIdentifier<ITestService> {}
+
+    class TestServiceImpl implements ITestService {
+      getValue(): string {
+        return 'test-value'
+      }
+    }
+
+    it('should register and retrieve services using interface tokens', () => {
+      container.register(TestService, () => new TestServiceImpl())
+
+      const service = container.get(TestService)
+      expect(service.getValue()).toBe('test-value')
+    })
+
+    it('should support singleton pattern with interface tokens', () => {
+      container.register(TestService, () => new TestServiceImpl())
+
+      const instance1 = container.get(TestService)
+      const instance2 = container.get(TestService)
+
+      // Same instance should be returned
+      expect(instance1).toBe(instance2)
+    })
+
+    it('should throw error for unregistered interface token', () => {
+      expect(() => container.get(TestService)).toThrow('Service "TestService" not registered')
+    })
+
+    it('should work with both interface tokens and concrete classes', () => {
+      class ConcreteService {
+        getValue(): string {
+          return 'concrete-value'
         }
       }
 
-      class Database {
-        name = 'TestDB'
+      container.register(TestService, () => new TestServiceImpl())
+      container.register(ConcreteService, () => new ConcreteService())
+
+      const interfaceService = container.get(TestService)
+      const concreteService = container.get(ConcreteService)
+
+      expect(interfaceService.getValue()).toBe('test-value')
+      expect(concreteService.getValue()).toBe('concrete-value')
+    })
+
+    it('should handle dependencies with typed registration', () => {
+      interface ILogger {
+        log(message: string): void
       }
 
-      class Service {
+      abstract class Logger extends ServiceIdentifier<ILogger> {}
+
+      class ConsoleLogger implements ILogger {
+        log(_message: string): void {
+          // テスト用の実装
+        }
+      }
+
+      interface IDatabase {
+        connect(): void
+      }
+
+      abstract class Database extends ServiceIdentifier<IDatabase> {}
+
+      class MockDatabase implements IDatabase {
+        connect(): void {
+          // テスト用の実装
+        }
+      }
+
+      class AppService {
         constructor(
-          public logger: Logger,
-          public db: Database,
+          public logger: ILogger,
+          public database: IDatabase,
         ) {}
       }
 
-      container.bind('Logger', Logger)
-      container.bind('Database', Database)
-      container.bindWithDependencies('Service', Service, ['Logger', 'Database'])
+      // 依存関係の登録
+      container.register(Logger, () => new ConsoleLogger())
+      container.register(Database, () => new MockDatabase())
 
-      const service = container.get<Service>('Service')
-      expect(service.logger).toBeInstanceOf(Logger)
-      expect(service.db).toBeInstanceOf(Database)
-      expect(service.logger.log('test')).toBe('[LOG] test')
-      expect(service.db.name).toBe('TestDB')
+      // 依存関係を持つサービスの登録
+      container.register(AppService, (c) => new AppService(c.get(Logger), c.get(Database)))
+
+      const appService = container.get(AppService)
+      expect(appService.logger).toBeInstanceOf(ConsoleLogger)
+      expect(appService.database).toBeInstanceOf(MockDatabase)
     })
 
-    it('should throw error if dependency is not registered', () => {
-      class Service {
-        constructor(public dep: unknown) {}
-      }
+    it('should check for service registration with tokens', () => {
+      container.register(TestService, () => new TestServiceImpl())
 
-      container.bindWithDependencies('Service', Service, ['UnknownDep'])
+      expect(container.has(TestService)).toBe(true)
+      expect(container.has(TestServiceImpl)).toBe(false)
+    })
 
-      expect(() => container.get('Service')).toThrow('Service "UnknownDep" not registered')
+    it('should clear services with interface tokens', () => {
+      let callCount = 0
+      container.register(TestService, () => {
+        callCount++
+        return new TestServiceImpl()
+      })
+
+      container.get(TestService)
+      expect(callCount).toBe(1)
+
+      container.clear()
+      container.get(TestService)
+      expect(callCount).toBe(2)
     })
   })
 })

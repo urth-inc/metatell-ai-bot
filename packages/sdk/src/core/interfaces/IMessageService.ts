@@ -1,3 +1,5 @@
+import { ServiceIdentifier } from '../ServiceIdentifier.js'
+
 export interface Message {
   body: string
   type?: 'chat' | 'system'
@@ -42,3 +44,6 @@ export interface IMessageService {
   on(event: 'message' | 'naf' | 'nafr', handler: (data: unknown) => void): void
   off(event: 'message' | 'naf' | 'nafr', handler: (data: unknown) => void): void
 }
+
+// Service identifier token for dependency injection
+export abstract class MessageService extends ServiceIdentifier<IMessageService> {}
