@@ -80,9 +80,6 @@ export class MessageService implements IMessageService {
     }
 
     const messageData = { body: message, type: 'chat' }
-    if (this.appSettings.debugMode) {
-      this.logger.debug('[MESSAGE SENT]', messageData)
-    }
 
     // Fire and forget - don't wait for response
     channel.push('message', messageData)

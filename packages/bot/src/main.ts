@@ -111,7 +111,7 @@ async function main() {
   const configManager = new ConfigManager()
   let config: import('./cli/config/config.js').Config
   try {
-    config = configManager.getConfig(flags)
+    config = await configManager.getConfig(flags)
   } catch (error) {
     if (error instanceof Error && error.message.includes('Invalid command line flags')) {
       // Extract the specific validation error
@@ -273,9 +273,6 @@ async function main() {
   // Initialize BotServiceFactory with configuration (includes bot-specific services)
   const factory = new BotServiceFactory(botConfig)
 
-  // アバター情報表示状態を追跡
-  let avatarInfoDisplayed = false
-
   // AppSettingsを取得してLoggingシステムを設定
   const appSettings = factory.getService(AppSettings) as IAppSettings
 
@@ -344,7 +341,7 @@ async function main() {
       userAvatarManager: factory.getService(UserAvatarManager) as IUserAvatarManager,
       presenceManager: factory.getService(PresenceManager) as IPresenceManager,
       messageService: factory.getService(MessageService) as IMessageService,
-      logger: getLogger('CLI'),
+      logger: getLogger('CommandContext'),
       // Additional context for CLI commands
       agentClient: client,
       botConfig: botConfig,
@@ -438,19 +435,7 @@ async function main() {
     const { logger: cliLogger } = await import('./utils/logger.js')
     cliLogger.notifyCliStarted?.()
 
-    // CLI起動後にアバター情報を一度だけ表示
-    if (!avatarInfoDisplayed) {
-      avatarInfoDisplayed = true
-      cliLogger.log(
-        `🤖 Connected as: ${botConfig.profile.displayName} (${botConfig.profile.avatarId})`,
-      )
-      if (avatarName) {
-        cliLogger.log(`🎨 Avatar: ${avatarName}`)
-      }
-      if (organizationInfo.organizationId) {
-        cliLogger.log(`🏢 Organization: ${organizationInfo.organizationId}`)
-      }
-    }
+    // Avatar information is already shown in the initial configuration display
 
     // デバッグモードの場合、ログファイルパスを表示
     if (debugLogPath) {
