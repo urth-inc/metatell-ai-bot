@@ -88,6 +88,13 @@ export class NafMessageBuilder {
   private components: Partial<Record<NafComponentId, unknown>> = {}
   private isMultiData: boolean = false
 
+  constructor() {
+    // Set default components
+    this.components[NafComponentId.Position] = { isVector3: true, x: 0, y: 0, z: 0 }
+    this.components[NafComponentId.Scale] = { x: 1, y: 1, z: 1 }
+    this.components[NafComponentId.HandRaised] = false
+  }
+
   /**
    * Set the data type
    */
