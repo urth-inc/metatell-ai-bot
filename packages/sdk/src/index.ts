@@ -24,6 +24,11 @@ export type { IConnectionManager } from './core/interfaces/IConnectionManager.js
 // Core Interfaces (公開する型定義)
 export type { IEventBus, SystemEvents } from './core/interfaces/IEventBus.js'
 export type { IMessageService } from './core/interfaces/IMessageService.js'
+export type {
+  IOrganizationService,
+  OrganizationAvatar,
+  OrganizationInfo,
+} from './core/interfaces/IOrganizationService.js'
 export type { IPresenceManager, PresenceUser } from './core/interfaces/IPresenceManager.js'
 export type {
   IUserAvatarManager,
@@ -69,7 +74,11 @@ export type {
   ConnectionStatus,
 } from './sdk/AgentClient.js'
 // Agent Client (SDKのメインインターフェース)
-export { createAgentClient } from './sdk/AgentClient.js'
+export {
+  createAgentClient,
+  createAgentClientWithFactory,
+  DefaultAgentClient,
+} from './sdk/AgentClient.js'
 // Errors (公開API)
 export * from './sdk/errors.js'
 // Logging (拡張ポイント)

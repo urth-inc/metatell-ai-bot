@@ -26,7 +26,13 @@ export class WebSocketConnectionManager implements IConnectionManager {
       // Create Phoenix socket (no authentication here, just connect)
       const socketUrl = new URL(config.serverUrl)
       socketUrl.pathname = '/socket'
-      socketUrl.protocol = socketUrl.protocol.replace('http', 'ws')
+      // プロトコルがhttpまたはhttpsの場合のみ変換
+      if (socketUrl.protocol === 'http:') {
+        socketUrl.protocol = 'ws:'
+      } else if (socketUrl.protocol === 'https:') {
+        socketUrl.protocol = 'wss:'
+      }
+      // すでにws:またはwss:の場合はそのまま使用
 
       this.socket = new Socket(socketUrl.toString(), {
         params: {

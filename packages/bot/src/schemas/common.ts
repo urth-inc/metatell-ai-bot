@@ -4,8 +4,15 @@
 
 import * as v from 'valibot'
 
-// URL validation with proper format
-export const UrlSchema = v.pipe(v.string(), v.url())
+// URL validation with proper format (supports any domain with hub ID path)
+export const UrlSchema = v.pipe(
+  v.string(),
+  v.url(),
+  v.regex(
+    /^https?:\/\/[a-zA-Z0-9.-]+(:[0-9]+)?\/[A-Za-z0-9_-]+\/?/,
+    'Must be a valid room URL with hub ID (e.g., https://example.com/hubId/)',
+  ),
+)
 
 // Non-empty string validation
 export const NonEmptyStringSchema = v.pipe(v.string(), v.minLength(1))

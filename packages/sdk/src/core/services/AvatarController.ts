@@ -12,11 +12,7 @@ import type {
 import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
-import type {
-  AnimationNAFMessage,
-  AnimationPlaybackResult,
-  AnimationPlayOptions,
-} from '../types/animation.js'
+import type { AnimationPlaybackResult, AnimationPlayOptions } from '../types/animation.js'
 
 // Constants for default values
 const DEFAULT_TEMPLATE = '#remote-avatar'
@@ -40,18 +36,44 @@ export class AvatarController implements IAvatarController {
     })
   }
 
-  async spawn(avatarId: string, position?: Position): Promise<void> {
+  async spawn(avatarId: string, position?: Position, avatarSrc?: string): Promise<void> {
     if (!this.sessionId) {
       throw new Error('Cannot spawn avatar: Not connected to room')
     }
+
+    this.logger.debug('spawn() called with parameters:', {
+      avatarId,
+      position,
+      avatarSrc,
+    })
 
     const config = this.configProvider.getConfiguration()
     const timestamp = Date.now()
     const networkId = this.sessionId
     const spawnPosition = position || { x: 0, y: 0.2, z: 0 }
 
-    // Get storage URL from config or use default
-    const storageUrl = config.storageUrl || 'https://storage.metatell.app:443'
+    // Determine avatar source URL
+    let finalAvatarSrc: string
+    if (avatarSrc) {
+      // Use provided avatar source URL (organization avatar GLTF URLs are passed here)
+      finalAvatarSrc = avatarSrc
+      this.logger.debug('Using provided avatar source URL', { avatarSrc })
+    } else if (this.isOrganizationAvatar(avatarId)) {
+      // Organization avatar (UUID format) - should not reach here if avatarSrc is provided
+      this.logger.warn('Organization avatar without avatarSrc provided, using fallback URL', {
+        avatarId,
+      })
+      const hubUrl = new URL(config.hubUrl || '')
+      finalAvatarSrc = `${hubUrl.origin}/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`
+    } else {
+      // Individual avatar (non-UUID format) - use storage URL
+      let storageUrl = config.storageUrl
+      if (!storageUrl && config.hubUrl) {
+        storageUrl = this.determineStorageUrl(config.hubUrl)
+      }
+      storageUrl = storageUrl || 'https://storage.metatell.app:443'
+      finalAvatarSrc = `${storageUrl}/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`
+    }
 
     // Update internal state
     this.state = {
@@ -59,7 +81,7 @@ export class AvatarController implements IAvatarController {
       position: spawnPosition,
       rotation: { x: 0, y: 0, z: 0, w: 1 },
       avatarId,
-      avatarSrc: `${storageUrl}/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`,
+      avatarSrc: finalAvatarSrc,
       displayName: config.profile.displayName,
     }
 
@@ -100,7 +122,42 @@ export class AvatarController implements IAvatarController {
 
     // Emit event
     this.eventBus.emit(SystemEvents.AVATAR_SPAWNED, this.state)
-    this.logger.debug(`✅ Avatar spawned with ID: ${avatarId}`)
+    this.logger.debug(`✅ Avatar spawned with ID: ${avatarId}`, {
+      avatarSrc: finalAvatarSrc,
+      isOrganization: this.isOrganizationAvatar(avatarId),
+    })
+  }
+
+  /**
+   * Determine storage URL based on hub URL environment
+   */
+  private determineStorageUrl(hubUrl: string): string {
+    try {
+      const url = new URL(hubUrl)
+      const hostname = url.hostname
+
+      // Map hub domains to storage domains
+      if (hostname.includes('metatell-stg.app') || hostname.includes('-stg.')) {
+        return 'https://storage.metatell-stg.app:443'
+      } else if (hostname.includes('metatell-dev.app') || hostname.includes('-dev.')) {
+        return 'https://storage.metatell-dev.app:443'
+      } else {
+        // Production or default
+        return 'https://storage.metatell.app:443'
+      }
+    } catch (error) {
+      this.logger.warn('Failed to parse hub URL for storage URL determination', { hubUrl, error })
+      return 'https://storage.metatell.app:443'
+    }
+  }
+
+  /**
+   * Check if avatar ID is organization avatar (UUID format)
+   */
+  private isOrganizationAvatar(avatarId: string): boolean {
+    // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    return uuidRegex.test(avatarId)
   }
 
   async move(position: Position): Promise<void> {
@@ -265,8 +322,13 @@ export class AvatarController implements IAvatarController {
       throw new AvatarNotSpawnedError()
     }
 
+    // UUID形式のアニメーションかチェック
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    const isCustomAnimation = uuidRegex.test(animationId)
+
     // Validate animation exists (if animation service is available)
-    if (this.animationService) {
+    // カスタムアニメーション（UUID）の場合は検証をスキップ
+    if (this.animationService && !isCustomAnimation) {
       const isValid = await this.animationService.validateAnimation(animationId)
       if (!isValid) {
         throw new AnimationNotFoundError(animationId)
@@ -280,21 +342,21 @@ export class AvatarController implements IAvatarController {
     this.currentAnimation = animationId
     this.state.currentAnimation = animationId
 
-    // Build animation NAF message
-    const animationMessage: AnimationNAFMessage = {
-      dataType: 'animation',
-      data: {
-        networkId: this.state.networkId,
-        owner: this.sessionId,
-        animationId,
-        playbackId,
-        options,
-        timestamp,
-      },
-    }
+    // v-air_clientと同じ形式でNAFメッセージを構築
+    // vrm-avatar-status-managerコンポーネント（インデックス13）のみを送信
+    const nafMessage = new NafMessageBuilder()
+      .withDataType('um')
+      .withNetworkId(this.state.networkId)
+      .withOwner(this.sessionId)
+      .withCreator(this.sessionId)
+      .withCustomComponent('13', {
+        status: animationId,
+        animationRunId: playbackId,
+      })
+      .build()
 
     // Send via NAFR for reliability
-    await this.messageService.sendNAFR(animationMessage)
+    await this.messageService.sendNAFR(nafMessage)
 
     // Emit event
     this.eventBus.emit('animation:played', {
@@ -336,25 +398,28 @@ export class AvatarController implements IAvatarController {
     this.currentAnimation = null
     this.state.currentAnimation = undefined
 
-    // Send stop animation message
-    const stopMessage: AnimationNAFMessage = {
-      dataType: 'animation',
-      data: {
-        networkId: this.state.networkId,
-        owner: this.sessionId,
-        animationId: 'idle', // Return to idle animation
-        playbackId: uuidv4(),
-        timestamp: Date.now(),
-      },
-    }
+    const playbackId = uuidv4()
 
-    await this.messageService.sendNAFR(stopMessage)
+    // v-air_clientと同じ形式でNAFメッセージを構築
+    const nafMessage = new NafMessageBuilder()
+      .withDataType('um')
+      .withNetworkId(this.state.networkId)
+      .withOwner(this.sessionId)
+      .withCreator(this.sessionId)
+      .withCustomComponent('13', {
+        status: 'idle',
+        animationRunId: playbackId,
+      })
+      .build()
+
+    await this.messageService.sendNAFR(nafMessage)
 
     this.eventBus.emit('animation:stopped', {
-      previousAnimation: this.currentAnimation,
+      animationId: 'idle',
+      playbackId,
     })
 
-    this.logger.debug('Animation stopped')
+    this.logger.info('Animation stopped, returned to idle')
   }
 
   /**
@@ -365,6 +430,15 @@ export class AvatarController implements IAvatarController {
     options?: AnimationPlayOptions,
   ): Promise<number | undefined> {
     if (!this.animationService) {
+      return undefined
+    }
+
+    // UUID形式のアニメーションかチェック
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    const isCustomAnimation = uuidRegex.test(animationId)
+
+    // カスタムアニメーション（UUID）の場合はdurationを取得できない
+    if (isCustomAnimation) {
       return undefined
     }
 

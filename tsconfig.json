@@ -1,4 +1,8 @@
 {
   "files": [],
-  "references": [{ "path": "packages/sdk" }, { "path": "packages/bot" }]
+  "references": [
+    { "path": "packages/sdk" },
+    { "path": "packages/bot" },
+    { "path": "packages/realtime" }
+  ]
 }

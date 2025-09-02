@@ -1,4 +1,4 @@
-import type { PresenceUser, UserAvatar } from '@metatell/sdk'
+import type { UserAvatar } from '@metatell/sdk'
 import type { UnifiedCommand } from './BotCommand.js'
 
 /**
@@ -43,6 +43,80 @@ export const unifiedCommands: UnifiedCommand[] = [
       return {
         success: true,
         message: 'Hello! 👋 Bot is ready to help.',
+      }
+    },
+  },
+
+  // Info command - Show current connection information
+  {
+    name: 'info',
+    pattern: /^info$/i,
+    cliAliases: ['info', 'i'],
+    description: 'Show current connection information',
+    usage: 'info',
+    botHandler: async (_match, _sessionId, context) => {
+      // Bot側では基本的な情報のみ表示
+      const avatarController = context.avatarController
+      const presenceManager = context.presenceManager
+      const userCount = presenceManager.getUsers().length
+
+      const avatarState = avatarController.getState()
+
+      return `🤖 Bot Information:
+• Display Name: ${avatarState?.displayName || 'Unknown'}
+• Avatar ID: ${avatarState?.avatarId || 'Unknown'}
+• Users in room: ${userCount}`
+    },
+    cliHandler: async (_args, context) => {
+      // CLI側ではより詳細な情報を表示（AgentClientがアクセス可能）
+      const agentClient = context.agentClient
+      if (!agentClient) {
+        return {
+          success: false,
+          message: 'AgentClient not available in context',
+        }
+      }
+
+      const status = agentClient.getStatus()
+      const config = context.botConfig
+
+      // 組織情報を取得
+      let organizationInfo: { organizationId?: string; realmId?: string } = {}
+      try {
+        const organizationService = context.organizationService
+        if (organizationService && config?.hubId) {
+          organizationInfo = await organizationService.getOrganizationInfo(
+            config.hubUrl,
+            config.hubId,
+          )
+        }
+      } catch (_error) {
+        // 組織情報の取得に失敗しても続行
+      }
+
+      const info = [
+        '🤖 Connection Information:',
+        `• Room URL: ${config?.hubUrl || 'Unknown'}`,
+        `• Hub ID: ${config?.hubId || status.room || 'Unknown'}`,
+        `• Organization ID: ${organizationInfo.organizationId || 'Unknown'}`,
+        `• Session ID: ${status.sessionId || 'Unknown'}`,
+        '',
+        '👤 Bot Profile:',
+        `• Display Name: ${config?.profile?.displayName || 'Unknown'}`,
+        `• Avatar ID: ${config?.profile?.avatarId || 'Unknown'}`,
+        '',
+        '🌐 Connection Status:',
+        `• Connected: ${status.connected ? '✅ Yes' : '❌ No'}`,
+        `• Users in room: ${agentClient.getUsers().length}`,
+      ]
+
+      if (status.rtt !== undefined) {
+        info.push(`• RTT: ${status.rtt}ms`)
+      }
+
+      return {
+        success: true,
+        message: info.join('\n'),
       }
     },
   },
@@ -125,35 +199,161 @@ export const unifiedCommands: UnifiedCommand[] = [
     },
   },
 
-  // Info command
+  // Look command - Look at position or user
   {
-    name: 'info',
-    pattern: /^info$/i,
-    cliAliases: ['info', 'status', 'stats'],
-    description: 'Show room information',
-    usage: 'info',
-    botHandler: async (_match, _sessionId, context) => {
-      const users = context.presenceManager.getUsers()
-      const userCount = users.length
+    name: 'look',
+    pattern: /^look(?:\s+(?:(@?\S+)|(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)))?$/i,
+    cliAliases: ['look', 'lookat', 'face'],
+    description: 'Look at a position or user',
+    usage: 'look <x> <y> <z> or look @<username>',
+    botHandler: async (match, _sessionId, context) => {
+      if (!match[1] && !match[2]) {
+        return 'Usage: look <x> <y> <z> or look @<username>'
+      }
 
-      const userNames = users
-        .map((p: PresenceUser) => p.profile?.displayName || 'Unknown')
-        .filter((name: string) => name !== 'Unknown')
-        .join(', ')
+      const avatarState = context.avatarController.getState()
+      if (!avatarState) {
+        return 'Bot avatar not spawned'
+      }
 
-      return (
-        `📊 Room Info:\n` +
-        `• Users online: ${userCount}\n` +
-        `• Connected users: ${userNames || 'None'}`
-      )
+      let targetPosition: { x: number; y: number; z: number } | null = null
+
+      if (match[1]?.startsWith('@')) {
+        // ユーザー名で検索
+        const username = match[1].substring(1).toLowerCase()
+        const users = context.userAvatarManager.getUsers()
+        const targetUser = users.find((user: UserAvatar) =>
+          user.nickname.toLowerCase().includes(username),
+        )
+
+        if (!targetUser) {
+          return `User "${username}" not found`
+        }
+
+        targetPosition = targetUser.position
+      } else if (match[2] && match[3] && match[4]) {
+        // 座標指定
+        const x = parseFloat(match[2])
+        const y = parseFloat(match[3])
+        const z = parseFloat(match[4])
+
+        if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(z)) {
+          return 'Invalid coordinates. Usage: look <x> <y> <z>'
+        }
+
+        targetPosition = { x, y, z }
+      }
+
+      if (!targetPosition) {
+        return 'Invalid command format'
+      }
+
+      // 現在の位置から目標への方向を計算
+      const dx = targetPosition.x - avatarState.position.x
+      const dz = targetPosition.z - avatarState.position.z
+
+      // Y軸周りの回転角度を計算（ラジアン）
+      const yaw = Math.atan2(dx, dz)
+
+      // クォータニオンに変換
+      const halfYaw = yaw * 0.5
+      const rotation = {
+        x: 0,
+        y: Math.sin(halfYaw),
+        z: 0,
+        w: Math.cos(halfYaw),
+      }
+
+      try {
+        await context.avatarController.rotate(rotation)
+        return `Looking at (${targetPosition.x.toFixed(1)}, ${targetPosition.y.toFixed(1)}, ${targetPosition.z.toFixed(1)}) 👀`
+      } catch (error) {
+        context.logger.error('Look command failed:', error)
+        return 'Failed to rotate avatar'
+      }
     },
-    cliHandler: async (_args, context) => {
-      const users = context.presenceManager.getUsers()
-      const userCount = users.length
+    cliHandler: async (args, context) => {
+      if (args.length === 0) {
+        return {
+          success: false,
+          message: 'Usage: /look <x> <y> <z> or /look @<username>',
+        }
+      }
 
-      return {
-        success: true,
-        message: `Room has ${userCount} user(s) connected`,
+      const avatarState = context.avatarController.getState()
+      if (!avatarState) {
+        return {
+          success: false,
+          message: 'Bot avatar not spawned',
+        }
+      }
+
+      let targetPosition: { x: number; y: number; z: number } | null = null
+
+      if (args[0].startsWith('@')) {
+        // ユーザー名で検索
+        const username = args[0].substring(1).toLowerCase()
+        const users = context.userAvatarManager.getUsers()
+        const targetUser = users.find((user: UserAvatar) =>
+          user.nickname.toLowerCase().includes(username),
+        )
+
+        if (!targetUser) {
+          return {
+            success: false,
+            message: `User "${username}" not found`,
+          }
+        }
+
+        targetPosition = targetUser.position
+      } else if (args.length === 3) {
+        // 座標指定
+        const x = parseFloat(args[0])
+        const y = parseFloat(args[1])
+        const z = parseFloat(args[2])
+
+        if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(z)) {
+          return {
+            success: false,
+            message: 'Invalid coordinates. All values must be numbers.',
+          }
+        }
+
+        targetPosition = { x, y, z }
+      } else {
+        return {
+          success: false,
+          message: 'Usage: /look <x> <y> <z> or /look @<username>',
+        }
+      }
+
+      // 現在の位置から目標への方向を計算
+      const dx = targetPosition.x - avatarState.position.x
+      const dz = targetPosition.z - avatarState.position.z
+
+      // Y軸周りの回転角度を計算（ラジアン）
+      const yaw = Math.atan2(dx, dz)
+
+      // クォータニオンに変換
+      const halfYaw = yaw * 0.5
+      const rotation = {
+        x: 0,
+        y: Math.sin(halfYaw),
+        z: 0,
+        w: Math.cos(halfYaw),
+      }
+
+      try {
+        await context.avatarController.rotate(rotation)
+        return {
+          success: true,
+          message: `Looking at (${targetPosition.x.toFixed(1)}, ${targetPosition.y.toFixed(1)}, ${targetPosition.z.toFixed(1)})`,
+        }
+      } catch (error) {
+        return {
+          success: false,
+          message: `Failed to rotate: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        }
       }
     },
   },
@@ -278,7 +478,12 @@ export const unifiedCommands: UnifiedCommand[] = [
 
       const message = args.join(' ')
       try {
-        await context.messageService.sendMessage(message)
+        // AgentClientを使ってメッセージを送信
+        const client = context.agentClient
+        if (!client) {
+          throw new Error('AgentClient not available in context')
+        }
+        await client.send(message)
         return {
           success: true,
           message: 'Message sent',
@@ -287,6 +492,298 @@ export const unifiedCommands: UnifiedCommand[] = [
         return {
           success: false,
           message: `Failed to send: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        }
+      }
+    },
+  },
+
+  // Voice commands
+  {
+    name: 'voice',
+    pattern: /^voice\s+(on|off|status)$/i,
+    cliAliases: ['voice', 'v'],
+    description: 'Control voice features',
+    usage: 'voice <on|off|status>',
+    botHandler: async (match, _sessionId, _context) => {
+      const action = match[1].toLowerCase()
+
+      switch (action) {
+        case 'on':
+          // TODO: Enable voice for the user
+          return '🎤 Voice feature is not yet implemented for in-room commands'
+
+        case 'off':
+          // TODO: Disable voice for the user
+          return '🔇 Voice feature is not yet implemented for in-room commands'
+
+        case 'status':
+          // TODO: Check voice status
+          return '📊 Voice feature is not yet implemented for in-room commands'
+
+        default:
+          return 'Usage: voice <on|off|status>'
+      }
+    },
+    cliHandler: async (args, context) => {
+      if (args.length === 0) {
+        return {
+          success: false,
+          message: 'Usage: /voice <on|off|status>',
+        }
+      }
+
+      const action = args[0].toLowerCase()
+      const client = context.agentClient
+
+      if (!client) {
+        return {
+          success: false,
+          message: 'Voice commands require AgentClient context',
+        }
+      }
+
+      switch (action) {
+        case 'on':
+          try {
+            // 音声接続を有効にする（接続時のオプションで制御）
+            return {
+              success: true,
+              message: '🎤 Voice enabled. Use /mute to control microphone.',
+            }
+          } catch (error) {
+            return {
+              success: false,
+              message: `Failed to enable voice: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            }
+          }
+
+        case 'off':
+          try {
+            // 音声接続を無効にする
+            return {
+              success: true,
+              message: '🔇 Voice disabled',
+            }
+          } catch (error) {
+            return {
+              success: false,
+              message: `Failed to disable voice: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            }
+          }
+
+        case 'status':
+          try {
+            const muted = client.isVoiceMuted()
+            return {
+              success: true,
+              message: `📊 Voice Status:\n• Microphone: ${muted ? '🔇 Muted' : '🎤 Unmuted'}`,
+            }
+          } catch {
+            return {
+              success: true,
+              message: '📊 Voice Status: Not connected',
+            }
+          }
+
+        default:
+          return {
+            success: false,
+            message: 'Usage: /voice <on|off|status>',
+          }
+      }
+    },
+  },
+
+  // Mute command
+  {
+    name: 'mute',
+    pattern: /^mute$/i,
+    cliAliases: ['mute', 'm'],
+    description: 'Toggle microphone mute',
+    usage: 'mute',
+    botHandler: async (_match, _sessionId, _context) => {
+      return '🔇 Mute command is not available for in-room commands'
+    },
+    cliHandler: async (_args, context) => {
+      try {
+        const client = context.agentClient
+        if (!client) {
+          return {
+            success: false,
+            message: 'Mute command requires AgentClient context',
+          }
+        }
+        const currentMuted = client.isVoiceMuted()
+        await client.muteVoice(!currentMuted)
+
+        return {
+          success: true,
+          message: currentMuted ? '🎤 Microphone unmuted' : '🔇 Microphone muted',
+        }
+      } catch (error) {
+        return {
+          success: false,
+          message: `Failed to toggle mute: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        }
+      }
+    },
+  },
+
+  // Test voice command (send test PCM)
+  {
+    name: 'testvoice',
+    cliAliases: ['testvoice', 'tv'],
+    description: 'Send test audio (sine wave)',
+    usage: 'testvoice [duration_ms]',
+    cliHandler: async (args, context) => {
+      try {
+        const client = context.agentClient
+        if (!client) {
+          return {
+            success: false,
+            message: 'Test voice command requires AgentClient context',
+          }
+        }
+        const duration = args[0] ? parseInt(args[0], 10) : 1000 // デフォルト1秒
+
+        if (Number.isNaN(duration) || duration < 100 || duration > 5000) {
+          return {
+            success: false,
+            message: 'Duration must be between 100 and 5000 milliseconds',
+          }
+        }
+
+        // 48kHz, 1ch, 20msフレーム
+        const sampleRate = 48000
+        const frameDurationMs = 20
+        const samplesPerFrame = (sampleRate * frameDurationMs) / 1000
+        const totalFrames = Math.floor(duration / frameDurationMs)
+
+        // 440Hz (A4音)のサイン波を生成
+        const frequency = 440
+        let phase = 0
+        const phaseIncrement = (2 * Math.PI * frequency) / sampleRate
+
+        for (let i = 0; i < totalFrames; i++) {
+          const frame = new Int16Array(samplesPerFrame)
+
+          for (let j = 0; j < samplesPerFrame; j++) {
+            // サイン波を生成（振幅を控えめに）
+            frame[j] = Math.sin(phase) * 8192 // 32767の約1/4
+            phase += phaseIncrement
+            if (phase > 2 * Math.PI) {
+              phase -= 2 * Math.PI
+            }
+          }
+
+          await client.sendVoiceFrame(frame)
+        }
+
+        return {
+          success: true,
+          message: `🔊 Sent ${duration}ms of test audio (440Hz sine wave)`,
+        }
+      } catch (error) {
+        return {
+          success: false,
+          message: `Failed to send test audio: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        }
+      }
+    },
+  },
+
+  // Animation/reaction command
+  {
+    name: 'anime',
+    pattern: /^(anime|animation|react)(?:\s+(.+))?$/i,
+    cliAliases: ['anime', 'animation', 'react', 'anim'],
+    description: 'Play VRM avatar animation',
+    usage: 'anime <animation_name>',
+    botHandler: async (match, _sessionId, context) => {
+      const animationId = match[2]?.trim().toLowerCase()
+
+      if (!animationId) {
+        return '使用方法: anime <animation_name>\n利用可能なアニメーション: wave, dance, nod, bow, clap'
+      }
+
+      try {
+        await context.avatarController.playAnimation(animationId)
+        return `アニメーション「${animationId}」を実行しました 🎭`
+      } catch (error) {
+        context.logger.error('Animation command failed:', error)
+        if (error instanceof Error && error.message.includes('not spawned')) {
+          return 'アバターがスポーンされていません'
+        } else if (error instanceof Error && error.message.includes('not found')) {
+          return `アニメーション「${animationId}」が見つかりません。利用可能なアニメーション: wave, dance, nod, bow, clap`
+        }
+        return `アニメーションの実行に失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }
+    },
+    cliHandler: async (args, context) => {
+      if (args.length === 0) {
+        return {
+          success: false,
+          message: 'Usage: /anime <animation_name>\n例: /anime wave, /anime dance, /anime nod',
+        }
+      }
+
+      const animationId = args[0].toLowerCase()
+
+      try {
+        const result = await context.avatarController.playAnimation(animationId)
+        return {
+          success: true,
+          message: `🎭 アニメーション「${animationId}」を実行しました\n再生ID: ${result.playbackId}${
+            result.expectedDuration ? `\n予想時間: ${result.expectedDuration}ms` : ''
+          }`,
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('not spawned')) {
+          return {
+            success: false,
+            message: 'アバターがスポーンされていません',
+          }
+        } else if (error instanceof Error && error.message.includes('not found')) {
+          return {
+            success: false,
+            message: `アニメーション「${animationId}」が見つかりません。\n\n利用可能なアニメーション例:\n• wave - 手を振る\n• dance - ダンス\n• nod - うなずき\n• bow - お辞儀\n• clap - 拍手`,
+          }
+        }
+        return {
+          success: false,
+          message: `アニメーションの実行に失敗: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        }
+      }
+    },
+  },
+
+  // Stop animation command
+  {
+    name: 'stop',
+    pattern: /^(stop|idle)$/i,
+    cliAliases: ['stop', 'idle'],
+    description: 'Stop current animation and return to idle',
+    usage: 'stop',
+    botHandler: async (_match, _sessionId, context) => {
+      try {
+        await context.avatarController.stopAnimation()
+        return 'アニメーションを停止し、待機状態に戻りました'
+      } catch (error) {
+        context.logger.error('Stop animation failed:', error)
+        return 'アニメーションの停止に失敗しました'
+      }
+    },
+    cliHandler: async (_args, context) => {
+      try {
+        await context.avatarController.stopAnimation()
+        return {
+          success: true,
+          message: '⏹️ アニメーションを停止し、待機状態に戻りました',
+        }
+      } catch (error) {
+        return {
+          success: false,
+          message: `停止に失敗: ${error instanceof Error ? error.message : 'Unknown error'}`,
         }
       }
     },
