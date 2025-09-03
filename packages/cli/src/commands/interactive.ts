@@ -31,8 +31,19 @@ export async function startInteractiveMode(url: string, options: CliOptions) {
       console.log('[Disconnected]', reason || 'Connection closed')
     })
 
-    client.on('message', (data) => {
-      console.log('[Message]', data)
+    // chat-messageイベントを使用して、より詳細なメッセージ情報を取得
+    client.on('chat-message', (message) => {
+      const mentionInfo = message.mention ? ` (mentions @${message.mention.name})` : ''
+      console.log(`[Chat] ${message.from.name}: ${message.text}${mentionInfo}`)
+    })
+
+    // メンションハンドラーを設定
+    client.chat.onMention((event) => {
+      console.log(`[Mentioned by ${event.from.name}] ${event.text}`)
+      // 自動的に返信
+      event.reply(`Hello ${event.from.name}! You said: "${event.text}"`).catch((err) => {
+        console.error('[Error replying]', err)
+      })
     })
 
     client.on('user-join', (user) => {
