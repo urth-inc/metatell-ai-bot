@@ -573,14 +573,28 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
     },
 
     rotateTo: async (rotation: Euler): Promise<void> => {
-      // Euler角をラジアンに変換（SDKは度数法、Coreはラジアン）
-      const radians = {
-        x: (rotation.x * Math.PI) / 180,
-        y: (rotation.y * Math.PI) / 180,
-        z: (rotation.z * Math.PI) / 180,
+      // Euler角（度数法）をラジアンに変換
+      const xRad = (rotation.x * Math.PI) / 180
+      const yRad = (rotation.y * Math.PI) / 180
+      const zRad = (rotation.z * Math.PI) / 180
+
+      // オイラー角からクォータニオンに変換（ZYX順）
+      const cx = Math.cos(xRad / 2)
+      const sx = Math.sin(xRad / 2)
+      const cy = Math.cos(yRad / 2)
+      const sy = Math.sin(yRad / 2)
+      const cz = Math.cos(zRad / 2)
+      const sz = Math.sin(zRad / 2)
+
+      const quaternion = {
+        x: sx * cy * cz - cx * sy * sz,
+        y: cx * sy * cz + sx * cy * sz,
+        z: cx * cy * sz - sx * sy * cz,
+        w: cx * cy * cz + sx * sy * sz,
       }
+
       // AvatarControllerのrotateメソッドを使用
-      await this.avatarController.rotate(radians)
+      await this.avatarController.rotate(quaternion)
     },
 
     lookAt: async (target: Vec3): Promise<void> => {
@@ -597,8 +611,17 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       // Y軸周りの回転角度を計算（ラジアン）
       const yRotation = Math.atan2(dx, dz)
 
+      // ラジアンからクォータニオンに変換（Y軸回転のみ）
+      const halfAngle = yRotation / 2
+      const quaternion = {
+        x: 0,
+        y: Math.sin(halfAngle),
+        z: 0,
+        w: Math.cos(halfAngle),
+      }
+
       // 回転を適用
-      await this.avatarController.rotate({ x: 0, y: yRotation, z: 0 })
+      await this.avatarController.rotate(quaternion)
     },
 
     getPosition: (): Vec3 | null => {

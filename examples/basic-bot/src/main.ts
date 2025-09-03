@@ -61,7 +61,13 @@ async function main() {
         y: notMeFirstUser.position.y,
         z: notMeFirstUser.position.z + 1,
       })
-    }, 100)
+
+      client.avatar.lookAt({
+        x: notMeFirstUser.position.x,
+        y: notMeFirstUser.position.y,
+        z: notMeFirstUser.position.z,
+      })
+    }, 1000)
   } catch (error) {
     console.error('❌ Connection failed:', error)
     process.exit(1)
