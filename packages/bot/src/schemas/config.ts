@@ -77,7 +77,7 @@ export const EnvVarsSchema = v.object({
 })
 
 // Command line flags schema
-export const FlagsSchema = v.object({
+export const FlagsSchema = v.strictObject({
   '--url': v.optional(UrlSchema),
   '--token': v.optional(v.string()),
   '--profile': v.optional(v.string()),

@@ -31,22 +31,89 @@ client.sendMessage('Hello from AI Bot!')
 
 ## Configuration
 
+The bot supports multiple configuration methods with the following priority:
+
+1. **Command line flags** (highest priority)
+2. **Environment variables**
+3. **Configuration files** (via cosmiconfig)
+4. **.env file** (lowest priority)
+
+### Configuration Files
+
+The bot uses [cosmiconfig](https://github.com/davidtheclark/cosmiconfig) to automatically find and load configuration. It searches for:
+
+- `.metatellrc` (JSON or YAML)
+- `.metatellrc.json`
+- `.metatellrc.yaml` / `.metatellrc.yml`
+- `.metatellrc.js` / `.metatellrc.cjs`
+- `metatell.config.js` / `metatell.config.cjs`
+- `metatell` field in `package.json`
+
+Example configuration files are provided:
+- `.metatellrc.example.json` - JSON format
+- `.metatellrc.example.yaml` - YAML format
+- `metatell.config.example.js` - JavaScript format
+
+### Configuration Schema
+
 ```typescript
 interface MetatellConfig {
-  socketUrl?: string      // WebSocket URL (default: "wss://localhost:4443")
-  hubId?: string         // Hub/room ID to join
-  authToken?: string     // Authentication token
-  permsToken?: string    // Permissions token
+  url?: string           // Metatell room URL
+  token?: string         // Authentication token (supports @file syntax)
   botAccessKey?: string  // Bot access key for OAuth-required hubs
   profile?: {
     displayName: string  // Display name in the room
     avatarId?: string   // Avatar identifier
     avatarSelection?: 'random' | 'organization' | string  // Avatar selection method
   }
-  context?: object       // Additional context data
-  sessionToken?: string  // Session token for reconnection
+  profiles?: {           // Named configuration profiles
+    [name: string]: Partial<MetatellConfig>
+  }
+  rate?: {              // Rate limiting
+    messagesPerSec?: number
+    movesPerSec?: number
+    looksPerSec?: number
+  }
   debug?: boolean       // Enable debug logging
 }
+```
+
+### Example Usage
+
+1. **Using JSON config file** (`.metatellrc.json`):
+```json
+{
+  "url": "https://metatell.app/my-room",
+  "profile": {
+    "displayName": "My Bot"
+  }
+}
+```
+
+2. **Using package.json**:
+```json
+{
+  "name": "my-bot",
+  "version": "1.0.0",
+  "metatell": {
+    "url": "https://metatell.app/my-room",
+    "profile": {
+      "displayName": "My Bot"
+    }
+  }
+}
+```
+
+3. **Using environment variables**:
+```bash
+export METATELL_URL="https://metatell.app/my-room"
+export BOT_NAME="My Bot"
+export AVATAR_ID="custom-avatar"
+```
+
+4. **Using command line**:
+```bash
+npm start -- --url "https://metatell.app/my-room" --debug
 ```
 
 ### Avatar Selection

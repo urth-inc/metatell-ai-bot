@@ -1,16 +1,16 @@
 // WebSocket polyfill for Node.js environment
 import WebSocketImpl from 'ws'
 
-// Node.js環境でWebSocketをグローバルに設定
-// Phoenix.jsがブラウザのWebSocketAPIを期待するため
+// Set WebSocket globally in Node.js environment
+// Because Phoenix.js expects the browser's WebSocket API
 if (typeof global !== 'undefined') {
-  // グローバルオブジェクトを拡張
+  // Extend the global object
   const globalWithWs = global as unknown as {
     WebSocket?: typeof WebSocketImpl
   }
 
   if (!globalWithWs.WebSocket) {
-    // wsのWebSocketをグローバルに設定
+    // Set ws WebSocket globally
     globalWithWs.WebSocket = WebSocketImpl
   }
 }
