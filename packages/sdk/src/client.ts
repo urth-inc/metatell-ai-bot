@@ -270,10 +270,15 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       if (messageData.type === 'chat' && messageData.body) {
         const parsed = this.parseMessageMention(messageData.body)
 
+        // PresenceManagerから送信者の情報を取得
+        const users = this.presenceManager.getUsers()
+        const sender = users.find((u) => u.id === messageData.senderId)
+        const senderName = sender?.profile?.displayName || sender?.id.split('#')[0] || 'Unknown'
+
         this.emit('chat-message', {
           from: {
             id: messageData.senderId || '',
-            name: messageData.senderId?.split('#')[0] || 'Unknown',
+            name: senderName,
             isBot: false,
           },
           text: parsed.text,
@@ -408,9 +413,14 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
           // ボットがメンションされた場合のみハンドラーを呼び出す
           if (parsed.mention && parsed.mention.sessionId === botSessionId) {
+            // PresenceManagerから送信者の情報を取得
+            const users = this.presenceManager.getUsers()
+            const sender = users.find((u) => u.id === messageData.senderId)
+            const senderName = sender?.profile?.displayName || sender?.id.split('#')[0] || 'Unknown'
+
             const user: User = {
               id: messageData.senderId || '',
-              name: messageData.senderId?.split('#')[0] || 'Unknown',
+              name: senderName,
               isBot: false,
             }
 
