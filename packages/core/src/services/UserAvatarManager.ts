@@ -193,13 +193,9 @@ export class UserAvatarManager implements IUserAvatarManager {
     const positionComponent = data.components[NafComponentId.Position] as
       | { x: number; y: number; z: number; isVector3?: boolean }
       | undefined
-    const position = positionComponent || existingUser?.position
-
-    // 位置情報がない場合は処理をスキップ（デフォルト値を設定しない）
-    if (!position) {
-      this.logger.debug(`[NAF] No position data for ${networkId}, skipping update`)
-      return
-    }
+    
+    
+    const position = positionComponent || existingUser?.position || { x: 0, y: 0, z: 0 }
 
     // デバッグ: 位置情報の更新をログ出力
     if (positionComponent) {
@@ -251,6 +247,14 @@ export class UserAvatarManager implements IUserAvatarManager {
 
     // ユーザー情報を更新
     this.users.set(networkId, userAvatar)
+    
+    // owner/creatorがセッションIDの場合、そのIDでも同じ情報を保存（逆マッピング）
+    if (data.owner && data.owner !== networkId) {
+      this.users.set(data.owner, { ...userAvatar, id: data.owner })
+    }
+    if (data.creator && data.creator !== networkId && data.creator !== data.owner) {
+      this.users.set(data.creator, { ...userAvatar, id: data.creator })
+    }
 
     // イベントを発火
     if (isNewUser) {
@@ -411,13 +415,13 @@ export class UserAvatarManager implements IUserAvatarManager {
       const userAvatar: UserAvatar = {
         id: user.id,
         nickname: user.profile.displayName || 'Unknown',
-        position: null as unknown as { x: number; y: number; z: number }, // 位置情報は後でNAFメッセージから設定
+        position: { x: 0, y: 0, z: 0 }, // デフォルト位置を設定
         rotation: { x: 0, y: 0, z: 0, w: 1 },
         lastUpdated: Date.now(),
       }
       this.users.set(user.id, userAvatar)
       this.logger.debug(
-        `[PRESENCE] User joined: ${userAvatar.nickname} (${user.id}), awaiting position data`,
+        `[PRESENCE] User joined: ${userAvatar.nickname} (${user.id}), position initialized to origin`,
       )
     }
   }
@@ -464,8 +468,8 @@ export class UserAvatarManager implements IUserAvatarManager {
   getUsers(): UserAvatar[] {
     // Presenceに存在しないユーザーを除外してクリーンアップ
     this.cleanupStaleUsers()
-    // 位置情報があるユーザーのみを返す
-    return Array.from(this.users.values()).filter((user) => user.position !== null)
+    // 全てのユーザーを返す（位置情報はデフォルト値が設定されている）
+    return Array.from(this.users.values())
   }
 
   getUser(userId: string): UserAvatar | undefined {

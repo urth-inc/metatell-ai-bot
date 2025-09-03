@@ -1,6 +1,6 @@
 {
   "name": "metatell-basic-bot-example",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,11 +10,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@metatell/sdk": "file:../../packages/sdk",
-    "tsx": "^4.20.0"
+    "@metatell/bot-sdk": "file:../../packages/sdk"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "tsx": "^4.20.0"
   }
 }

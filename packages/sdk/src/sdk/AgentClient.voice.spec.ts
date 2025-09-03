@@ -9,12 +9,12 @@ registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
 import {
   DefaultLoggerProvider as CoreDefaultLoggerProvider,
   registerLoggerProvider as registerCoreLoggerProvider,
-} from '@metatell/core'
+} from '@metatell/bot-core'
 
 registerCoreLoggerProvider(new CoreDefaultLoggerProvider(), { allowOverwrite: true })
 
-import type { BotConfiguration } from '@metatell/core'
-import { CoreServiceFactory } from '@metatell/core'
+import type { BotConfiguration } from '@metatell/bot-core'
+import { CoreServiceFactory } from '@metatell/bot-core'
 import { describe, expect, it, vi } from 'vitest'
 import { createAgentClient } from './AgentClient.js'
 

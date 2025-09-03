@@ -3,7 +3,7 @@
  */
 
 import { createInterface } from 'node:readline'
-import { createMetatellClient } from '@metatell/sdk'
+import { createMetatellClient } from '@metatell/bot-sdk'
 import type { CliOptions } from '../types.js'
 import { CommandParser } from '../utils/commands.js'
 import { parseUrl } from '../utils/url.js'

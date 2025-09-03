@@ -27,7 +27,7 @@ import {
   registerLoggerProvider as registerCoreLoggerProvider,
   SystemEvents,
   UserAvatarManager,
-} from '@metatell/core'
+} from '@metatell/bot-core'
 import { getLogger } from './sdk/logging/index.js'
 import type {
   Animation,
@@ -311,11 +311,16 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
     this.eventBus.on(SystemEvents.USER_JOINED, (data: unknown) => {
       // PresenceUserデータをUser型に変換
-      const presenceUser = data as import('@metatell/core').PresenceUser
+      const presenceUser = data as import('@metatell/bot-core').PresenceUser
+      // UserAvatarManagerからアバター情報を取得
+      const avatar = this.userAvatarManager.getUser(presenceUser.id)
+      
       const user: User = {
         id: presenceUser.id,
         name: presenceUser.profile?.displayName || presenceUser.id.split('#')[0] || presenceUser.id,
         isBot: false,
+        position: avatar?.position,
+        rotation: avatar?.rotation,
       }
       this.emit('user-join', user)
       // 新しいユーザーが入室したときにアバターを再同期
@@ -324,11 +329,16 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
     this.eventBus.on(SystemEvents.USER_LEFT, (data: unknown) => {
       // PresenceUserデータをUser型に変換
-      const presenceUser = data as import('@metatell/core').PresenceUser
+      const presenceUser = data as import('@metatell/bot-core').PresenceUser
+      // UserAvatarManagerからアバター情報を取得
+      const avatar = this.userAvatarManager.getUser(presenceUser.id)
+      
       const user: User = {
         id: presenceUser.id,
         name: presenceUser.profile?.displayName || presenceUser.id.split('#')[0] || presenceUser.id,
         isBot: false,
+        position: avatar?.position,
+        rotation: avatar?.rotation,
       }
       this.emit('user-leave', user)
     })
@@ -419,11 +429,18 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
     getUsers: async (): Promise<User[]> => {
       const users = this.presenceManager.getUsers()
       // PresenceUserをUser型に変換
-      return users.map((u) => ({
-        id: u.id,
-        name: u.profile?.displayName || u.id.split('#')[0] || u.id,
-        isBot: false,
-      }))
+      return users.map((u) => {
+        // UserAvatarManagerからアバター情報を取得
+        const avatar = this.userAvatarManager.getUser(u.id)
+        
+        return {
+          id: u.id,
+          name: u.profile?.displayName || u.id.split('#')[0] || u.id,
+          isBot: false,
+          position: avatar?.position,
+          rotation: avatar?.rotation,
+        }
+      })
     },
 
     getNearbyUsers: async (radius: number = 10): Promise<User[]> => {
@@ -442,6 +459,8 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
         id: avatar.id,
         name: avatar.nickname || avatar.id.split('#')[0] || avatar.id,
         isBot: false,
+        position: avatar.position,
+        rotation: avatar.rotation,
       }))
     },
   }
@@ -642,11 +661,18 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
   getUsers(): User[] {
     const users = this.presenceManager.getUsers()
     // PresenceUserをUser型に変換（room.getUsersと同じ実装）
-    return users.map((u) => ({
-      id: u.id,
-      name: u.profile?.displayName || u.id.split('#')[0] || u.id,
-      isBot: false,
-    }))
+    return users.map((u) => {
+      // UserAvatarManagerからアバター情報を取得
+      const avatar = this.userAvatarManager.getUser(u.id)
+      
+      return {
+        id: u.id,
+        name: u.profile?.displayName || u.id.split('#')[0] || u.id,
+        isBot: false,
+        position: avatar?.position,
+        rotation: avatar?.rotation,
+      }
+    })
   }
 
   getRateLimit(_key: 'messages' | 'moves' | 'looks'): number | undefined {
@@ -684,5 +710,21 @@ export function createMetatellClient(options: CreateClientOptions): MetatellClie
     throw new MetatellError('INVALID_CONFIG', 'serverUrl and roomId are required')
   }
 
-  return new MetatellClientImpl(options)
+  // サブドメインを除いたサーバーURLを生成
+  const processedOptions = { ...options }
+  try {
+    const url = new URL(options.serverUrl.replace(/^ws/, 'http'))
+    const hostParts = url.hostname.split('.')
+    
+    if (hostParts.length >= 2) {
+      // サブドメインがある場合は除去（例: urth.metatell.app -> metatell.app）
+      const mainDomain = hostParts.slice(-2).join('.')
+      processedOptions.serverUrl = options.serverUrl.replace(url.hostname, mainDomain)
+    }
+  } catch (error) {
+    // URL解析に失敗した場合はそのまま使用
+    // エラーログなどは出さず、元のURLを使用
+  }
+
+  return new MetatellClientImpl(processedOptions)
 }

@@ -32,7 +32,7 @@ export type {
   UserAvatarEvent,
   VRMAnimation,
   WebSocketState,
-} from '@metatell/core'
+} from '@metatell/bot-core'
 // NAF Message Builder (ユーティリティ)
 // Core Interfaces (公開する型定義)
 // Service Container (DIコンテナ)
@@ -75,7 +75,7 @@ export {
   type ServiceKey,
   SystemEvents,
   UserAvatarManager,
-} from '@metatell/core'
+} from '@metatell/bot-core'
 export type { MetatellClient } from './client.js'
 // New Facade API
 export { createMetatellClient } from './client.js'

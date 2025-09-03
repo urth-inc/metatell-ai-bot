@@ -2,7 +2,7 @@
  * Simple connection test command
  */
 
-import { createMetatellClient } from '@metatell/sdk'
+import { createMetatellClient } from '@metatell/bot-sdk'
 import type { CliOptions } from '../types.js'
 import { parseUrl } from '../utils/url.js'
 

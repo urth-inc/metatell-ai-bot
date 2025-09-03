@@ -5,7 +5,13 @@
 // Basic types
 export type Vec3 = { x: number; y: number; z: number } // 単位: メートル
 export type Euler = { x: number; y: number; z: number } // 単位: 度
-export type User = { id: string; name: string | null; isBot?: boolean }
+export type User = {
+  id: string
+  name: string | null
+  isBot?: boolean
+  position?: Vec3
+  rotation?: Euler
+}
 export type BotInfo = { name: string; version: string; roomId: string }
 export type AvatarAsset = {
   id: string

@@ -1,13 +1,13 @@
 {
   "name": "metatell-ai-bot",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @metatell/core && npm run build -w @metatell/sdk && npm run build -w @metatell/realtime",
+    "build": "npm run build -w @metatell/bot-core && npm run build -w @metatell/bot-sdk && npm run build -w @metatell/bot-realtime",
     "build:all": "npm run build --workspaces",
     "test": "vitest run",
     "test:ui": "vitest run --ui --coverage",
