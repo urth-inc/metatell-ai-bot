@@ -6,6 +6,5 @@
     "composite": true
   },
   "include": ["src/**/*"],
-  "exclude": ["**/*.spec.ts", "**/*.test.ts", "dist", "node_modules"],
-  "references": [{ "path": "../core" }]
+  "exclude": ["**/*.spec.ts", "**/*.test.ts", "dist", "node_modules"]
 }
