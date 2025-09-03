@@ -40,9 +40,9 @@ async function main() {
     client.chat.onMention(async ({ from, text, reply }) => {
       console.log(`💬 ${from.name}: ${text}`)
       await reply(`${from.name} さんこんにちは！👋`)
+      // await client.avatar.play({ id: '31a7e9af-cd65-4efa-ad9c-132f21d03766', loop: false }) // 感謝するアニメーション(idはアバター依存なので適宜変更)
     })
 
-    // ついてくる AIbot
     let isMoving = false
 
     // 利用可能なアニメーションを確認
