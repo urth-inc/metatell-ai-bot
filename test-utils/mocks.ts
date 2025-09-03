@@ -1,6 +1,6 @@
 import type { vi } from 'vitest'
 
-// Phoenix Channel モック用の型定義
+// Phoenix Channel mock type definition
 export interface MockChannel {
   on: ReturnType<typeof vi.fn>
   push: ReturnType<typeof vi.fn>
@@ -8,7 +8,7 @@ export interface MockChannel {
   join: ReturnType<typeof vi.fn>
 }
 
-// Phoenix Socket モック用の型定義
+// Phoenix Socket mock type definition
 export interface MockSocket {
   connect: ReturnType<typeof vi.fn>
   disconnect: ReturnType<typeof vi.fn>
@@ -19,7 +19,7 @@ export interface MockSocket {
   onError: ReturnType<typeof vi.fn>
 }
 
-// Phoenix Presence モック用の型定義
+// Phoenix Presence mock type definition
 export interface MockPresence {
   onSync: ReturnType<typeof vi.fn>
   list: ReturnType<typeof vi.fn>
@@ -27,15 +27,15 @@ export interface MockPresence {
   onLeave: ReturnType<typeof vi.fn>
 }
 
-// モック関数の呼び出し型
+// Mock function call type
 export type MockCall = [string, ...unknown[]]
 
-// より型安全なモック関数アクセス用のヘルパー
+// Helper for type-safe mock function access
 export function getMockCalls<T extends { mock: { calls: unknown[][] } }>(fn: T): MockCall[] {
   return fn.mock.calls as MockCall[]
 }
 
-// 特定の引数でモック関数が呼び出されたか確認するヘルパー
+// Helper to check if mock function was called with specific arguments
 export function findMockCall<T extends { mock: { calls: unknown[][] } }>(
   fn: T,
   predicate: (call: MockCall) => boolean,
@@ -43,7 +43,7 @@ export function findMockCall<T extends { mock: { calls: unknown[][] } }>(
   return getMockCalls(fn).find(predicate)
 }
 
-// EventBus用のモック呼び出しヘルパー
+// EventBus mock call helper
 export type EventBusCall = [string, (...args: unknown[]) => void]
 
 export function findEventBusCall<T extends { mock: { calls: unknown[][] } }>(
@@ -54,7 +54,7 @@ export function findEventBusCall<T extends { mock: { calls: unknown[][] } }>(
   return calls.find((call) => call[0] === event)
 }
 
-// Channel用のモック呼び出しヘルパー
+// Channel mock call helper
 export type ChannelCall = [string, unknown]
 
 export function findChannelCall<T extends { mock: { calls: unknown[][] } }>(
@@ -65,7 +65,7 @@ export function findChannelCall<T extends { mock: { calls: unknown[][] } }>(
   return calls.find((call) => call[0] === event)
 }
 
-// Phoenix Socket options の型定義
+// Phoenix Socket options type definition
 export interface SocketOptions {
   params?: Record<string, unknown>
   [key: string]: unknown

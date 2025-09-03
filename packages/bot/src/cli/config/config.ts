@@ -7,14 +7,12 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { cosmiconfig } from 'cosmiconfig'
+import { type CosmiconfigResult, cosmiconfig } from 'cosmiconfig'
 import { config as dotenvConfig } from 'dotenv'
 import * as v from 'valibot'
 import {
   type Config,
   ConfigFileSchema,
-  type ConfigProfile,
   ConfigSchema,
   EnvVarsSchema,
   FlagsSchema,
@@ -24,111 +22,46 @@ import {
 export type { Config, ConfigProfile } from '../../schemas/index.js'
 
 export class ConfigManager {
-  private config: Config = {}
-  private profiles: Map<string, ConfigProfile> = new Map()
-  private explorer = cosmiconfig('metatell')
+  private readonly explorer = cosmiconfig('metatell', {
+    // Search for these files in order
+    searchPlaces: [
+      'package.json',
+      '.metatellrc',
+      '.metatellrc.json',
+      '.metatellrc.yaml',
+      '.metatellrc.yml',
+      '.metatellrc.js',
+      '.metatellrc.cjs',
+      'metatell.config.js',
+      'metatell.config.cjs',
+    ],
+    // Support loading from package.json
+    packageProp: 'metatell',
+  })
+  private configResult: CosmiconfigResult | null = null
 
   constructor() {
-    // Synchronous initialization
+    // Load .env file synchronously
     this.loadEnvFile()
-    this.loadEnvironmentVariables()
-  }
-
-  private async loadConfig(): Promise<void> {
-    // Load config file using cosmiconfig (async)
-    await this.loadConfigFile()
   }
 
   private loadEnvFile(): void {
-    // Use dotenv to properly parse .env file
-    // This handles edge cases like comments, quotes, multiline values, etc.
-    // Suppress dotenv's default output by temporarily redirecting console
+    // Suppress dotenv's default output
     const originalConsoleLog = console.log
     console.log = () => {} // Temporarily disable console.log
 
     try {
-      dotenvConfig({ path: join(process.cwd(), '.env') })
+      dotenvConfig()
     } finally {
       console.log = originalConsoleLog // Restore console.log
     }
   }
 
-  private async loadConfigFile(): Promise<void> {
-    try {
-      const result = await this.explorer.search()
-      if (result?.config) {
-        // Validate config file
-        const validationResult = v.safeParse(ConfigFileSchema, result.config)
-        if (!validationResult.success) {
-          console.error('Invalid config file format:', v.flatten(validationResult.issues))
-          return
-        }
-
-        const validatedData = validationResult.output
-
-        // Main configuration
-        if (validatedData.url) this.config.url = validatedData.url
-        if (validatedData.token) this.config.token = validatedData.token
-        if (validatedData.profile) this.config.profile = validatedData.profile
-        if (validatedData.rate) this.config.rate = validatedData.rate
-        if (validatedData.debug !== undefined) this.config.debug = validatedData.debug
-
-        // Profiles
-        if (validatedData.profiles) {
-          Object.entries(validatedData.profiles).forEach(([name, profile]) => {
-            this.profiles.set(name, { name, ...profile })
-          })
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load config file:', error)
-    }
-  }
-
-  private loadEnvironmentVariables(): void {
-    // Validate environment variables
-    const envResult = v.safeParse(EnvVarsSchema, process.env)
-    if (!envResult.success) {
-      // Log validation issues but continue (env vars are optional)
-      if (this.config.debug) {
-        console.warn('Environment variable validation issues:', v.flatten(envResult.issues))
-      }
-    }
-
-    if (process.env.METATELL_URL) {
-      const urlResult = v.safeParse(UrlSchema, process.env.METATELL_URL)
-      if (urlResult.success) {
-        this.config.url = urlResult.output
-      } else {
-        console.warn(`Invalid METATELL_URL: ${process.env.METATELL_URL}`)
-      }
-    }
-    if (process.env.METATELL_TOKEN || process.env.METATELL_AUTH_TOKEN) {
-      this.config.token = process.env.METATELL_TOKEN || process.env.METATELL_AUTH_TOKEN
-    }
-    if (process.env.BOT_ACCESS_KEY) {
-      this.config.botAccessKey = process.env.BOT_ACCESS_KEY
-    }
-    if (process.env.BOT_NAME) {
-      this.config.profile = this.config.profile || {}
-      this.config.profile.displayName = process.env.BOT_NAME
-    }
-    if (process.env.AVATAR_ID) {
-      this.config.profile = this.config.profile || {}
-      this.config.profile.avatarId = process.env.AVATAR_ID
-    }
-    if (process.env.DEBUG === 'true') {
-      this.config.debug = true
-    }
-  }
-
   /**
-   * Get configuration with command line overrides
+   * Get configuration with priority handling
    */
   async getConfig(flags: Record<string, string | boolean> = {}): Promise<Config> {
-    // Ensure config file is loaded
-    await this.loadConfig()
-    // Validate flags
+    // Validate flags first
     const flagsResult = v.safeParse(FlagsSchema, flags)
     if (!flagsResult.success) {
       throw new Error(
@@ -136,34 +69,110 @@ export class ConfigManager {
       )
     }
 
-    const result: Config = { ...this.config }
+    // Initialize base config
+    const mergedConfig: Config = {}
 
-    // Apply profile
-    if (flags['--profile'] && typeof flags['--profile'] === 'string') {
-      const profile = this.profiles.get(flags['--profile'])
-      if (profile) {
-        Object.assign(result, profile)
+    // 1. Load config file (lowest priority)
+    if (!this.configResult) {
+      this.configResult = await this.explorer.search()
+    }
+
+    if (this.configResult?.config) {
+      const validationResult = v.safeParse(ConfigFileSchema, this.configResult.config)
+      if (validationResult.success) {
+        const fileConfig = validationResult.output
+
+        // Apply base config
+        Object.assign(mergedConfig, {
+          url: fileConfig.url,
+          token: fileConfig.token,
+          profile: fileConfig.profile,
+          rate: fileConfig.rate,
+          debug: fileConfig.debug,
+          botAccessKey: fileConfig.botAccessKey,
+        })
+
+        // Apply profile if specified in flags
+        if (flags['--profile'] && typeof flags['--profile'] === 'string') {
+          const profileName = flags['--profile']
+          const profile = fileConfig.profiles?.[profileName]
+          if (profile) {
+            Object.assign(mergedConfig, {
+              ...profile,
+              profile: { ...mergedConfig.profile, ...profile.profile },
+            })
+          }
+        }
+      } else {
+        console.warn('Invalid config file format:', v.flatten(validationResult.issues))
       }
     }
 
-    // Override with flags
+    // 2. Apply environment variables (medium priority)
+    const envConfig = this.getEnvConfig()
+    Object.assign(mergedConfig, envConfig)
+
+    // 3. Apply command line flags (highest priority)
     if (flags['--url'] && typeof flags['--url'] === 'string') {
-      result.url = flags['--url']
+      mergedConfig.url = flags['--url']
     }
     if (flags['--token'] && typeof flags['--token'] === 'string') {
-      result.token = this.resolveToken(flags['--token'])
+      mergedConfig.token = this.resolveToken(flags['--token'])
     }
     if (flags['--debug'] === true) {
-      result.debug = true
+      mergedConfig.debug = true
     }
 
     // Validate final configuration
-    const configResult = v.safeParse(ConfigSchema, result)
+    const configResult = v.safeParse(ConfigSchema, mergedConfig)
     if (!configResult.success) {
       throw new Error(`Invalid configuration: ${JSON.stringify(v.flatten(configResult.issues))}`)
     }
 
     return configResult.output
+  }
+
+  private getEnvConfig(): Partial<Config> {
+    const envConfig: Partial<Config> = {}
+
+    // Validate environment variables
+    const envResult = v.safeParse(EnvVarsSchema, process.env)
+    if (!envResult.success && process.env.DEBUG === 'true') {
+      console.warn('Environment variable validation issues:', v.flatten(envResult.issues))
+    }
+
+    if (process.env.METATELL_URL) {
+      const urlResult = v.safeParse(UrlSchema, process.env.METATELL_URL)
+      if (urlResult.success) {
+        envConfig.url = urlResult.output
+      } else {
+        console.warn(`Invalid METATELL_URL: ${process.env.METATELL_URL}`)
+      }
+    }
+
+    if (process.env.METATELL_TOKEN || process.env.METATELL_AUTH_TOKEN) {
+      envConfig.token = process.env.METATELL_TOKEN || process.env.METATELL_AUTH_TOKEN
+    }
+
+    if (process.env.BOT_ACCESS_KEY) {
+      envConfig.botAccessKey = process.env.BOT_ACCESS_KEY
+    }
+
+    if (process.env.BOT_NAME || process.env.AVATAR_ID) {
+      envConfig.profile = {}
+      if (process.env.BOT_NAME) {
+        envConfig.profile.displayName = process.env.BOT_NAME
+      }
+      if (process.env.AVATAR_ID) {
+        envConfig.profile.avatarId = process.env.AVATAR_ID
+      }
+    }
+
+    if (process.env.DEBUG === 'true') {
+      envConfig.debug = true
+    }
+
+    return envConfig
   }
 
   /**
@@ -183,7 +192,25 @@ export class ConfigManager {
   /**
    * Get available profiles
    */
-  getProfiles(): string[] {
-    return Array.from(this.profiles.keys())
+  async getProfiles(): Promise<string[]> {
+    if (!this.configResult) {
+      this.configResult = await this.explorer.search()
+    }
+
+    if (this.configResult?.config) {
+      const validationResult = v.safeParse(ConfigFileSchema, this.configResult.config)
+      if (validationResult.success && validationResult.output.profiles) {
+        return Object.keys(validationResult.output.profiles)
+      }
+    }
+
+    return []
+  }
+
+  /**
+   * Clear cached configuration (useful for testing)
+   */
+  clearCache(): void {
+    this.configResult = null
   }
 }

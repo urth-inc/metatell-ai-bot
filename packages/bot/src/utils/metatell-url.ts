@@ -23,20 +23,20 @@ export function isMetatellDomain(hostname: string): boolean {
 export function removeMetatellTenantSubdomain(hostname: string): string {
   const parts = hostname.split('.')
 
-  // メタテルの各ドメインをチェック
+  // Check each Metatell domain
   for (const domain of METATELL_DOMAINS) {
     if (hostname.endsWith(domain)) {
       const domainParts = domain.split('.')
       const baseDomainLength = domainParts.length
 
-      // ホスト名のパート数がベースドメインより多い場合、テナントサブドメインがある
+      // If the number of hostname parts is greater than the base domain, a tenant subdomain exists
       if (parts.length > baseDomainLength) {
         return domain
       }
     }
   }
 
-  // メタテルドメインでない場合、または既にベースドメインの場合はそのまま返す
+  // If not a Metatell domain or already a base domain, return as is
   return hostname
 }
 
@@ -49,19 +49,19 @@ export function removeMetatellTenantSubdomain(hostname: string): string {
 export function processMetatellUrl(url: string): { serverUrl: string; hubId: string } {
   const urlObj = new URL(url)
 
-  // メタテルドメインの場合のみテナントサブドメインを除去
+  // Remove tenant subdomain only for Metatell domains
   const hostname = isMetatellDomain(urlObj.hostname)
     ? removeMetatellTenantSubdomain(urlObj.hostname)
     : urlObj.hostname
 
-  // HTTPSからWSSに変換
+  // Convert HTTPS to WSS
   const protocol = urlObj.protocol === 'https:' ? 'wss:' : 'ws:'
   const port = urlObj.port ? `:${urlObj.port}` : ''
   const serverUrl = `${protocol}//${hostname}${port}`
 
-  // Hub IDを取得
+  // Get hub ID
   const pathParts = urlObj.pathname.split('/').filter(Boolean)
-  // 'a' プレフィックスをスキップ
+  // Skip 'a' prefix
   const hubId = pathParts[0] === 'a' && pathParts.length > 1 ? pathParts[1] : pathParts[0]
 
   if (!hubId) {
