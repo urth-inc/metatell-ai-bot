@@ -47,8 +47,23 @@ async function main() {
     })
 
     // ついてくる AIbot
-    let lastPosition: { x: number; y: number; z: number } | null = null
-    let lastMoveTime = 0
+    let isMoving = false
+
+    // 利用可能なアニメーションを確認
+    const animations = await client.avatar.getAvailableAnimations()
+    console.log(
+      'Available animations:',
+      animations.map((a) => `${a.id}: ${a.name}`),
+    )
+
+    // アニメーション制御用の関数
+    const playAnimation = async (animationId: string) => {
+      try {
+        await client.avatar.play({ id: animationId, loop: true })
+      } catch (error) {
+        console.warn(`Animation ${animationId} not available:`, error)
+      }
+    }
 
     setInterval(async () => {
       const users = client.getUsers()
@@ -56,7 +71,14 @@ async function main() {
 
       // 自分以外のユーザーを探す
       const otherUser = users.find((user) => user.name !== meInfo.name)
-      if (!otherUser?.position) return
+      if (!otherUser?.position) {
+        // ユーザーがいない場合は待機
+        if (isMoving) {
+          isMoving = false
+          await playAnimation('idle')
+        }
+        return
+      }
 
       const currentPosition = client.avatar.getPosition()
       if (!currentPosition) return
@@ -74,28 +96,43 @@ async function main() {
       const dz = targetPosition.z - currentPosition.z
       const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
 
-      // 距離が0.5m以上離れている場合のみ移動（移動の閾値）
-      const now = Date.now()
-      if (distance > 0.5 && now - lastMoveTime > 500) {
-        // 最低500ms間隔
-        await client.avatar.moveTo(targetPosition)
-        lastMoveTime = now
-      }
+      // 相手の方を向く（常に向きを調整）
+      await client.avatar.lookAt({
+        x: otherUser.position.x,
+        y: otherUser.position.y,
+        z: otherUser.position.z,
+      })
 
-      // 常に相手の方を向く
-      if (
-        !lastPosition ||
-        Math.abs(otherUser.position.x - lastPosition.x) > 0.1 ||
-        Math.abs(otherUser.position.z - lastPosition.z) > 0.1
-      ) {
-        await client.avatar.lookAt({
-          x: otherUser.position.x,
-          y: otherUser.position.y,
-          z: otherUser.position.z,
-        })
-        lastPosition = { ...otherUser.position }
+      // 距離に応じて移動とアニメーションを制御
+      const move_threshold = 1.0
+      const slow_move_threshold = 3.0 // 3m以内はゆっくり移動
+
+      if (distance > move_threshold) {
+        // 移動が必要
+        if (!isMoving) {
+          isMoving = true
+          await playAnimation('walking') // 歩行アニメーション開始
+        }
+
+        // 段階的に移動（ゆっくり近づく）
+        const moveSpeed = distance < slow_move_threshold ? 0.2 : 1.0 // 近い時は遅く
+        const moveRatio = Math.min(moveSpeed, distance) / distance
+
+        const stepPosition = {
+          x: currentPosition.x + dx * moveRatio,
+          y: currentPosition.y + dy * moveRatio,
+          z: currentPosition.z + dz * moveRatio,
+        }
+
+        await client.avatar.moveTo(stepPosition)
+      } else {
+        // 十分近い場合は停止
+        if (isMoving) {
+          isMoving = false
+          await playAnimation('idle') // 待機アニメーション
+        }
       }
-    }, 200)
+    }, 200) // 200ms間隔で更新
   } catch (error) {
     console.error('❌ Connection failed:', error)
     process.exit(1)
