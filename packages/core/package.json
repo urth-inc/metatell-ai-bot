@@ -1,5 +1,5 @@
 {
-  "name": "@metatell/sdk",
+  "name": "@metatell/core",
   "version": "1.0.0",
   "type": "module",
   "main": "dist/index.js",
@@ -16,8 +16,11 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@metatell/core": "^1.0.0",
-    "@types/uuid": "^10.0.0"
+    "@livekit/agents": "^0.7.9",
+    "@types/uuid": "^10.0.0",
+    "phoenix": "1.8.1",
+    "uuid": "^11.1.0",
+    "ws": "8.18.3"
   },
   "peerDependencies": {
     "@types/node": "*",

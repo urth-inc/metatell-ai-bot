@@ -1,0 +1,23 @@
+{
+  "name": "metatell-basic-bot-example",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@metatell/sdk": "file:../../packages/sdk",
+    "ink": "^5.0.1",
+    "react": "^18.3.1",
+    "tsx": "^4.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.12",
+    "typescript": "^5.6.3"
+  }
+}

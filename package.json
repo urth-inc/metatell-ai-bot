@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @metatell/sdk && npm run build -w @metatell/realtime && npm run build -w @metatell/bot",
+    "build": "npm run build -w @metatell/core && npm run build -w @metatell/sdk && npm run build -w @metatell/realtime",
     "build:all": "npm run build --workspaces",
     "test": "vitest run",
     "test:ui": "vitest run --ui --coverage",
@@ -15,8 +15,6 @@
     "check": "biome check --error-on-warnings",
     "check:fix": "biome check --error-on-warnings --write",
     "typecheck": "tsc --build",
-    "dev": "npm run dev -w @metatell/bot",
-    "start": "npm run start -w @metatell/bot",
     "clean": "npm run clean --workspaces"
   },
   "devDependencies": {
