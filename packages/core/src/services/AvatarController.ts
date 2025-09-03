@@ -206,6 +206,7 @@ export class AvatarController implements IAvatarController {
       .withNetworkId(this.state.networkId)
       .withOwner(this.sessionId)
       .withCreator(this.sessionId)
+      .withPosition(this.state.position) // 位置情報も含める
       .withBodyRotation(euler) // ブラウザクライアント準拠（オイラー角、度数）
       .build()
 
@@ -244,9 +245,8 @@ export class AvatarController implements IAvatarController {
       .withOwner(this.sessionId)
       .withCreator(this.sessionId)
 
-    if (state.position) {
-      builder = builder.withPosition(state.position)
-    }
+    // 常に現在の位置情報を含める（更新されていない場合でも）
+    builder = builder.withPosition(state.position || this.state.position)
 
     if (state.rotation) {
       const euler = this.quaternionToEuler(state.rotation)
@@ -370,6 +370,7 @@ export class AvatarController implements IAvatarController {
       .withNetworkId(this.state.networkId)
       .withOwner(this.sessionId)
       .withCreator(this.sessionId)
+      .withPosition(this.state.position) // 位置情報も含める
       .withCustomComponent('13', {
         status: animationId,
         animationRunId: playbackId,
