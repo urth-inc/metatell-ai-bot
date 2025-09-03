@@ -97,6 +97,9 @@ export class OrganizationService implements IOrganizationService {
         apiPath = '/api/admin/stg/api/v1'
       } else if (url.hostname.includes('-dev.')) {
         apiPath = '/api/admin/dev/api/v1'
+      } else if (url.hostname === 'metatell.app') {
+        // 本番環境の場合
+        apiPath = '/api/admin/prod/api/v1'
       }
 
       const endpoint = `${url.origin}${apiPath}/organizations/${organizationId}/avatars/public`

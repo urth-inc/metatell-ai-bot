@@ -7,11 +7,11 @@ registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
 import {
   DefaultLoggerProvider as CoreDefaultLoggerProvider,
   registerLoggerProvider as registerCoreLoggerProvider,
-} from '@metatell/core'
+} from '@metatell/bot-core'
 
 registerCoreLoggerProvider(new CoreDefaultLoggerProvider(), { allowOverwrite: true })
 
-import type { BotConfiguration } from '@metatell/core'
+import type { BotConfiguration } from '@metatell/bot-core'
 import {
   AvatarController,
   ConnectionManager,
@@ -22,7 +22,7 @@ import {
   type IUserAvatarManager,
   type UserAvatar,
   UserAvatarManager,
-} from '@metatell/core'
+} from '@metatell/bot-core'
 import type { Channel } from 'phoenix'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAgentClient, DefaultAgentClient } from './AgentClient.js'

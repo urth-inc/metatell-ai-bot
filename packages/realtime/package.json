@@ -1,6 +1,6 @@
 {
-  "name": "@metatell/realtime",
-  "version": "1.0.0",
+  "name": "@metatell/bot-realtime",
+  "version": "0.0.1",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -24,6 +24,6 @@
   "license": "MIT",
   "dependencies": {
     "@livekit/rtc-node": "^0.13.18",
-    "@metatell/sdk": "file:../sdk"
+    "@metatell/bot-sdk": "file:../sdk"
   }
 }

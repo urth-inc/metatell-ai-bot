@@ -2,7 +2,7 @@
  * Command parser and executor for CLI commands
  */
 
-import type { MetatellClient } from '@metatell/sdk'
+import type { MetatellClient } from '@metatell/bot-sdk'
 
 export interface CommandResult {
   success: boolean

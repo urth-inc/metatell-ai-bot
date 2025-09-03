@@ -8,7 +8,7 @@ import type {
   BotVoiceConfig,
   IUserAvatarManager,
   UserAvatar,
-} from '@metatell/core'
+} from '@metatell/bot-core'
 // Realtime types will be defined locally to avoid circular dependencies
 import {
   AnimationNotFoundError,
@@ -26,7 +26,7 @@ import {
   type IMessageService,
   MessageService,
   UserAvatarManager,
-} from '@metatell/core'
+} from '@metatell/bot-core'
 import { getLogger } from './logging/index.js'
 import { RateLimitedQueue } from './rate.js'
 
@@ -102,7 +102,7 @@ export interface ConnectionStatus {
   rtt?: number
 }
 
-import type { AnimationPlaybackResult, AnimationPlayOptions, VRMAnimation } from '@metatell/core'
+import type { AnimationPlaybackResult, AnimationPlayOptions, VRMAnimation } from '@metatell/bot-core'
 
 export interface AgentClient {
   // Connection management
