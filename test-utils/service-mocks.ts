@@ -1,14 +1,14 @@
 import type { vi } from 'vitest'
 
-// ServiceFactory 型定義
+// ServiceFactory type definition
 export type ServiceFactory<T = unknown> = (container?: unknown) => T
 
-// RegisterOptions 型定義
+// RegisterOptions type definition
 export interface RegisterOptions {
   singleton?: boolean
 }
 
-// ServiceContainer のモック型
+// ServiceContainer mock type
 export interface MockServiceContainer {
   register: ReturnType<typeof vi.fn>
   get: ReturnType<typeof vi.fn>
@@ -17,11 +17,11 @@ export interface MockServiceContainer {
   bindWithDependencies: ReturnType<typeof vi.fn>
 }
 
-// モック呼び出しの型
+// Mock call types
 export type RegisterCall = [string, ServiceFactory, RegisterOptions?]
 export type GetCall = [string]
 
-// より型安全な register メソッドのモック呼び出しを見つけるヘルパー
+// Helper to find type-safe register method mock calls
 export function findRegisterCall(
   container: MockServiceContainer,
   serviceName: string,
@@ -30,7 +30,7 @@ export function findRegisterCall(
   return calls.find((call) => call[0] === serviceName)
 }
 
-// get メソッドの呼び出しを見つけるヘルパー
+// Helper to find get method calls
 export function findGetCall(
   container: MockServiceContainer,
   serviceName: string,
