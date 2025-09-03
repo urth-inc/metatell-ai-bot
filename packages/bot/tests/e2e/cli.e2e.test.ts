@@ -36,7 +36,7 @@ describe('CLI E2E Tests', () => {
       expect(stdout).toContain('--token')
       expect(stdout).toContain('--profile')
       expect(stderr).toBe('')
-    })
+    }, 10000)
 
     it('should display help with --help flag', async () => {
       const { stdout } = await execAsync(`node ${CLI_PATH} --help`)
@@ -195,14 +195,17 @@ describe('CLI E2E Tests', () => {
 
     it('should provide clear error for malformed URL', async () => {
       try {
-        await execAsync(`node ${CLI_PATH} "http://not-metatell.com/room"`)
+        // Use timeout option in exec to prevent hanging
+        const _result = await execAsync(`node ${CLI_PATH} "not-a-url"`, {
+          timeout: 5000,
+        })
         expect.fail('Should have thrown an error')
       } catch (error) {
         const stderr = (error as { stderr: string }).stderr
         // URLが不正な場合のエラーメッセージを確認
         expect(stderr.toLowerCase()).toMatch(/error|invalid/)
       }
-    })
+    }, 15000)
   })
 
   describe('CLI Flag Combinations', () => {

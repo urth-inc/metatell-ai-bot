@@ -49,16 +49,16 @@ export function selectAvatar(
   }
 
   if (config?.avatarId) {
-    const specified = avatars.find((a) => a.avatar_id === config.avatarId)
+    const specified = avatars.find((a) => a.id === config.avatarId)
     if (specified) {
-      return specified.avatar_id
+      return specified.id
     }
   }
 
   if (config?.preferRandom) {
     const randomIndex = Math.floor(Math.random() * avatars.length)
-    return avatars[randomIndex].avatar_id
+    return avatars[randomIndex].id
   }
 
-  return avatars[0].avatar_id
+  return avatars[0].id
 }
