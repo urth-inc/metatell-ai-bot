@@ -49,10 +49,10 @@ export class UserAvatarManager implements IUserAvatarManager {
   ) {
     // Use injected resolver or create default if not provided
     this.idResolver = idResolver ?? this.createDefaultResolver()
-    this.logger.info('[UserAvatarManager] Initializing...')
+    this.logger.info('Initializing...')
     this.setupEventListeners()
     this.setupConnectionMonitoring()
-    this.logger.info('[UserAvatarManager] Initialized')
+    this.logger.info('Initialized')
   }
 
   private setupEventListeners(): void {

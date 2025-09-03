@@ -329,7 +329,6 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
 
   async send(message: string): Promise<void> {
     return this.rateLimiter.execute('messages', async () => {
-      this.logger.debug('Sending message', { message })
       await this.messageService.sendMessage(message)
     })
   }
