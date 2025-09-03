@@ -152,60 +152,6 @@ export class AnimationService implements IAnimationService {
         type: 'preset',
         loop: true,
       },
-      {
-        id: PresetAnimationId.GREETING,
-        name: 'Greeting',
-        type: 'preset',
-        duration: 2000,
-        loop: false,
-      },
-      {
-        id: PresetAnimationId.THANKFUL,
-        name: 'Thankful',
-        type: 'preset',
-        duration: 2000,
-        loop: false,
-      },
-      {
-        id: PresetAnimationId.JUMPING,
-        name: 'Jumping',
-        type: 'preset',
-        duration: 1000,
-        loop: false,
-      },
-      {
-        id: PresetAnimationId.CROUCH,
-        name: 'Crouch',
-        type: 'preset',
-        loop: false,
-      },
-      {
-        id: PresetAnimationId.DANCE,
-        name: 'Dance',
-        type: 'preset',
-        loop: true,
-      },
-      {
-        id: PresetAnimationId.WAVE,
-        name: 'Wave',
-        type: 'preset',
-        duration: 1500,
-        loop: false,
-      },
-      {
-        id: PresetAnimationId.NOD,
-        name: 'Nod',
-        type: 'preset',
-        duration: 1000,
-        loop: false,
-      },
-      {
-        id: PresetAnimationId.SHAKE_HEAD,
-        name: 'Shake Head',
-        type: 'preset',
-        duration: 1000,
-        loop: false,
-      },
     ]
   }
 
