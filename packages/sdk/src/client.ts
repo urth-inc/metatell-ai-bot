@@ -8,6 +8,8 @@ import {
   AvatarController,
   ConfigurationProvider,
   ConnectionManager,
+  // Core logging provider utilities (to ensure provider is set)
+  DefaultLoggerProvider as CoreDefaultLoggerProvider,
   CoreServiceFactory,
   EventBus,
   type IAnimationService,
@@ -21,14 +23,17 @@ import {
   MessageService,
   OrganizationService,
   PresenceManager,
+  registerLoggerProvider as registerCoreLoggerProvider,
   SystemEvents,
 } from '@metatell/core'
+import { getLogger } from './sdk/logging/index.js'
 import type {
   Animation,
   AvatarAsset,
   BotInfo,
   CreateClientOptions,
   Euler,
+  MessageEventData,
   MetatellClientEvents,
   PcmInput,
   PcmInputOptions,
@@ -109,6 +114,15 @@ export interface MetatellClient {
      */
     rotateTo(rotation: Euler): Promise<void>
 
+    /**
+     * 指定された座標を見るように回転します。
+     * @param target 見る対象の座標（メートル）
+     */
+    lookAt(target: Vec3): Promise<void>
+
+    /** 現在の位置を取得します。 */
+    getPosition(): Vec3 | null
+
     /** 利用可能なアバターアセットの一覧を取得します。 */
     getAvailableAssets(): Promise<AvatarAsset[]>
 
@@ -139,6 +153,11 @@ export interface MetatellClient {
   getRateLimit(key: 'messages' | 'moves' | 'looks'): number | undefined
 
   /**
+   * 現在のセッションIDを取得します。
+   */
+  getSessionId(): string | null
+
+  /**
    * SDKのイベントを購読します。
    * @param event イベント名
    * @param listener イベントハンドラ
@@ -164,9 +183,18 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
   private animationService: IAnimationService
   private eventBus: IEventBus
   private configProvider: IConfigurationProvider
+  private logger = getLogger('MetatellClient')
 
   constructor(private options: CreateClientOptions) {
     super()
+
+    // Ensure Core logging provider is registered to avoid runtime error
+    try {
+      // CoreServiceFactoryがプロバイダーを必要とする場合のみ登録
+      registerCoreLoggerProvider(new CoreDefaultLoggerProvider(), { allowOverwrite: true })
+    } catch {
+      // すでに登録されている場合はエラーを無視
+    }
 
     // CoreServiceFactoryを初期化
     this.serviceFactory = new CoreServiceFactory({
@@ -175,7 +203,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       hubId: options.roomId,
       profile: {
         displayName: options.username || 'MetatellBot',
-        avatarId: '', // 後で設定
+        avatarId: options.avatarId || '', // 後で組織アバターから取得
       },
       debug: options.debug || false,
     })
@@ -196,6 +224,30 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
     this.setupEventProxies()
   }
 
+  /**
+   * Parse mention from message body
+   * Format: [@displayName](session-id) message
+   * Example: [@MetatellCLI](b754ca96-d395-4b80-adb1-77cb0240a43d) hello
+   */
+  private parseMessageMention(body: string): {
+    mentionedSessionId?: string
+    mentionedName?: string
+    text: string
+  } {
+    const mentionPattern = /\[@([^\]]+)\]\(([^)]+)\)\s*(.*)$/
+    const match = body.match(mentionPattern)
+
+    if (match) {
+      return {
+        mentionedName: match[1],
+        mentionedSessionId: match[2],
+        text: match[3].trim(),
+      }
+    }
+
+    return { text: body }
+  }
+
   private setupEventProxies(): void {
     // Coreのイベントをクライアントイベントにマッピング
     this.eventBus.on(SystemEvents.CONNECTION_ESTABLISHED, () => {
@@ -207,8 +259,45 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
     })
 
     this.eventBus.on(SystemEvents.MESSAGE_RECEIVED, (data: unknown) => {
-      this.emit('message', data as import('./types.js').MessageEventData)
+      const messageData = data as MessageEventData
+      this.emit('message', messageData)
+
+      // チャットメッセージの場合、詳細な情報を解析して別イベントを発火
+      if (messageData.type === 'chat' && messageData.body) {
+        const parsed = this.parseMessageMention(messageData.body)
+
+        this.emit('chat-message', {
+          from: {
+            id: messageData.senderId || '',
+            name: messageData.senderId?.split('#')[0] || 'Unknown',
+            isBot: false,
+          },
+          text: parsed.text,
+        })
+      }
     })
+
+    this.eventBus.on(SystemEvents.USER_JOINED, (user: unknown) => {
+      this.emit('user-join', user as User)
+      // 新しいユーザーが入室したときにアバターを再同期
+      this.resyncAvatarForNewUser()
+    })
+
+    this.eventBus.on(SystemEvents.USER_LEFT, (user: unknown) => {
+      this.emit('user-leave', user as User)
+    })
+  }
+
+  private async resyncAvatarForNewUser(): Promise<void> {
+    try {
+      // アバターがスポーンされている場合のみ再同期
+      if (this.avatarController.getState()) {
+        await this.avatarController.resyncAvatar()
+        this.logger.debug('Avatar resynced for new user')
+      }
+    } catch (error) {
+      this.logger.warn('Failed to resync avatar for new user', error)
+    }
   }
 
   async connect(): Promise<void> {
@@ -217,14 +306,55 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
         serverUrl: this.options.serverUrl,
         hubId: this.options.roomId,
       })
-      // アバター設定を取得してスポーン
-      const config = this.configProvider.getConfiguration()
-      if (config.profile.avatarId) {
-        await this.avatarController.spawn(
-          config.profile.avatarId,
-          undefined,
-          config.organizationAvatarUrl,
+
+      // 組織情報を取得
+      const orgInfo = await this.organizationService.getOrganizationInfo(
+        this.options.serverUrl.replace(/^ws/, 'http'),
+        this.options.roomId,
+      )
+
+      // アバターIDが指定されていない場合、組織アバターから選択
+      let avatarId = this.options.avatarId
+      let avatarUrl: string | undefined
+
+      if (!avatarId && orgInfo.organizationId) {
+        try {
+          // 組織アバター一覧を取得
+          const avatars = await this.organizationService.fetchOrganizationAvatars(
+            this.options.serverUrl.replace(/^ws/, 'http'),
+            orgInfo.organizationId,
+          )
+
+          if (avatars.length > 0) {
+            // 最初のアバターを使用
+            const defaultAvatar = avatars[0]
+            avatarId = defaultAvatar.id
+            avatarUrl = defaultAvatar.gltf.avatar
+          }
+        } catch (error) {
+          // 組織アバター取得に失敗した場合はスキップ
+          this.logger.debug('Failed to fetch organization avatars', error)
+        }
+      }
+
+      // アバターIDが取得できない場合はエラー
+      if (!avatarId) {
+        throw new MetatellError(
+          'NO_AVATAR_AVAILABLE',
+          'No avatar available. Organization avatars not found and no avatar ID specified.',
         )
+      }
+
+      // アバターをスポーン
+      if (avatarId) {
+        // 設定を更新
+        const config = this.configProvider.getConfiguration()
+        config.profile.avatarId = avatarId
+        if (avatarUrl) {
+          config.organizationAvatarUrl = avatarUrl
+        }
+
+        await this.avatarController.spawn(avatarId, undefined, avatarUrl)
       }
     } catch (error) {
       // エラーを適切なタイプに変換
@@ -265,25 +395,28 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
     ): void => {
       // メッセージ受信イベントをサブスクライブ
       this.eventBus.on(SystemEvents.MESSAGE_RECEIVED, async (data: unknown) => {
-        const messageData = data as import('./types.js').MessageEventData
-        const botName = this.configProvider.getConfiguration().profile?.displayName || 'bot'
-        const mentionPattern = new RegExp(`@${botName}\\s+(.+)`, 'i')
-        const match = messageData.body?.match(mentionPattern)
+        const messageData = data as MessageEventData
+        const botSessionId = this.getSessionId()
 
-        if (match) {
-          const user: User = {
-            id: messageData.senderId || '',
-            name: messageData.senderId?.split('#')[0] || 'Unknown',
-            isBot: false,
+        if (messageData.type === 'chat' && messageData.body) {
+          const parsed = this.parseMessageMention(messageData.body)
+
+          // ボットがメンションされた場合のみハンドラーを呼び出す
+          if (parsed.mentionedSessionId === botSessionId) {
+            const user: User = {
+              id: messageData.senderId || '',
+              name: messageData.senderId?.split('#')[0] || 'Unknown',
+              isBot: false,
+            }
+
+            handler({
+              from: user,
+              text: parsed.text,
+              reply: async (replyText: string) => {
+                await this.messageService.sendMessage(replyText)
+              },
+            })
           }
-
-          handler({
-            from: user,
-            text: match[1].trim(),
-            reply: async (replyText: string) => {
-              await this.messageService.sendMessage(replyText)
-            },
-          })
         }
       })
     },
@@ -340,6 +473,29 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       await this.avatarController.rotate(radians)
     },
 
+    lookAt: async (target: Vec3): Promise<void> => {
+      // 現在位置を取得
+      const state = this.avatarController.getState()
+      if (!state) {
+        throw new MetatellError('AVATAR_NOT_SPAWNED', 'Avatar is not spawned')
+      }
+
+      // ターゲットへの方向ベクトルを計算
+      const dx = target.x - state.position.x
+      const dz = target.z - state.position.z
+
+      // Y軸周りの回転角度を計算（ラジアン）
+      const yRotation = Math.atan2(dx, dz)
+
+      // 回転を適用
+      await this.avatarController.rotate({ x: 0, y: yRotation, z: 0 })
+    },
+
+    getPosition: (): Vec3 | null => {
+      const state = this.avatarController.getState()
+      return state ? { ...state.position } : null
+    },
+
     getAvailableAssets: async (): Promise<AvatarAsset[]> => {
       // organizationInfoを取得するには、hubUrlとhubIdが必要
       const config = this.configProvider.getConfiguration()
@@ -347,6 +503,11 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
         config.hubUrl,
         config.hubId,
       )
+      if (!orgInfo.organizationId) {
+        // 組織IDがない場合は空配列を返す
+        return []
+      }
+
       const avatars = await this.organizationService.fetchOrganizationAvatars(
         config.hubUrl,
         orgInfo.organizationId,
@@ -354,7 +515,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       return avatars.map((avatar) => ({
         id: avatar.id,
         name: avatar.name,
-        thumbnailUrl: avatar.thumbnail_url || '',
+        thumbnailUrl: avatar.images?.preview?.url || avatar.thumbnail_url || '',
         modelUrl: avatar.gltf.avatar,
       }))
     },
@@ -418,6 +579,11 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
     return undefined
   }
 
+  getSessionId(): string | null {
+    // 接続マネージャーからセッションIDを取得
+    return this.connectionManager.getSessionId()
+  }
+
   // EventEmitterのメソッドをオーバーライド
   on<E extends keyof MetatellClientEvents>(event: E, listener: MetatellClientEvents[E]): this {
     // EventEmitterは汎用的な型を期待するため、型変換が必要
@@ -439,8 +605,8 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
  */
 export function createMetatellClient(options: CreateClientOptions): MetatellClient {
   // 設定バリデーション
-  if (!options.serverUrl || !options.roomId || !options.token) {
-    throw new MetatellError('INVALID_CONFIG', 'serverUrl, roomId, and token are required')
+  if (!options.serverUrl || !options.roomId) {
+    throw new MetatellError('INVALID_CONFIG', 'serverUrl and roomId are required')
   }
 
   return new MetatellClientImpl(options)
