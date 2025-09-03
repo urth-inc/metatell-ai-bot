@@ -6,12 +6,22 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Mock cosmiconfig at the module level
+vi.mock('cosmiconfig', () => ({
+  cosmiconfig: vi.fn(() => ({
+    search: vi.fn(),
+  })),
+}))
+
+import { cosmiconfig } from 'cosmiconfig'
 import { ConfigManager } from './config.js'
 
 describe('ConfigManager', () => {
   let configManager: ConfigManager
   let originalCwd: string
   let testDir: string
+  let mockSearch: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     // Save original cwd and create a test directory
@@ -33,6 +43,16 @@ describe('ConfigManager', () => {
     delete process.env.AVATAR_ID
     delete process.env.DEBUG
 
+    // Set up cosmiconfig mock
+    mockSearch = vi.fn()
+    vi.mocked(cosmiconfig).mockReturnValue({
+      search: mockSearch,
+      clearCaches: vi.fn(),
+      clearLoadCache: vi.fn(),
+      clearSearchCache: vi.fn(),
+      load: vi.fn(),
+    })
+
     configManager = new ConfigManager()
   })
 
@@ -40,7 +60,7 @@ describe('ConfigManager', () => {
     // Restore cwd and clean up
     process.chdir(originalCwd)
     vi.restoreAllMocks()
-    configManager.clearCache()
+    vi.clearAllMocks()
   })
 
   describe('cosmiconfig integration', () => {
@@ -54,17 +74,10 @@ describe('ConfigManager', () => {
         },
       }
 
-      // Create a temporary config file
-      const mockSearch = vi.fn().mockResolvedValue({
+      mockSearch.mockResolvedValue({
         config: configContent,
         filepath: join(testDir, '.metatellrc.json'),
       })
-
-      vi.spyOn(
-        // @ts-expect-error Testing private property
-        configManager['explorer' as keyof ConfigManager],
-        'search',
-      ).mockImplementation(mockSearch)
 
       const config = await configManager.getConfig()
 
@@ -80,16 +93,10 @@ describe('ConfigManager', () => {
         debug: true,
       }
 
-      const mockSearch = vi.fn().mockResolvedValue({
+      mockSearch.mockResolvedValue({
         config: configContent,
         filepath: join(testDir, '.metatellrc.yaml'),
       })
-
-      vi.spyOn(
-        // @ts-expect-error Testing private property
-        configManager['explorer' as keyof ConfigManager],
-        'search',
-      ).mockImplementation(mockSearch)
 
       const config = await configManager.getConfig()
 
@@ -107,16 +114,10 @@ describe('ConfigManager', () => {
         },
       }
 
-      const mockSearch = vi.fn().mockResolvedValue({
+      mockSearch.mockResolvedValue({
         config: packageJsonContent.metatell,
         filepath: join(testDir, 'package.json'),
       })
-
-      vi.spyOn(
-        // @ts-expect-error Testing private property
-        configManager['explorer' as keyof ConfigManager],
-        'search',
-      ).mockImplementation(mockSearch)
 
       const config = await configManager.getConfig()
 
@@ -131,17 +132,11 @@ describe('ConfigManager', () => {
       process.env.METATELL_URL = 'https://metatell.app/env-room'
 
       // Mock config file
-      const mockSearch = vi.fn().mockResolvedValue({
+      mockSearch.mockResolvedValue({
         config: {
           url: 'https://metatell.app/file-room',
         },
       })
-
-      vi.spyOn(
-        // @ts-expect-error Testing private property
-        configManager['explorer' as keyof ConfigManager],
-        'search',
-      ).mockImplementation(mockSearch)
 
       // Command line flag should win
       const config = await configManager.getConfig({
@@ -154,17 +149,11 @@ describe('ConfigManager', () => {
     it('should prioritize environment variables over config file', async () => {
       process.env.METATELL_TOKEN = 'env-token'
 
-      const mockSearch = vi.fn().mockResolvedValue({
+      mockSearch.mockResolvedValue({
         config: {
           token: 'file-token',
         },
       })
-
-      vi.spyOn(
-        // @ts-expect-error Testing private property
-        configManager['explorer' as keyof ConfigManager],
-        'search',
-      ).mockImplementation(mockSearch)
 
       const config = await configManager.getConfig()
 
@@ -172,7 +161,7 @@ describe('ConfigManager', () => {
     })
 
     it('should merge profile configuration correctly', async () => {
-      const mockSearch = vi.fn().mockResolvedValue({
+      mockSearch.mockResolvedValue({
         config: {
           url: 'https://metatell.app/base-room',
           profile: {
@@ -189,12 +178,6 @@ describe('ConfigManager', () => {
           },
         },
       })
-
-      vi.spyOn(
-        // @ts-expect-error Testing private property
-        configManager['explorer' as keyof ConfigManager],
-        'search',
-      ).mockImplementation(mockSearch)
 
       const config = await configManager.getConfig({
         '--profile': 'production',
@@ -258,7 +241,7 @@ describe('ConfigManager', () => {
 
   describe('profile management', () => {
     it('should return available profiles', async () => {
-      const mockSearch = vi.fn().mockResolvedValue({
+      mockSearch.mockResolvedValue({
         config: {
           profiles: {
             development: {},
@@ -268,27 +251,15 @@ describe('ConfigManager', () => {
         },
       })
 
-      vi.spyOn(
-        // @ts-expect-error Testing private property
-        configManager['explorer' as keyof ConfigManager],
-        'search',
-      ).mockImplementation(mockSearch)
-
       const profiles = await configManager.getProfiles()
 
       expect(profiles).toEqual(['development', 'staging', 'production'])
     })
 
     it('should return empty array when no profiles defined', async () => {
-      const mockSearch = vi.fn().mockResolvedValue({
+      mockSearch.mockResolvedValue({
         config: {},
       })
-
-      vi.spyOn(
-        // @ts-expect-error Testing private property
-        configManager['explorer' as keyof ConfigManager],
-        'search',
-      ).mockImplementation(mockSearch)
 
       const profiles = await configManager.getProfiles()
 
@@ -298,17 +269,11 @@ describe('ConfigManager', () => {
 
   describe('validation', () => {
     it('should warn when config file has invalid data', async () => {
-      const mockSearch = vi.fn().mockResolvedValue({
+      mockSearch.mockResolvedValue({
         config: {
           url: 'invalid-url', // Not a valid URL
         },
       })
-
-      vi.spyOn(
-        // @ts-expect-error Testing private property
-        configManager['explorer' as keyof ConfigManager],
-        'search',
-      ).mockImplementation(mockSearch)
 
       // Invalid URL in config file is warned but not thrown
       const config = await configManager.getConfig()
@@ -339,17 +304,11 @@ describe('ConfigManager', () => {
 
   describe('caching', () => {
     it('should cache config file search results', async () => {
-      const mockSearch = vi.fn().mockResolvedValue({
+      mockSearch.mockResolvedValue({
         config: {
           url: 'https://metatell.app/cached-room',
         },
       })
-
-      vi.spyOn(
-        // @ts-expect-error Testing private property
-        configManager['explorer' as keyof ConfigManager],
-        'search',
-      ).mockImplementation(mockSearch)
 
       // First call
       await configManager.getConfig()
@@ -361,17 +320,11 @@ describe('ConfigManager', () => {
     })
 
     it('should clear cache when clearCache is called', async () => {
-      const mockSearch = vi.fn().mockResolvedValue({
+      mockSearch.mockResolvedValue({
         config: {
           url: 'https://metatell.app/room',
         },
       })
-
-      vi.spyOn(
-        // @ts-expect-error Testing private property
-        configManager['explorer' as keyof ConfigManager],
-        'search',
-      ).mockImplementation(mockSearch)
 
       await configManager.getConfig()
       configManager.clearCache()
