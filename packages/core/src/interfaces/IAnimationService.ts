@@ -36,6 +36,12 @@ export interface IAnimationService {
    * Clear animation cache
    */
   clearCache(): void
+
+  /**
+   * Set current avatar ID for animation loading
+   * @param avatarId - The avatar ID
+   */
+  setCurrentAvatarId(avatarId: string): void
 }
 
 // Service identifier token for dependency injection

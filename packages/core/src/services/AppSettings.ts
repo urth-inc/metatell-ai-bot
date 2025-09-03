@@ -1,5 +1,5 @@
 import type { IAppSettings } from '../interfaces/IAppSettings.js'
-import { getLogger } from '../logging/index.js'
+import { getLogger, getLoggerProvider } from '../logging/index.js'
 
 export class AppSettings implements IAppSettings {
   private _debugMode: boolean
@@ -10,6 +10,12 @@ export class AppSettings implements IAppSettings {
   constructor(debugMode = false, logLevel: 'debug' | 'info' | 'warn' | 'error' = 'info') {
     this._debugMode = debugMode
     this._logLevel = logLevel
+
+    // LoggerProviderのログレベルを初期設定
+    const provider = getLoggerProvider()
+    if (provider?.setMinLevel) {
+      provider.setMinLevel(logLevel)
+    }
   }
 
   get debugMode(): boolean {
@@ -41,5 +47,11 @@ export class AppSettings implements IAppSettings {
 
   setLogLevel(level: 'debug' | 'info' | 'warn' | 'error'): void {
     this._logLevel = level
+
+    // LoggerProviderのログレベルも更新
+    const provider = getLoggerProvider()
+    if (provider?.setMinLevel) {
+      provider.setMinLevel(level)
+    }
   }
 }

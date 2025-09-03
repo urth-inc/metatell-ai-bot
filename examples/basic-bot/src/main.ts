@@ -24,10 +24,6 @@ async function main() {
     debug: process.argv.includes('--debug'),
   })
 
-  // // レート制限を設定（1秒あたりの回数）
-  // client.setRateLimit('moves', 2) // 移動は1秒に2回まで
-  // client.setRateLimit('looks', 4) // 視線は1秒に4回まで
-
   const shutdown = async () => {
     console.log('\nShutting down...')
     await client.disconnect()

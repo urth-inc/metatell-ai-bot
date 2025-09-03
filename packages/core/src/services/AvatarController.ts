@@ -131,6 +131,12 @@ export class AvatarController implements IAvatarController {
 
     // Emit event
     this.eventBus.emit(SystemEvents.AVATAR_SPAWNED, this.state)
+
+    // アニメーションサービスに現在のアバターIDを設定
+    if (this.animationService) {
+      this.animationService.setCurrentAvatarId(avatarId)
+    }
+
     this.logger.debug(`✅ Avatar spawned with ID: ${avatarId}`, {
       avatarSrc: finalAvatarSrc,
       isOrganization: this.isOrganizationAvatar(avatarId),
