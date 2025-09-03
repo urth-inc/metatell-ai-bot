@@ -29,8 +29,6 @@ import {
   MessageService,
   PresenceManager,
   type ServiceContainer,
-  type ServiceKey,
-  type ServiceType,
   UserAvatarManager,
 } from '@metatell/sdk'
 import { MetatellBot } from './MetatellBot.js'
@@ -72,14 +70,5 @@ export class BotServiceFactory extends CoreServiceFactory {
    */
   public getContainer(): ServiceContainer {
     return this.container
-  }
-
-  /**
-   * Get a service from the container
-   * @param key Service identifier token or class
-   * @returns Service instance
-   */
-  public getService<T>(key: ServiceKey<T>): ServiceType<T> {
-    return this.container.get(key) as ServiceType<T>
   }
 }

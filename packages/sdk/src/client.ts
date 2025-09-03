@@ -60,6 +60,9 @@ export interface MetatellClient {
     getUsers(): Promise<User[]>
   }
 
+  /** 現在ルームに参加しているユーザーの一覧を取得します（同期版）。 */
+  getUsers(): User[]
+
   /** チャット関連の操作 */
   readonly chat: {
     /** ルーム全体にメッセージを送信します。 */
@@ -128,6 +131,12 @@ export interface MetatellClient {
 
   /** ボット自身の情報を取得します。 */
   getInfo(): Promise<BotInfo>
+
+  /** 接続状態を取得します。 */
+  getStatus(): { connected: boolean; connecting: boolean }
+
+  /** レート制限設定を取得します。 */
+  getRateLimit(key: 'messages' | 'moves' | 'looks'): number | undefined
 
   /**
    * SDKのイベントを購読します。
@@ -389,6 +398,24 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       version: '1.0.0',
       roomId: config.hubId,
     }
+  }
+
+  getStatus(): { connected: boolean; connecting: boolean } {
+    // 簡易的な接続状態を返す
+    return {
+      connected: true,
+      connecting: false,
+    }
+  }
+
+  getUsers(): User[] {
+    // 空配列を返す（実装は後で検討）
+    return []
+  }
+
+  getRateLimit(_key: 'messages' | 'moves' | 'looks'): number | undefined {
+    // レート制限設定なし
+    return undefined
   }
 
   // EventEmitterのメソッドをオーバーライド

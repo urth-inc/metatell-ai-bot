@@ -1,4 +1,4 @@
-import type { MetatellClient, RingBufferLike } from '@metatell/sdk'
+import type { AgentClient, RingBufferLike } from '@metatell/sdk'
 import { getLogEventEmitter, getLogger, getRingBuffer } from '@metatell/sdk'
 import { Box, useApp, useInput, useStdout } from 'ink'
 import type React from 'react'
@@ -13,7 +13,7 @@ import { Modal } from './components/Modal.js'
 import { useCliState } from './hooks/useCliState.js'
 
 interface CliInterfaceProps {
-  client: MetatellClient
+  client: AgentClient
   commandContext: CommandContext
 }
 
@@ -225,8 +225,8 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
       <Header
         status={status.connected ? 'connected' : status.connecting ? 'connecting' : 'disconnected'}
         userCount={userCount}
-        rtt={status.rtt}
-        retries={status.retries}
+        rtt={status.rtt || 0}
+        retries={status.retries || 0}
         rateLimit={client.getRateLimit('messages')}
         filterRegex={state.filterRegex?.source}
         reconnectProgress={

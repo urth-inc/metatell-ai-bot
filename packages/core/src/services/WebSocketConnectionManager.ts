@@ -1,3 +1,19 @@
+// WebSocket polyfill for Node.js environment
+import WebSocketImpl from 'ws'
+
+// Set WebSocket globally in Node.js environment if not already defined
+// Phoenix.js expects the browser's WebSocket API to be available globally
+if (typeof global !== 'undefined') {
+  const g = global as {
+    WebSocket?: unknown
+  }
+
+  if (!g.WebSocket) {
+    // biome-ignore lint/suspicious/noExplicitAny: ws library provides a compatible WebSocket implementation for Node.js
+    g.WebSocket = WebSocketImpl as any
+  }
+}
+
 import { type Channel, Socket } from 'phoenix'
 import type { IAppSettings } from '../interfaces/IAppSettings.js'
 import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
