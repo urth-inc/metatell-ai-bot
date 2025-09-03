@@ -21,9 +21,9 @@ export type AvatarAsset = {
   tags?: string[]
 }
 export type Animation = {
-  id?: string
+  id: string
   url?: string
-  name: string
+  name?: string
   loop?: boolean
   speed?: number
   duration?: number

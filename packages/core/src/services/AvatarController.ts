@@ -188,7 +188,8 @@ export class AvatarController implements IAvatarController {
 
     await this.messageService.sendNAFR(nafMessage)
     this.eventBus.emit(SystemEvents.AVATAR_MOVED, this.state)
-    this.logger.debug(`Avatar moved to position (${position.x}, ${position.y}, ${position.z})`)
+    // 移動ログは頻繁すぎるのでコメントアウト
+    // this.logger.debug(`Avatar moved to position (${position.x}, ${position.y}, ${position.z})`)
   }
 
   async rotate(rotation: Rotation): Promise<void> {
@@ -387,7 +388,7 @@ export class AvatarController implements IAvatarController {
       options,
     })
 
-    this.logger.info('Animation played', {
+    this.logger.debug('Animation played', {
       animationId,
       playbackId,
       options,
