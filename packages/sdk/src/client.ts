@@ -230,18 +230,22 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
    * Example: [@MetatellCLI](b754ca96-d395-4b80-adb1-77cb0240a43d) hello
    */
   private parseMessageMention(body: string): {
-    mentionedSessionId?: string
-    mentionedName?: string
     text: string
+    mention?: {
+      sessionId: string
+      name: string
+    }
   } {
     const mentionPattern = /\[@([^\]]+)\]\(([^)]+)\)\s*(.*)$/
     const match = body.match(mentionPattern)
 
     if (match) {
       return {
-        mentionedName: match[1],
-        mentionedSessionId: match[2],
         text: match[3].trim(),
+        mention: {
+          name: match[1],
+          sessionId: match[2],
+        },
       }
     }
 
@@ -273,6 +277,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
             isBot: false,
           },
           text: parsed.text,
+          mention: parsed.mention,
         })
       }
     })
@@ -402,7 +407,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
           const parsed = this.parseMessageMention(messageData.body)
 
           // ボットがメンションされた場合のみハンドラーを呼び出す
-          if (parsed.mentionedSessionId === botSessionId) {
+          if (parsed.mention && parsed.mention.sessionId === botSessionId) {
             const user: User = {
               id: messageData.senderId || '',
               name: messageData.senderId?.split('#')[0] || 'Unknown',
