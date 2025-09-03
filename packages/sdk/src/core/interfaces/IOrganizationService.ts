@@ -12,9 +12,11 @@ export interface OrganizationInfo {
  * Organization avatar
  */
 export interface OrganizationAvatar {
-  avatar_id: string
+  id: string // changed from avatar_id for consistency with API
   name: string
-  url: string
+  gltf: {
+    avatar: string // URL
+  }
   thumbnail_url?: string
   description?: string
   preview_url?: string
@@ -36,15 +38,15 @@ export interface IOrganizationService {
 
   /**
    * Select avatar based on configuration
+   * Returns the selected avatar or null if no avatars available
    */
   selectAvatar(
     avatars: OrganizationAvatar[],
     options?: {
       avatarId?: string
-      preferRandom?: boolean
-      organizationId?: string
+      avatarSelection?: 'random' | 'organization' | string
     },
-  ): string | null
+  ): OrganizationAvatar | null
 }
 
 // Service identifier token for dependency injection

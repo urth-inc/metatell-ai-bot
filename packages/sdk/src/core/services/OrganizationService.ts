@@ -130,15 +130,17 @@ export class OrganizationService implements IOrganizationService {
 
       // APIレスポンスをOrganizationAvatar形式に変換
       const avatars: OrganizationAvatar[] = (data.result || []).map((item) => ({
-        avatar_id: item.id,
+        id: item.id,
         name: item.name,
-        url: item.gltf.avatar,
+        gltf: {
+          avatar: item.gltf.avatar,
+        },
         preview_url: item.images.preview.url,
       }))
 
       this.logger.debug('Organization avatars data received', {
         avatarCount: avatars.length,
-        avatars: avatars.map((a) => ({ id: a.avatar_id, name: a.name })),
+        avatars: avatars.map((a) => ({ id: a.id, name: a.name })),
       })
 
       return avatars
@@ -156,29 +158,40 @@ export class OrganizationService implements IOrganizationService {
     avatars: OrganizationAvatar[],
     options?: {
       avatarId?: string
-      preferRandom?: boolean
-      organizationId?: string
+      avatarSelection?: 'random' | 'organization' | string
     },
-  ): string | null {
+  ): OrganizationAvatar | null {
     if (!avatars || avatars.length === 0) {
       return null
     }
 
     // 指定されたアバターIDが存在する場合はそれを使用
     if (options?.avatarId) {
-      const specified = avatars.find((a) => a.avatar_id === options.avatarId)
+      const specified = avatars.find((a) => a.id === options.avatarId)
       if (specified) {
-        return specified.avatar_id
+        return specified
+      }
+    }
+
+    // avatarSelectionが具体的なアバターIDの場合
+    if (
+      options?.avatarSelection &&
+      options.avatarSelection !== 'random' &&
+      options.avatarSelection !== 'organization'
+    ) {
+      const specified = avatars.find((a) => a.id === options.avatarSelection)
+      if (specified) {
+        return specified
       }
     }
 
     // ランダム選択の場合
-    if (options?.preferRandom) {
+    if (options?.avatarSelection === 'random') {
       const randomIndex = Math.floor(Math.random() * avatars.length)
-      return avatars[randomIndex].avatar_id
+      return avatars[randomIndex]
     }
 
-    // デフォルトは最初のアバター
-    return avatars[0].avatar_id
+    // デフォルトは最初のアバター（organizationまたは未指定）
+    return avatars[0]
   }
 }
