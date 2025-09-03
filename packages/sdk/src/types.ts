@@ -26,10 +26,18 @@ export type Animation = {
 
 // Configuration options
 export interface CreateClientOptions {
-  serverUrl: string // ws(s)://...
+  /**
+   * WebSocket server URL
+   * - Format: ws(s)://...
+   * - For Metatell domains (metatell.app, metatell-stg.app, metatell-dev.app),
+   *   tenant subdomains are automatically removed.
+   *   Example: https://urth.metatell-stg.app -> wss://metatell-stg.app
+   */
+  serverUrl: string
   roomId: string
-  token: string // 短命JWTを想定
+  token?: string // 認証トークン（オプション - 未ログインでも入室可能）
   username?: string // ボット名
+  avatarId?: string // アバターID（未指定の場合はデフォルト）
   debug?: boolean // デバッグモード
   logger?: 'silent' | 'info' | 'debug' // ログレベル
   reconnect?: { enabled?: boolean; maxDelayMs?: number }
@@ -64,7 +72,14 @@ export interface MetatellClientEvents {
   disconnected: (reason?: string) => void
   error: (error: MetatellError) => void
   message: (data: MessageEventData) => void
-  'chat-message': (message: { from: User; text: string }) => void
+  'chat-message': (message: {
+    from: User
+    text: string
+    mention?: {
+      sessionId: string
+      name: string
+    }
+  }) => void
   'user-join': (user: User) => void
   'user-leave': (user: User) => void
 }
