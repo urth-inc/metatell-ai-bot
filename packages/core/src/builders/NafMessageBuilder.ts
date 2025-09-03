@@ -27,6 +27,7 @@ export interface NafAvatarConfig {
   avatarType?: string
   muted?: boolean
   isSharingAvatarCamera?: boolean
+  files?: Record<string, unknown> // v-air_client互換用
 }
 
 /**
@@ -189,6 +190,7 @@ export class NafMessageBuilder {
       avatarType: config.avatarType ?? 'skinnable',
       muted: config.muted ?? false,
       isSharingAvatarCamera: config.isSharingAvatarCamera ?? false,
+      ...(config.files ? { files: config.files } : {}),
     }
     return this
   }

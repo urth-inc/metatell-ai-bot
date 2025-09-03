@@ -57,7 +57,11 @@ export type {
   WebSocketState,
 } from './interfaces/IWebSocketConnectionManager.js'
 // Logging
-export { DefaultLoggerProvider, registerLoggerProvider } from './logging/index.js'
+export {
+  DefaultLoggerProvider,
+  getLoggerProvider,
+  registerLoggerProvider,
+} from './logging/index.js'
 // Service Container (DIコンテナ)
 export { ServiceContainer, type ServiceKey } from './ServiceContainer.js'
 export type { ServiceType } from './ServiceIdentifier.js'

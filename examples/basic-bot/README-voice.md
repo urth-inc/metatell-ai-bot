@@ -18,8 +18,8 @@ The Metatell SDK now supports real-time voice communication through LiveKit inte
 import { createAgentClient, type BotConfiguration } from '@metatell/sdk'
 
 const config: BotConfiguration = {
-  serverUrl: 'wss://hub.metatell.app',
-  hubUrl: 'https://hub.metatell.app',
+  serverUrl: 'wss://metatell.app',
+  hubUrl: 'https://metatell.app',
   hubId: 'your-hub-id',
   profile: {
     displayName: 'Voice Bot',

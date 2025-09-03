@@ -67,12 +67,15 @@ export class OrganizationService implements IOrganizationService {
 
       const data = (await response.json()) as RealmResponse
 
-      if (!data.result?.id || !data.result?.realm) {
-        throw new Error('Invalid realm response: missing organization or realm ID')
+      if (!data.result?.realm) {
+        throw new Error('Invalid realm response: missing realm ID')
       }
 
+      // idフィールドがない場合は組織IDが設定されていない
+      const organizationId = data.result.id || null
+
       return {
-        organizationId: data.result.id,
+        organizationId,
         realmId: data.result.realm,
       }
     } catch (error) {

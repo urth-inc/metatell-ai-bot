@@ -196,6 +196,11 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       // すでに登録されている場合はエラーを無視
     }
 
+    // デバッグモードの場合、ロギングを有効化
+    if (options.debug) {
+      process.env.DEBUG = 'metatell:*'
+    }
+
     // CoreServiceFactoryを初期化
     this.serviceFactory = new CoreServiceFactory({
       serverUrl: options.serverUrl,
@@ -273,6 +278,17 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
         // PresenceManagerから送信者の情報を取得
         const users = this.presenceManager.getUsers()
         const sender = users.find((u) => u.id === messageData.senderId)
+
+        // デバッグ情報
+        if (this.options.debug) {
+          this.logger.debug('Message sender lookup:', {
+            senderId: messageData.senderId,
+            foundSender: !!sender,
+            senderData: sender,
+            allUsers: users.map((u) => ({ id: u.id, name: u.profile?.displayName })),
+          })
+        }
+
         const senderName = sender?.profile?.displayName || sender?.id.split('#')[0] || 'Unknown'
 
         this.emit('chat-message', {
@@ -287,14 +303,28 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       }
     })
 
-    this.eventBus.on(SystemEvents.USER_JOINED, (user: unknown) => {
-      this.emit('user-join', user as User)
+    this.eventBus.on(SystemEvents.USER_JOINED, (data: unknown) => {
+      // PresenceUserデータをUser型に変換
+      const presenceUser = data as import('@metatell/core').PresenceUser
+      const user: User = {
+        id: presenceUser.id,
+        name: presenceUser.profile?.displayName || presenceUser.id.split('#')[0] || presenceUser.id,
+        isBot: false,
+      }
+      this.emit('user-join', user)
       // 新しいユーザーが入室したときにアバターを再同期
       this.resyncAvatarForNewUser()
     })
 
-    this.eventBus.on(SystemEvents.USER_LEFT, (user: unknown) => {
-      this.emit('user-leave', user as User)
+    this.eventBus.on(SystemEvents.USER_LEFT, (data: unknown) => {
+      // PresenceUserデータをUser型に変換
+      const presenceUser = data as import('@metatell/core').PresenceUser
+      const user: User = {
+        id: presenceUser.id,
+        name: presenceUser.profile?.displayName || presenceUser.id.split('#')[0] || presenceUser.id,
+        isBot: false,
+      }
+      this.emit('user-leave', user)
     })
   }
 
@@ -385,7 +415,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       // PresenceUserをUser型に変換
       return users.map((u) => ({
         id: u.id,
-        name: u.profile.displayName || u.id.split('#')[0] || u.id,
+        name: u.profile?.displayName || u.id.split('#')[0] || u.id,
         isBot: false,
       }))
     },
@@ -585,8 +615,13 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
   }
 
   getUsers(): User[] {
-    // 空配列を返す（実装は後で検討）
-    return []
+    const users = this.presenceManager.getUsers()
+    // PresenceUserをUser型に変換（room.getUsersと同じ実装）
+    return users.map((u) => ({
+      id: u.id,
+      name: u.profile?.displayName || u.id.split('#')[0] || u.id,
+      isBot: false,
+    }))
   }
 
   getRateLimit(_key: 'messages' | 'moves' | 'looks'): number | undefined {

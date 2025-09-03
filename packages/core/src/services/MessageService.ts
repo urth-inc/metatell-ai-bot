@@ -36,8 +36,29 @@ export class MessageService implements IMessageService {
         if (this.appSettings.debugMode) {
           this.logger.debug('[MESSAGE RECEIVED]', payload)
         }
+
+        // Phoenixメッセージからsender_idを抽出
+        const messagePayload = payload as {
+          body?: string
+          type?: string
+          sender_id?: string
+          session_id?: string
+          [key: string]: unknown
+        }
+
+        const messageEventData = {
+          type: messagePayload.type || 'chat',
+          senderId: messagePayload.sender_id || messagePayload.session_id,
+          body: messagePayload.body || '',
+          timestamp: Date.now(),
+        }
+
+        if (this.appSettings.debugMode) {
+          this.logger.debug('[MESSAGE STRUCTURED]', messageEventData)
+        }
+
         this.handleIncomingMessage('message', payload)
-        this.eventBus.emit(SystemEvents.MESSAGE_RECEIVED, payload)
+        this.eventBus.emit(SystemEvents.MESSAGE_RECEIVED, messageEventData)
       })
 
       // Setup NAF listener
