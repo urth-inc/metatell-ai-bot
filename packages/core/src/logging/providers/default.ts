@@ -175,8 +175,13 @@ export class DefaultLoggerProvider implements LoggerProvider {
     return new DefaultLogger(name)
   }
 
-  setLogLevel(level: LogLevel): void {
+  setMinLevel(level: LogLevel): void {
     globalMinLevel = level
+  }
+
+  // 後方互換性のため
+  setLogLevel(level: LogLevel): void {
+    this.setMinLevel(level)
   }
 
   enableConsole(enabled: boolean): void {

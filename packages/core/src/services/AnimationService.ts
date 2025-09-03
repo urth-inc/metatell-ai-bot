@@ -25,12 +25,72 @@ export class AnimationService implements IAnimationService {
       return cached
     }
 
-    // アバターのアニメーション取得はstorage APIではなく、単にデフォルトを返す
-    // 組織アバターのアニメーション情報は現在のAPIでは取得できない
-    this.logger.debug('Returning default animations for avatar', { avatarId })
-    const animations = this.getDefaultAnimations()
-    this.avatarAnimationsCache.set(avatarId, animations)
-    return animations
+    // デフォルトアニメーション
+    const defaultAnimations = this.getDefaultAnimations()
+
+    try {
+      // アバター情報を取得して利用可能なアニメーションを確認
+      const avatarUrl = `${this.apiBaseUrl}/api/v1/avatars/${avatarId}`
+
+      this.logger.debug('Fetching avatar animations', { avatarUrl })
+
+      const response = await fetch(avatarUrl)
+
+      this.logger.debug('Avatar API response', {
+        avatarUrl,
+        status: response.status,
+        ok: response.ok,
+      })
+
+      if (!response.ok) {
+        // 404の場合は組織アバターの可能性があるのでデフォルトを返す
+        if (response.status === 404) {
+          this.logger.debug(
+            'Avatar not found in individual avatars, might be organization avatar',
+            { avatarId },
+          )
+          this.avatarAnimationsCache.set(avatarId, defaultAnimations)
+          return defaultAnimations
+        }
+        throw new Error(`Failed to fetch avatar info: ${response.status}`)
+      }
+
+      const avatarData = (await response.json()) as {
+        id: string
+        name: string
+        animations?: Array<{
+          id: string
+          name: string
+          vrmaFilePath: string
+          alias?: string
+        }>
+      }
+
+      // アバター固有のアニメーションをVRMAnimation形式に変換
+      const customAnimations: VRMAnimation[] = (avatarData.animations || []).map((anim) => ({
+        id: anim.id,
+        name: anim.alias || anim.name,
+        vrmaFilePath: anim.vrmaFilePath,
+        type: 'custom' as const,
+        loop: false, // デフォルトはループなし
+      }))
+
+      // デフォルトアニメーションとカスタムアニメーションを結合
+      const allAnimations = [...defaultAnimations, ...customAnimations]
+
+      this.logger.debug('Avatar animations loaded', {
+        avatarId,
+        defaultCount: defaultAnimations.length,
+        customCount: customAnimations.length,
+      })
+
+      this.avatarAnimationsCache.set(avatarId, allAnimations)
+      return allAnimations
+    } catch (error) {
+      this.logger.warn('Failed to fetch avatar animations, returning defaults', { avatarId, error })
+      this.avatarAnimationsCache.set(avatarId, defaultAnimations)
+      return defaultAnimations
+    }
   }
 
   /**
@@ -120,5 +180,16 @@ export class AnimationService implements IAnimationService {
     this.animationCache.clear()
     this.avatarAnimationsCache.clear()
     this.logger.debug('Animation cache cleared')
+  }
+
+  /**
+   * Set current avatar ID for animation context
+   */
+  setCurrentAvatarId(avatarId: string): void {
+    // アバターIDが変更された場合、そのアバターのアニメーションを事前取得
+    this.getAvailableAnimations(avatarId).catch((error) => {
+      this.logger.warn('Failed to preload avatar animations', { avatarId, error })
+    })
+    this.logger.debug('Current avatar ID set', { avatarId })
   }
 }

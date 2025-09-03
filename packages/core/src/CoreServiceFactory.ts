@@ -48,7 +48,10 @@ export class CoreServiceFactory {
     // Using fluent API for clean registration
     // Core services registration with type-safe API
     this.container
-      .register(AppSettingsToken, () => new AppSettingsImpl(config?.debug || false, 'info'))
+      .register(
+        AppSettingsToken,
+        () => new AppSettingsImpl(config?.debug || false, config?.debug ? 'debug' : 'info'),
+      )
       .register(EventBusToken, () => new EventBusImpl())
       .register(
         ConfigurationProviderToken,
@@ -87,7 +90,7 @@ export class CoreServiceFactory {
         const configProvider = container.get(ConfigurationProviderToken)
         const config = configProvider.getConfiguration()
 
-        // 環境に応じてstorage URLを決定
+        // 環境に応じてAPI URLを決定
         let apiBaseUrl = config.storageUrl
         if (!apiBaseUrl) {
           const hubUrl = config.hubUrl
@@ -95,18 +98,21 @@ export class CoreServiceFactory {
             const url = new URL(hubUrl)
             const hostname = url.hostname
 
+            // メインAPIのURLを決定
             if (hostname.includes('metatell-stg.app') || hostname.includes('-stg.')) {
-              apiBaseUrl = 'https://storage.metatell-stg.app:443'
+              // staging環境の場合は管理APIパスを含める
+              apiBaseUrl = 'https://metatell-stg.app/api/admin/stg'
             } else if (hostname.includes('metatell-dev.app') || hostname.includes('-dev.')) {
-              apiBaseUrl = 'https://storage.metatell-dev.app:443'
+              apiBaseUrl = 'https://metatell-dev.app/api/admin/dev'
             } else {
-              apiBaseUrl = 'https://storage.metatell.app:443'
+              apiBaseUrl = 'https://metatell.app/api/admin/prod'
             }
           } catch {
-            apiBaseUrl = 'https://storage.metatell.app:443'
+            apiBaseUrl = 'https://metatell.app/api/admin/prod'
           }
         }
 
+        logger.debug('AnimationService initialized with API URL', { apiBaseUrl })
         return new AnimationServiceImpl(logger, apiBaseUrl)
       })
       .register(

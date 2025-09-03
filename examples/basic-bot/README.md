@@ -14,6 +14,7 @@ npm start https://urth.metatell.app/XrAU8NY/
 
 - 最小限のセットアップ
 - メンション時の自動応答
+- ユーザについてくる
 
 ## コード構成
 

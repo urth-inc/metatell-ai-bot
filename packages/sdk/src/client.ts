@@ -5,6 +5,7 @@
 import { EventEmitter } from 'node:events'
 import {
   AnimationService,
+  AppSettings,
   AvatarController,
   ConfigurationProvider,
   ConnectionManager,
@@ -235,6 +236,13 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
     this.animationService = container.get(AnimationService) as IAnimationService
     this.eventBus = container.get(EventBus) as IEventBus
     this.configProvider = container.get(ConfigurationProvider) as IConfigurationProvider
+
+    // デバッグモードの場合、AppSettingsのログレベルを変更
+    if (options.debug) {
+      const appSettings = container.get(AppSettings)
+      ;(appSettings as unknown as { setLogLevel: (level: string) => void }).setLogLevel('debug')
+      ;(appSettings as unknown as { setDebugMode: (enabled: boolean) => void }).setDebugMode(true)
+    }
 
     // イベントのプロキシ設定
     this.setupEventProxies()
@@ -670,7 +678,17 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       if (!state) {
         return []
       }
+
+      this.logger.debug('Getting available animations for avatar', { avatarId: state.avatarId })
+
       const animations = await this.animationService.getAvailableAnimations(state.avatarId)
+
+      this.logger.debug('Retrieved animations', {
+        avatarId: state.avatarId,
+        animationCount: animations.length,
+        animations: animations.map((a) => ({ id: a.id, name: a.name })),
+      })
+
       return animations.map((anim) => ({
         id: anim.id,
         name: anim.name || 'Unknown Animation',
