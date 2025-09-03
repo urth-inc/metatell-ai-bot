@@ -314,7 +314,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       const presenceUser = data as import('@metatell/bot-core').PresenceUser
       // UserAvatarManagerからアバター情報を取得
       const avatar = this.userAvatarManager.getUser(presenceUser.id)
-      
+
       const user: User = {
         id: presenceUser.id,
         name: presenceUser.profile?.displayName || presenceUser.id.split('#')[0] || presenceUser.id,
@@ -332,7 +332,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       const presenceUser = data as import('@metatell/bot-core').PresenceUser
       // UserAvatarManagerからアバター情報を取得
       const avatar = this.userAvatarManager.getUser(presenceUser.id)
-      
+
       const user: User = {
         id: presenceUser.id,
         name: presenceUser.profile?.displayName || presenceUser.id.split('#')[0] || presenceUser.id,
@@ -432,7 +432,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       return users.map((u) => {
         // UserAvatarManagerからアバター情報を取得
         const avatar = this.userAvatarManager.getUser(u.id)
-        
+
         return {
           id: u.id,
           name: u.profile?.displayName || u.id.split('#')[0] || u.id,
@@ -664,7 +664,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
     return users.map((u) => {
       // UserAvatarManagerからアバター情報を取得
       const avatar = this.userAvatarManager.getUser(u.id)
-      
+
       return {
         id: u.id,
         name: u.profile?.displayName || u.id.split('#')[0] || u.id,
@@ -715,13 +715,13 @@ export function createMetatellClient(options: CreateClientOptions): MetatellClie
   try {
     const url = new URL(options.serverUrl.replace(/^ws/, 'http'))
     const hostParts = url.hostname.split('.')
-    
+
     if (hostParts.length >= 2) {
       // サブドメインがある場合は除去（例: urth.metatell.app -> metatell.app）
       const mainDomain = hostParts.slice(-2).join('.')
       processedOptions.serverUrl = options.serverUrl.replace(url.hostname, mainDomain)
     }
-  } catch (error) {
+  } catch (_error) {
     // URL解析に失敗した場合はそのまま使用
     // エラーログなどは出さず、元のURLを使用
   }

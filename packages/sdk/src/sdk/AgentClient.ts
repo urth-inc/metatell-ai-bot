@@ -102,7 +102,11 @@ export interface ConnectionStatus {
   rtt?: number
 }
 
-import type { AnimationPlaybackResult, AnimationPlayOptions, VRMAnimation } from '@metatell/bot-core'
+import type {
+  AnimationPlaybackResult,
+  AnimationPlayOptions,
+  VRMAnimation,
+} from '@metatell/bot-core'
 
 export interface AgentClient {
   // Connection management
