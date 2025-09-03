@@ -165,12 +165,10 @@ Available commands:
       return { success: false, message: 'Invalid radius. Must be a number.' }
     }
 
-    const users = await client.room.getUsers()
+    const nearbyUsers = await client.room.getNearbyUsers(radius)
 
-    // TODO: 距離計算のためにはユーザー位置情報が必要
     console.log(`[Nearby users within ${radius}m]`)
-    console.log('(Distance calculation not yet implemented - showing all users)')
-    users.forEach((u) => {
+    nearbyUsers.forEach((u) => {
       console.log(`- ${u.name || 'Anonymous'} (${u.id})${u.isBot ? ' [Bot]' : ''}`)
     })
 
