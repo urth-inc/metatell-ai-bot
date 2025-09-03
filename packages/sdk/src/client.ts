@@ -29,6 +29,7 @@ import {
   UserAvatarManager,
 } from '@metatell/bot-core'
 import { getLogger } from './sdk/logging/index.js'
+import { RateLimitedQueue } from './sdk/rate.js'
 import type {
   Animation,
   AvatarAsset,
@@ -157,6 +158,9 @@ export interface MetatellClient {
   /** レート制限設定を取得します。 */
   getRateLimit(key: 'messages' | 'moves' | 'looks'): number | undefined
 
+  /** レート制限を設定します。 */
+  setRateLimit(key: 'messages' | 'moves' | 'looks', perSecond: number): void
+
   /**
    * 現在のセッションIDを取得します。
    */
@@ -189,6 +193,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
   private eventBus: IEventBus
   private configProvider: IConfigurationProvider
   private userAvatarManager: IUserAvatarManager
+  private rateLimiter = new RateLimitedQueue()
   private logger = getLogger('MetatellClient')
 
   constructor(private options: CreateClientOptions) {
@@ -488,7 +493,9 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
   readonly chat = {
     send: async (text: string): Promise<void> => {
-      await this.messageService.sendMessage(text)
+      await this.rateLimiter.execute('messages', async () => {
+        await this.messageService.sendMessage(text)
+      })
     },
 
     onMention: (
@@ -569,7 +576,9 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
     },
 
     moveTo: async (position: Vec3): Promise<void> => {
-      await this.avatarController.move(position)
+      await this.rateLimiter.execute('moves', async () => {
+        await this.avatarController.move(position)
+      })
     },
 
     rotateTo: async (rotation: Euler): Promise<void> => {
@@ -598,30 +607,32 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
     },
 
     lookAt: async (target: Vec3): Promise<void> => {
-      // 現在位置を取得
-      const state = this.avatarController.getState()
-      if (!state) {
-        throw new MetatellError('AVATAR_NOT_SPAWNED', 'Avatar is not spawned')
-      }
+      await this.rateLimiter.execute('looks', async () => {
+        // 現在位置を取得
+        const state = this.avatarController.getState()
+        if (!state) {
+          throw new MetatellError('AVATAR_NOT_SPAWNED', 'Avatar is not spawned')
+        }
 
-      // ターゲットへの方向ベクトルを計算
-      const dx = target.x - state.position.x
-      const dz = target.z - state.position.z
+        // ターゲットへの方向ベクトルを計算
+        const dx = target.x - state.position.x
+        const dz = target.z - state.position.z
 
-      // Y軸周りの回転角度を計算（ラジアン）
-      const yRotation = Math.atan2(dx, dz)
+        // Y軸周りの回転角度を計算（ラジアン）
+        const yRotation = Math.atan2(dx, dz)
 
-      // ラジアンからクォータニオンに変換（Y軸回転のみ）
-      const halfAngle = yRotation / 2
-      const quaternion = {
-        x: 0,
-        y: Math.sin(halfAngle),
-        z: 0,
-        w: Math.cos(halfAngle),
-      }
+        // ラジアンからクォータニオンに変換（Y軸回転のみ）
+        const halfAngle = yRotation / 2
+        const quaternion = {
+          x: 0,
+          y: Math.sin(halfAngle),
+          z: 0,
+          w: Math.cos(halfAngle),
+        }
 
-      // 回転を適用
-      await this.avatarController.rotate(quaternion)
+        // 回転を適用
+        await this.avatarController.rotate(quaternion)
+      })
     },
 
     getPosition: (): Vec3 | null => {
@@ -740,9 +751,12 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
     })
   }
 
-  getRateLimit(_key: 'messages' | 'moves' | 'looks'): number | undefined {
-    // レート制限設定なし
-    return undefined
+  getRateLimit(key: 'messages' | 'moves' | 'looks'): number | undefined {
+    return this.rateLimiter.getRate(key)
+  }
+
+  setRateLimit(key: 'messages' | 'moves' | 'looks', perSecond: number): void {
+    this.rateLimiter.setRate(key, perSecond)
   }
 
   getSessionId(): string | null {
