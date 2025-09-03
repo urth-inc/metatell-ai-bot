@@ -20,11 +20,13 @@ import {
   type IMessageService,
   type IOrganizationService,
   type IPresenceManager,
+  type IUserAvatarManager,
   MessageService,
   OrganizationService,
   PresenceManager,
   registerLoggerProvider as registerCoreLoggerProvider,
   SystemEvents,
+  UserAvatarManager,
 } from '@metatell/core'
 import { getLogger } from './sdk/logging/index.js'
 import type {
@@ -63,6 +65,9 @@ export interface MetatellClient {
   readonly room: {
     /** 現在ルームに参加しているユーザーの一覧を取得します。 */
     getUsers(): Promise<User[]>
+
+    /** 指定した半径内のユーザーを取得します。 */
+    getNearbyUsers(radius?: number): Promise<User[]>
   }
 
   /** 現在ルームに参加しているユーザーの一覧を取得します（同期版）。 */
@@ -183,6 +188,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
   private animationService: IAnimationService
   private eventBus: IEventBus
   private configProvider: IConfigurationProvider
+  private userAvatarManager: IUserAvatarManager
   private logger = getLogger('MetatellClient')
 
   constructor(private options: CreateClientOptions) {
@@ -219,7 +225,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
     this.messageService = container.get(MessageService) as IMessageService
     this.avatarController = container.get(AvatarController) as IAvatarController
     this.presenceManager = container.get(PresenceManager) as IPresenceManager
-    // userAvatarManagerは現在使用していないため、取得しない
+    this.userAvatarManager = container.get(UserAvatarManager) as IUserAvatarManager
     this.organizationService = container.get(OrganizationService) as IOrganizationService
     this.animationService = container.get(AnimationService) as IAnimationService
     this.eventBus = container.get(EventBus) as IEventBus
@@ -416,6 +422,25 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       return users.map((u) => ({
         id: u.id,
         name: u.profile?.displayName || u.id.split('#')[0] || u.id,
+        isBot: false,
+      }))
+    },
+
+    getNearbyUsers: async (radius: number = 10): Promise<User[]> => {
+      // 現在のアバター位置を取得
+      const currentPosition = this.avatar.getPosition()
+      if (!currentPosition) {
+        // アバターがスポーンされていない場合は全ユーザーを返す
+        return this.room.getUsers()
+      }
+
+      // UserAvatarManagerから距離内のユーザーを取得
+      const nearbyAvatars = this.userAvatarManager.getUsersInRange(currentPosition, radius)
+
+      // UserAvatarをUser型に変換
+      return nearbyAvatars.map((avatar) => ({
+        id: avatar.id,
+        name: avatar.nickname || avatar.id.split('#')[0] || avatar.id,
         isBot: false,
       }))
     },

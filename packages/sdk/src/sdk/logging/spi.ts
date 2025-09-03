@@ -58,7 +58,10 @@ export function getLogger(module: string): Logger {
     // 自動的にデフォルトプロバイダーを登録
     registerLoggerProvider(new DefaultLoggerProvider())
   }
-  return _provider?.getLogger(module)
+  if (!_provider) {
+    throw new Error('LoggerProvider registration failed')
+  }
+  return _provider.getLogger(module)
 }
 
 export function getLoggerProvider(): LoggerProvider | null {
