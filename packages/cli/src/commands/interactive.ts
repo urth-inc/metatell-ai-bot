@@ -42,13 +42,16 @@ export async function startInteractiveMode(url: string, options: CliOptions) {
       }
     })
 
-    // メンションハンドラーを設定
-    client.chat.onMention((event) => {
-      console.log(`[Mentioned by ${event.from.name}] ${event.text}`)
-      // 自動的に返信
-      event.reply(`Hello ${event.from.name}! You said: "${event.text}"`).catch((err) => {
-        console.error('[Error replying]', err)
-      })
+    // メッセージハンドラーを設定（メンションのみ反応）
+    const botInfo = await client.getInfo()
+    client.chat.onMessage(async (event) => {
+      if (event.mention && event.mention.sessionId === botInfo.sessionId) {
+        console.log(`[Mentioned by ${event.from.name}] ${event.text}`)
+        // 自動的に返信
+        event.reply(`Hello ${event.from.name}! You said: "${event.text}"`).catch((err) => {
+          console.error('[Error replying]', err)
+        })
+      }
     })
 
     client.on('user-join', (user) => {

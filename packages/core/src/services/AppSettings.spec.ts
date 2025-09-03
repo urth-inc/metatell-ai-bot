@@ -11,6 +11,9 @@ const mockLogger = {
 
 vi.mock('../logging/index.js', () => ({
   getLogger: vi.fn(() => mockLogger),
+  getLoggerProvider: vi.fn(() => ({
+    setMinLevel: vi.fn(),
+  })),
   registerLoggerProvider: vi.fn(),
   DefaultLoggerProvider: vi.fn(),
   setLogLevel: vi.fn(),
