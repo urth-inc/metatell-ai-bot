@@ -9,3 +9,16 @@ coverage/
 repomix-output.*
 .serena/
 *.tsbuildinfo
+
+# Configuration files (keep examples)
+.metatellrc
+.metatellrc.json
+.metatellrc.yaml
+.metatellrc.yml
+.metatellrc.js
+.metatellrc.cjs
+metatell.config.js
+metatell.config.cjs
+# Keep example files
+!.metatellrc.example.*
+!metatell.config.example.*

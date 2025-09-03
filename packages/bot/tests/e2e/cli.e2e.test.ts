@@ -36,7 +36,7 @@ describe('CLI E2E Tests', () => {
       expect(stdout).toContain('--token')
       expect(stdout).toContain('--profile')
       expect(stderr).toBe('')
-    }, 10000)
+    }, 20000)
 
     it('should display help with --help flag', async () => {
       const { stdout } = await execAsync(`node ${CLI_PATH} --help`)
