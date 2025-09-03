@@ -44,6 +44,7 @@ async function main() {
       await reply(`${from.name} さんこんにちは！👋`)
     })
 
+    // ついてくる AIbot
     setInterval(async () => {
       let notMeFirstUser: User | undefined
       const meInfo = await client.getInfo()
@@ -55,7 +56,11 @@ async function main() {
       })
 
       if (!notMeFirstUser?.position) return
-      client.avatar.moveTo({ x: 0.1, y: 0.1, z: notMeFirstUser.position.z })
+      client.avatar.moveTo({
+        x: notMeFirstUser.position.x + 1,
+        y: notMeFirstUser.position.y,
+        z: notMeFirstUser.position.z + 1,
+      })
     }, 100)
   } catch (error) {
     console.error('❌ Connection failed:', error)

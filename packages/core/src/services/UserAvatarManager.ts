@@ -59,7 +59,20 @@ export class UserAvatarManager implements IUserAvatarManager {
     // NAFメッセージを監視してアバターの位置情報を追跡
     this.logger.debug('[UserAvatarManager] Setting up NAF message listeners')
     this.messageService.on('naf', (data: unknown) => this.handleNAFMessage(data as NAFMessage))
-    this.messageService.on('nafr', (data: unknown) => this.handleNAFRMessage(data as NAFMessage))
+    this.messageService.on('nafr', (data: unknown) => {
+      // NAFRメッセージは {naf: "JSON文字列"} の形式で来る
+      const nafrData = data as { naf?: string; from_session_id?: string }
+      if (nafrData.naf) {
+        try {
+          const parsed = JSON.parse(nafrData.naf)
+          this.handleNAFRMessage(parsed)
+        } catch (error) {
+          this.logger.error('[NAF] Failed to parse NAFR data', error)
+        }
+      } else {
+        this.handleNAFRMessage(data as NAFMessage)
+      }
+    })
 
     // PresenceManagerからユーザー情報を同期
     this.logger.debug('[UserAvatarManager] Setting up Presence listeners')
@@ -133,9 +146,21 @@ export class UserAvatarManager implements IUserAvatarManager {
 
   private handleNAFRMessage(message: NAFMessage): void {
     this.logger.debug('[NAF] Received NAFR message', { dataType: message.dataType })
-    if (message.dataType === 'um') {
+
+    // NAFRメッセージが文字列の場合はパース
+    let parsedMessage = message
+    if (typeof message === 'string') {
+      try {
+        parsedMessage = JSON.parse(message)
+      } catch (error) {
+        this.logger.error('[NAF] Failed to parse NAFR message', error)
+        return
+      }
+    }
+
+    if (parsedMessage.dataType === 'um') {
       // アバター更新
-      const data = message.data as { d: NAFComponent[] }
+      const data = parsedMessage.data as { d: NAFComponent[] }
       if (data.d && Array.isArray(data.d)) {
         this.logger.debug('[NAF] Processing NAFR updates', { count: data.d.length })
         for (const component of data.d) {

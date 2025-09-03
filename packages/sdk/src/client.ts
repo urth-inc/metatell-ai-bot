@@ -428,8 +428,29 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
   readonly room = {
     getUsers: async (): Promise<User[]> => {
       const users = this.presenceManager.getUsers()
+      const currentSessionId = this.connectionManager.getSessionId()
+
       // PresenceUserをUser型に変換
       return users.map((u) => {
+        // 自分自身の場合はAvatarControllerから位置情報を取得
+        if (u.id === currentSessionId) {
+          const avatarState = this.avatarController.getState()
+          return {
+            id: u.id,
+            name: u.profile?.displayName || u.id.split('#')[0] || u.id,
+            isBot: false,
+            position: avatarState?.position,
+            rotation: avatarState?.rotation
+              ? {
+                  x: (avatarState.rotation.x * 180) / Math.PI,
+                  y: (avatarState.rotation.y * 180) / Math.PI,
+                  z: (avatarState.rotation.z * 180) / Math.PI,
+                  w: 1, // 簡略化
+                }
+              : undefined,
+          }
+        }
+
         // UserAvatarManagerからアバター情報を取得
         const avatar = this.userAvatarManager.getUser(u.id)
 
@@ -660,8 +681,29 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
   getUsers(): User[] {
     const users = this.presenceManager.getUsers()
+    const currentSessionId = this.connectionManager.getSessionId()
+
     // PresenceUserをUser型に変換（room.getUsersと同じ実装）
     return users.map((u) => {
+      // 自分自身の場合はAvatarControllerから位置情報を取得
+      if (u.id === currentSessionId) {
+        const avatarState = this.avatarController.getState()
+        return {
+          id: u.id,
+          name: u.profile?.displayName || u.id.split('#')[0] || u.id,
+          isBot: false,
+          position: avatarState?.position,
+          rotation: avatarState?.rotation
+            ? {
+                x: (avatarState.rotation.x * 180) / Math.PI,
+                y: (avatarState.rotation.y * 180) / Math.PI,
+                z: (avatarState.rotation.z * 180) / Math.PI,
+                w: 1, // 簡略化
+              }
+            : undefined,
+        }
+      }
+
       // UserAvatarManagerからアバター情報を取得
       const avatar = this.userAvatarManager.getUser(u.id)
 
