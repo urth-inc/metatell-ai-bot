@@ -2,11 +2,23 @@
 
 import './websocket-polyfill.js'
 import {
+  AppSettings,
+  AvatarController,
   type BotConfiguration,
   DefaultAgentClient,
   DefaultLoggerProvider,
   getLogger,
+  type IAppSettings,
+  type IAvatarController,
+  type IMessageService,
+  type IOrganizationService,
+  type IPresenceManager,
+  type IUserAvatarManager,
+  MessageService,
+  OrganizationService,
+  PresenceManager,
   registerLoggerProvider,
+  UserAvatarManager,
 } from '@metatell/sdk'
 import { Command } from 'commander'
 import * as v from 'valibot'
@@ -99,7 +111,7 @@ async function main() {
   const configManager = new ConfigManager()
   let config: import('./cli/config/config.js').Config
   try {
-    config = configManager.getConfig(flags)
+    config = await configManager.getConfig(flags)
   } catch (error) {
     if (error instanceof Error && error.message.includes('Invalid command line flags')) {
       // Extract the specific validation error
@@ -261,11 +273,8 @@ async function main() {
   // Initialize BotServiceFactory with configuration (includes bot-specific services)
   const factory = new BotServiceFactory(botConfig)
 
-  // アバター情報表示状態を追跡
-  let avatarInfoDisplayed = false
-
   // AppSettingsを取得してLoggingシステムを設定
-  const appSettings = factory.getService<import('@metatell/sdk').IAppSettings>('IAppSettings')
+  const appSettings = factory.getService(AppSettings) as IAppSettings
 
   // デバッグモードの場合はAppSettingsも更新
   if (config.debug) {
@@ -328,20 +337,15 @@ async function main() {
 
     // Create command context for CLI with proper typing
     const commandContext: CommandContext = {
-      avatarController:
-        factory.getService<import('@metatell/sdk').IAvatarController>('IAvatarController'),
-      userAvatarManager:
-        factory.getService<import('@metatell/sdk').IUserAvatarManager>('IUserAvatarManager'),
-      presenceManager:
-        factory.getService<import('@metatell/sdk').IPresenceManager>('IPresenceManager'),
-      messageService:
-        factory.getService<import('@metatell/sdk').IMessageService>('IMessageService'),
-      logger: getLogger('CLI'),
+      avatarController: factory.getService(AvatarController) as IAvatarController,
+      userAvatarManager: factory.getService(UserAvatarManager) as IUserAvatarManager,
+      presenceManager: factory.getService(PresenceManager) as IPresenceManager,
+      messageService: factory.getService(MessageService) as IMessageService,
+      logger: getLogger('CommandContext'),
       // Additional context for CLI commands
       agentClient: client,
       botConfig: botConfig,
-      organizationService:
-        factory.getService<import('@metatell/sdk').IOrganizationService>('IOrganizationService'),
+      organizationService: factory.getService(OrganizationService) as IOrganizationService,
     }
 
     // Handle shutdown gracefully
@@ -431,19 +435,7 @@ async function main() {
     const { logger: cliLogger } = await import('./utils/logger.js')
     cliLogger.notifyCliStarted?.()
 
-    // CLI起動後にアバター情報を一度だけ表示
-    if (!avatarInfoDisplayed) {
-      avatarInfoDisplayed = true
-      cliLogger.log(
-        `🤖 Connected as: ${botConfig.profile.displayName} (${botConfig.profile.avatarId})`,
-      )
-      if (avatarName) {
-        cliLogger.log(`🎨 Avatar: ${avatarName}`)
-      }
-      if (organizationInfo.organizationId) {
-        cliLogger.log(`🏢 Organization: ${organizationInfo.organizationId}`)
-      }
-    }
+    // Avatar information is already shown in the initial configuration display
 
     // デバッグモードの場合、ログファイルパスを表示
     if (debugLogPath) {

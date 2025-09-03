@@ -35,8 +35,8 @@ function buildTypedSpawnMessage(sessionId: string, avatarId: string): TypedNAFMe
       isSharingAvatarCamera: false,
     })
 
-  // Use buildTyped() for type-safe message
-  const message: TypedNAFMessage = builder.buildTyped()
+  // Use build() for type-safe message
+  const message: TypedNAFMessage = builder.build()
 
   // TypeScript knows this is a NAFCreateMessage
   if (message.dataType === 'u') {
@@ -92,7 +92,7 @@ function updateAvatarPosition(
     builder.withBodyRotation([rotation.x, rotation.y, rotation.z])
   }
 
-  return builder.buildTyped()
+  return builder.build()
 }
 
 // ============================================================================

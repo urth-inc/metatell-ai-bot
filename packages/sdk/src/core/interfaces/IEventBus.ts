@@ -1,3 +1,5 @@
+import { ServiceIdentifier } from '../ServiceIdentifier.js'
+
 export type EventHandler<T = unknown> = (data: T) => void | Promise<void>
 
 export interface IEventBus {
@@ -7,6 +9,9 @@ export interface IEventBus {
   once<T = unknown>(event: string, handler: EventHandler<T>): void
   removeAllListeners(event?: string): void
 }
+
+// Service identifier token for dependency injection
+export abstract class EventBus extends ServiceIdentifier<IEventBus> {}
 
 export enum SystemEvents {
   // Connection events

@@ -90,7 +90,7 @@ describe('parseCommand', () => {
       expect(result).toEqual({
         kind: 'error',
         message: 'Missing arguments',
-        usage: '/look <x> <y> <z> | /look user <id> | /look nearest',
+        usage: '/look <x> <y> <z> | /look @<username> | /look nearest',
       })
     })
   })

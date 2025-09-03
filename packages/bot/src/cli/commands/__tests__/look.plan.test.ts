@@ -113,7 +113,7 @@ describe('parseLook Command Planning', () => {
     })
   })
 
-  describe('legacy user format', () => {
+  describe('basic user format', () => {
     it('should parse "user <username>" format', () => {
       const result = parseCommand('/look user TestUser')
 

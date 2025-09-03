@@ -57,11 +57,18 @@ export function cliReducer(state: CliState, action: CliAction): CliState {
     case 'SET_LOGS':
       return { ...state, logs: action.logs }
 
-    case 'ADD_LOGS':
+    case 'ADD_LOGS': {
+      // Deduplicate logs by timestamp and message content
+      const existingKeys = new Set(state.logs.map((log) => `${log.ts}-${log.module}-${log.msg}`))
+      const newLogs = action.logs.filter((log) => {
+        const key = `${log.ts}-${log.module}-${log.msg}`
+        return !existingKeys.has(key)
+      })
       return {
         ...state,
-        logs: [...state.logs, ...action.logs].slice(-1000), // Keep last 1000 logs
+        logs: [...state.logs, ...newLogs].slice(-1000), // Keep last 1000 logs
       }
+    }
 
     case 'SET_INPUT':
       return { ...state, input: action.input }

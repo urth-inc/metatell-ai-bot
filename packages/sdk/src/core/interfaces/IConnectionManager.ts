@@ -1,4 +1,5 @@
 import type { Channel, Socket } from 'phoenix'
+import { ServiceIdentifier } from '../ServiceIdentifier.js'
 
 export interface ConnectionConfig {
   serverUrl: string // WebSocket server URL
@@ -19,3 +20,6 @@ export interface IConnectionManager {
   waitForConnection(timeout?: number): Promise<void>
   on(event: string, callback: (...args: unknown[]) => void): void
 }
+
+// Service identifier token for dependency injection
+export abstract class ConnectionManager extends ServiceIdentifier<IConnectionManager> {}

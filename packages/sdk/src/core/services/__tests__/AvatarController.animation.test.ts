@@ -135,11 +135,18 @@ describe('AvatarController - Animation Features', () => {
 
       expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
         expect.objectContaining({
-          dataType: 'animation',
+          dataType: 'um',
           data: expect.objectContaining({
-            animationId,
-            options,
-            playbackId: result.playbackId,
+            d: expect.arrayContaining([
+              expect.objectContaining({
+                components: expect.objectContaining({
+                  13: expect.objectContaining({
+                    status: animationId,
+                    animationRunId: result.playbackId,
+                  }),
+                }),
+              }),
+            ]),
           }),
         }),
       )
@@ -190,9 +197,18 @@ describe('AvatarController - Animation Features', () => {
 
       expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
         expect.objectContaining({
-          dataType: 'animation',
+          dataType: 'um',
           data: expect.objectContaining({
-            animationId: 'idle',
+            d: expect.arrayContaining([
+              expect.objectContaining({
+                components: expect.objectContaining({
+                  13: expect.objectContaining({
+                    status: 'idle',
+                    animationRunId: expect.any(String),
+                  }),
+                }),
+              }),
+            ]),
           }),
         }),
       )
@@ -223,7 +239,8 @@ describe('AvatarController - Animation Features', () => {
       await controller.stopAnimation()
 
       expect(mockEventBus.emit).toHaveBeenCalledWith('animation:stopped', {
-        previousAnimation: null, // Already cleared before event
+        animationId: 'idle',
+        playbackId: expect.any(String),
       })
     })
   })

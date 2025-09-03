@@ -23,6 +23,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@livekit/rtc-node": "^0.13.18"
+    "@livekit/rtc-node": "^0.13.18",
+    "@metatell/sdk": "file:../sdk"
   }
 }

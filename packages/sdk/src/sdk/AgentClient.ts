@@ -3,23 +3,24 @@
  */
 
 import { EventEmitter } from 'node:events'
-import type { RealtimeEvent, RealtimeTransport } from '@metatell/realtime'
+// Realtime types will be defined locally to avoid circular dependencies
 import { CoreServiceFactory } from '../core/CoreServiceFactory.js'
 import {
   AnimationNotFoundError,
   AnimationPlaybackError,
   AvatarNotSpawnedError,
 } from '../core/errors/animation-errors.js'
-import type { IAnimationService } from '../core/interfaces/IAnimationService.js'
-import type { IAvatarController } from '../core/interfaces/IAvatarController.js'
-import type {
-  BotConfiguration,
-  BotVoiceConfig,
-  IConfigurationProvider,
-} from '../core/interfaces/IConfigurationProvider.js'
-import type { IConnectionManager } from '../core/interfaces/IConnectionManager.js'
-import type { IMessageService } from '../core/interfaces/IMessageService.js'
+import { AnimationService, type IAnimationService } from '../core/interfaces/IAnimationService.js'
+import { AvatarController, type IAvatarController } from '../core/interfaces/IAvatarController.js'
+import type { BotConfiguration, BotVoiceConfig } from '../core/interfaces/IConfigurationProvider.js'
+import { ConfigurationProvider } from '../core/interfaces/IConfigurationProvider.js'
+import {
+  ConnectionManager,
+  type IConnectionManager,
+} from '../core/interfaces/IConnectionManager.js'
+import { type IMessageService, MessageService } from '../core/interfaces/IMessageService.js'
 import type { IUserAvatarManager, UserAvatar } from '../core/interfaces/IUserAvatarManager.js'
+import { UserAvatarManager } from '../core/interfaces/IUserAvatarManager.js'
 import { getLogger } from './logging/index.js'
 import { RateLimitedQueue } from './rate.js'
 
@@ -154,7 +155,7 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
   private userAvatarManager: IUserAvatarManager
   private connectionManager: IConnectionManager
   private animationService?: IAnimationService
-  private realtimeTransport?: RealtimeTransport
+  // Voice transport functionality moved to consuming packages
   private rateLimiter = new RateLimitedQueue()
   private logger = getLogger('AgentClient')
   private factory: CoreServiceFactory
@@ -169,25 +170,20 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
     super()
     this.factory = factory
     // コアサービスインターフェースのみに依存
-    this.avatarController = factory.getService('IAvatarController') as IAvatarController
-    this.messageService = factory.getService('IMessageService') as IMessageService
-    this.userAvatarManager = factory.getService('IUserAvatarManager') as IUserAvatarManager
-    this.connectionManager = factory.getService('IConnectionManager') as IConnectionManager
+    this.avatarController = factory.getService(AvatarController)
+    this.messageService = factory.getService(MessageService)
+    this.userAvatarManager = factory.getService(UserAvatarManager)
+    this.connectionManager = factory.getService(ConnectionManager)
 
     // Optional services
     try {
-      this.animationService = factory.getService('IAnimationService') as IAnimationService
+      this.animationService = factory.getService(AnimationService)
     } catch {
       // Animation service is optional
       this.logger.debug('Animation service not available')
     }
 
-    try {
-      this.realtimeTransport = factory.getService('RealtimeTransport') as RealtimeTransport
-    } catch {
-      // RealtimeTransport service is optional
-      this.logger.debug('RealtimeTransport service not available')
-    }
+    // Voice transport functionality moved to consuming packages
 
     // Setup event handlers for user join
     this.setupEventHandlers()
@@ -271,9 +267,7 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
       })
 
       // Get avatar configuration and spawn
-      const configProvider = this.factory.getService(
-        'IConfigurationProvider',
-      ) as IConfigurationProvider
+      const configProvider = this.factory.getService(ConfigurationProvider)
       const config = configProvider.getConfiguration()
 
       if (config.profile.avatarId) {
@@ -288,11 +282,7 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
         )
       }
 
-      // 音声接続（有効な場合）
-      const voiceConfig = options.voice || config.voice
-      if (this.realtimeTransport && voiceConfig?.enabled) {
-        await this.connectVoice({ ...config, voice: voiceConfig })
-      }
+      // Voice connection functionality moved to consuming packages
 
       this.status.connected = true
       this.status.connecting = false
@@ -300,7 +290,7 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
         serverUrl,
         hubId,
         sessionId: this.status.sessionId,
-        voiceEnabled: voiceConfig?.enabled || false,
+        voiceEnabled: false, // Voice functionality moved to consuming packages
       })
     } catch (error) {
       this.status.connecting = false
@@ -313,14 +303,7 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
   async disconnect(): Promise<void> {
     this.logger.info('Disconnecting from server')
 
-    // 音声接続を切断
-    if (this.realtimeTransport) {
-      try {
-        await this.realtimeTransport.disconnect()
-      } catch (error) {
-        this.logger.error('Error disconnecting voice', { error })
-      }
-    }
+    // Voice disconnection functionality moved to consuming packages
 
     await this.connectionManager.disconnect()
     this.status.connected = false
@@ -346,7 +329,6 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
 
   async send(message: string): Promise<void> {
     return this.rateLimiter.execute('messages', async () => {
-      this.logger.debug('Sending message', { message })
       await this.messageService.sendMessage(message)
     })
   }
@@ -513,7 +495,7 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
       return []
     }
 
-    const config = this.factory.getService('IConfigurationProvider') as IConfigurationProvider
+    const config = this.factory.getService(ConfigurationProvider)
     const avatarId = config.getConfiguration().profile.avatarId
 
     if (!avatarId) {
@@ -537,33 +519,22 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
   }
 
   /**
-   * Send voice frame
+   * Send voice frame (stub - implementation moved to consuming packages)
    */
-  async sendVoiceFrame(pcmData: Int16Array): Promise<void> {
-    if (!this.realtimeTransport) {
-      throw new Error('Voice not enabled')
-    }
-
-    if (this.voiceMuted) {
-      // ミュート中は送信しない
-      return
-    }
-
-    await this.realtimeTransport.pushPcmFrame(pcmData)
+  async sendVoiceFrame(_pcmData: Int16Array): Promise<void> {
+    throw new Error(
+      'Voice functionality not available in SDK core - use consuming package implementation',
+    )
   }
 
   /**
-   * Mute/unmute voice
+   * Mute/unmute voice (stub - implementation moved to consuming packages)
    */
   async muteVoice(muted: boolean): Promise<void> {
     this.voiceMuted = muted
-
-    // RealtimeTransportのsetMicEnabledを呼ぶ
-    if (this.realtimeTransport?.setMicEnabled) {
-      await this.realtimeTransport.setMicEnabled(!muted)
-    }
-
-    this.logger.debug(`Voice ${muted ? 'muted' : 'unmuted'}`)
+    this.logger.debug(
+      `Voice ${muted ? 'muted' : 'unmuted'} - functionality moved to consuming packages`,
+    )
   }
 
   /**
@@ -573,97 +544,7 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
     return this.voiceMuted
   }
 
-  private async connectVoice(config: BotConfiguration): Promise<void> {
-    if (!this.realtimeTransport || !config.voice) return
-
-    // RealtimeTransportのイベントハンドラを設定
-    this.realtimeTransport.on((event: RealtimeEvent) => {
-      switch (event.type) {
-        case 'state':
-          if (event.state === 'connected') {
-            this.emit('voiceConnected')
-          } else if (event.state === 'disconnected') {
-            this.emit('voiceDisconnected')
-          }
-          break
-
-        case 'data':
-          // 音声フレームデータの場合
-          if (event.topic === 'audio' && event.payload instanceof Uint8Array) {
-            const pcmData = new Int16Array(
-              event.payload.buffer,
-              event.payload.byteOffset,
-              event.payload.byteLength / 2,
-            )
-            const frameData = {
-              participantId: event.from || 'unknown',
-              pcmData,
-            }
-            this.emit('voiceFrameReceived', frameData)
-          }
-          break
-
-        case 'error':
-          this.emit('voiceError', new Error(`Voice error: ${event.message}`))
-          break
-      }
-    })
-
-    // LiveKitトークンプロバイダー
-    const tokenProvider = async () => {
-      try {
-        // v-air_clientの実装を参考にAPIコールでトークンを取得
-        const hubUrl = config.hubUrl
-        const roomName = config.hubId
-        const identity = this.status.sessionId || 'anonymous'
-
-        const response = await fetch(`${hubUrl}/livekit/api/token`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            roomName,
-            identity,
-          }),
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to get LiveKit token')
-        }
-
-        const data = (await response.json()) as { token?: string }
-        if (!data.token) {
-          throw new Error('LiveKit token not found in response')
-        }
-
-        return data.token
-      } catch (error) {
-        this.logger.error('Failed to get LiveKit token', { error })
-        throw error
-      }
-    }
-
-    // RealtimeTransportに接続
-    const voiceUrl = config.voice.livekitUrl || 'wss://livekit.metatell.app'
-    const audioConfig = {
-      sampleRate: config.voice.audioConfig?.sampleRate || 48000,
-      channels: config.voice.audioConfig?.channels || 1,
-      frameDurationMs: config.voice.audioConfig?.frameDurationMs || 20,
-    } as const
-
-    await this.realtimeTransport.connect({
-      url: voiceUrl,
-      tokenProvider,
-      topics: ['control', 'events', 'transcript', 'audio'],
-      audioPublish: audioConfig,
-    })
-
-    // 音声パブリッシャーを開始
-    await this.realtimeTransport.startAudioPublisher()
-
-    this.logger.info('Voice connected', { url: voiceUrl })
-  }
+  // Voice connection functionality moved to consuming packages
 
   private setupEventHandlers(): void {
     // Listen for user join events to resync avatar

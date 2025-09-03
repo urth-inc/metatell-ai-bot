@@ -254,7 +254,7 @@ describe('CommandExecutor - /look Command', () => {
 
       const result = await executor.execute(plan)
 
-      // nearestはサポートされていない場合の処理
+      // Handle case when nearest is not supported
       expect(result.success).toBe(false)
       expect(result.message).toContain('Usage: /look <x> <y> <z> or /look @<username>')
     })

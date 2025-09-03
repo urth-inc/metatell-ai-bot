@@ -45,7 +45,7 @@ export const Modal: React.FC<ModalProps> = ({ content, onClose, title }) => {
       width="90%"
       height="80%"
     >
-      {/* ヘッダー */}
+      {/* Header */}
       <Box paddingX={1} marginBottom={1}>
         <Text bold>{title || 'Content Viewer'}</Text>
         <Text dimColor>
@@ -54,7 +54,7 @@ export const Modal: React.FC<ModalProps> = ({ content, onClose, title }) => {
         </Text>
       </Box>
 
-      {/* コンテンツ */}
+      {/* Content */}
       <Box flexDirection="column" flexGrow={1} paddingX={1}>
         {visibleLines.map((line, index) => (
           <Text key={`line-${scrollOffset + index}-${line?.slice(0, 10) || 'empty'}`}>
@@ -63,7 +63,7 @@ export const Modal: React.FC<ModalProps> = ({ content, onClose, title }) => {
         ))}
       </Box>
 
-      {/* フッター */}
+      {/* Footer */}
       <Box paddingX={1} marginTop={1}>
         <Text dimColor>j/↓: down • k/↑: up • PgDn/PgUp: page • q/Esc: close</Text>
       </Box>

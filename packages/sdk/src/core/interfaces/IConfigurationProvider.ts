@@ -1,3 +1,5 @@
+import { ServiceIdentifier } from '../ServiceIdentifier.js'
+
 export interface BotProfile {
   displayName: string
   avatarId: string
@@ -37,3 +39,6 @@ export interface IConfigurationProvider {
   get<T = unknown>(key: string): T | undefined
   getConfiguration(): BotConfiguration
 }
+
+// Service identifier token for dependency injection
+export abstract class ConfigurationProvider extends ServiceIdentifier<IConfigurationProvider> {}
