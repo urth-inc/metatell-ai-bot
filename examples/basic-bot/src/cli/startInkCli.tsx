@@ -1,9 +1,9 @@
-import type { MetatellClient } from '@metatell/sdk'
+import type { AgentClient } from '@metatell/sdk'
 import { render } from 'ink'
 import type { CommandContext } from '../bots/commands/BotCommand.js'
 import { InkCliInterface } from './InkCliInterface.js'
 
-export function startInkCli(client: MetatellClient, commandContext: CommandContext) {
+export function startInkCli(client: AgentClient, commandContext: CommandContext) {
   // Ink uses stdin raw mode, so TTY check is required
   if (!process.stdin.isTTY) {
     console.error('Error: Cannot read keyboard input. stdin is not a TTY.')

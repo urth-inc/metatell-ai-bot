@@ -2,6 +2,8 @@
 
 // NAF Types (strongly-typed NAF message definitions)
 export type {
+  AnimationPlaybackResult,
+  AnimationPlayOptions,
   AvatarComponentData,
   AvatarState,
   BotConfiguration,
@@ -28,6 +30,7 @@ export type {
   TypedNAFMessage,
   UserAvatar,
   UserAvatarEvent,
+  VRMAnimation,
   WebSocketState,
 } from '@metatell/core'
 // NAF Message Builder (ユーティリティ)

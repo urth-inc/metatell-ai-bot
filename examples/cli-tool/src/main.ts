@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-
-import './websocket-polyfill.js'
 import { DefaultLoggerProvider, getLogger, registerLoggerProvider } from '@metatell/sdk'
 import { Command } from 'commander'
 import * as v from 'valibot'

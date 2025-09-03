@@ -4,9 +4,10 @@
  */
 
 import {
+  type AgentClient,
   AvatarController,
   type BotConfiguration,
-  createMetatellClient,
+  createAgentClient,
   getLogger,
   type IAvatarController,
   type IMessageService,
@@ -14,7 +15,6 @@ import {
   type IPresenceManager,
   type IUserAvatarManager,
   MessageService,
-  type MetatellClient,
   type OrganizationAvatar,
   OrganizationService,
   PresenceManager,
@@ -23,13 +23,12 @@ import {
 import { BotServiceFactory } from './bots/BotServiceFactory.js'
 import type { CommandContext } from './bots/commands/BotCommand.js'
 import { ConfigManager } from './cli/config/config.js'
-import { MetatellClientAdapter } from './MetatellClientAdapter.js'
 import type { CliArgs } from './schemas/cli.js'
 import { processMetatellUrl } from './utils/metatell-url.js'
 
 export interface BotInitResult {
   config: BotConfiguration
-  client: MetatellClient
+  client: AgentClient
   commandContext: CommandContext
   selectedAvatar?: {
     id: string
@@ -140,14 +139,8 @@ export class BotInitializer {
       organizationAvatarUrl: selectedAvatar?.gltf.avatar,
     }
 
-    // 5. Create MetatellClient using the new facade API
-    const client = createMetatellClient({
-      serverUrl: botConfig.serverUrl,
-      roomId: botConfig.hubId,
-      token: cliArgs.token,
-      username: botConfig.profile.displayName,
-      debug: botConfig.debug,
-    })
+    // 5. Create AgentClient using the SDK
+    const client = createAgentClient(botConfig)
 
     // Create factory for legacy services (temporary until full migration)
     const factory = new BotServiceFactory(botConfig)
@@ -159,7 +152,7 @@ export class BotInitializer {
       presenceManager: factory.getService(PresenceManager) as IPresenceManager,
       messageService: factory.getService(MessageService) as IMessageService,
       logger: getLogger('CommandContext'),
-      agentClient: new MetatellClientAdapter(client),
+      agentClient: client,
       botConfig: botConfig,
       organizationService: factory.getService(OrganizationService) as IOrganizationService,
     }

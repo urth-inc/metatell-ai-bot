@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-
-import './websocket-polyfill.js'
 import { DefaultLoggerProvider, getLogger, registerLoggerProvider } from '@metatell/sdk'
 import { Command } from 'commander'
 import * as v from 'valibot'
@@ -136,7 +134,10 @@ async function main() {
 
   try {
     // Connect to the room
-    await client.connect()
+    await client.connect({
+      url: cliArgs.url || 'https://metatell.app/default',
+      token: cliArgs.token,
+    })
 
     // 接続後にコマンドコンテキストのmessageServiceを更新（一時的な回避策）
     // client内部のmessageServiceを使うようにする
