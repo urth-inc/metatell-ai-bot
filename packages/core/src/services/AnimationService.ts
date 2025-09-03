@@ -25,54 +25,12 @@ export class AnimationService implements IAnimationService {
       return cached
     }
 
-    try {
-      // Fetch avatar data from API
-      const response = await fetch(`${this.apiBaseUrl}/api/v1/avatars/${avatarId}`)
-      if (!response.ok) {
-        throw new Error(`Failed to fetch avatar: ${response.statusText}`)
-      }
-
-      const avatarData = (await response.json()) as {
-        animations?: Array<{
-          id: string
-          name?: string
-          vrmaFilePath?: string
-          duration?: number
-          loop?: boolean
-        }>
-      }
-      const animations: VRMAnimation[] = []
-
-      // Add default animations
-      animations.push(...this.getDefaultAnimations())
-
-      // Add custom animations from avatar data
-      if (avatarData.animations && Array.isArray(avatarData.animations)) {
-        const customAnimations = avatarData.animations.map((anim) => ({
-          id: anim.id,
-          name: anim.name || anim.id,
-          vrmaFilePath: anim.vrmaFilePath,
-          type: 'custom' as const,
-          duration: anim.duration,
-          loop: anim.loop,
-        }))
-        animations.push(...customAnimations)
-      }
-
-      // Cache the result
-      this.avatarAnimationsCache.set(avatarId, animations)
-
-      this.logger.debug('Fetched animations for avatar', {
-        avatarId,
-        animationCount: animations.length,
-      })
-
-      return animations
-    } catch (error) {
-      this.logger.error('Failed to fetch avatar animations', { avatarId, error })
-      // Return default animations as fallback
-      return this.getDefaultAnimations()
-    }
+    // アバターのアニメーション取得はstorage APIではなく、単にデフォルトを返す
+    // 組織アバターのアニメーション情報は現在のAPIでは取得できない
+    this.logger.debug('Returning default animations for avatar', { avatarId })
+    const animations = this.getDefaultAnimations()
+    this.avatarAnimationsCache.set(avatarId, animations)
+    return animations
   }
 
   /**
