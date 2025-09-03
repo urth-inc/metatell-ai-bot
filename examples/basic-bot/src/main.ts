@@ -136,13 +136,7 @@ async function main() {
 
   try {
     // Connect to the room
-    await client.connect({
-      url: botConfig.hubUrl,
-      serverUrl: botConfig.serverUrl,
-      hubUrl: botConfig.hubUrl,
-      hubId: botConfig.hubId,
-      token: cliArgs.token,
-    })
+    await client.connect()
 
     // 接続後にコマンドコンテキストのmessageServiceを更新（一時的な回避策）
     // client内部のmessageServiceを使うようにする

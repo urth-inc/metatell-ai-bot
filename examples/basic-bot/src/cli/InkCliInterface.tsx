@@ -1,4 +1,4 @@
-import type { AgentClient, RingBufferLike } from '@metatell/sdk'
+import type { MetatellClient, RingBufferLike } from '@metatell/sdk'
 import { getLogEventEmitter, getLogger, getRingBuffer } from '@metatell/sdk'
 import { Box, useApp, useInput, useStdout } from 'ink'
 import type React from 'react'
@@ -13,7 +13,7 @@ import { Modal } from './components/Modal.js'
 import { useCliState } from './hooks/useCliState.js'
 
 interface CliInterfaceProps {
-  client: AgentClient
+  client: MetatellClient
   commandContext: CommandContext
 }
 

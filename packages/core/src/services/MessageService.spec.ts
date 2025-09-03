@@ -4,8 +4,8 @@ import { DefaultLoggerProvider, registerLoggerProvider } from '../logging/index.
 // Register logger provider for tests
 registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
 
-import type { MockChannel } from '../../../../../test-utils/mocks.js'
-import { findChannelCall, findEventBusCall } from '../../../../../test-utils/mocks.js'
+import type { MockChannel } from '../../../../test-utils/mocks.js'
+import { findChannelCall, findEventBusCall } from '../../../../test-utils/mocks.js'
 import type { IAppSettings } from '../interfaces/IAppSettings.js'
 import type { IConnectionManager } from '../interfaces/IConnectionManager.js'
 import type { IEventBus } from '../interfaces/IEventBus.js'

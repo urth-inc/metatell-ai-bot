@@ -3,6 +3,26 @@
  */
 
 import { EventEmitter } from 'node:events'
+import {
+  AnimationService,
+  AvatarController,
+  ConfigurationProvider,
+  ConnectionManager,
+  CoreServiceFactory,
+  EventBus,
+  type IAnimationService,
+  type IAvatarController,
+  type IConfigurationProvider,
+  type IConnectionManager,
+  type IEventBus,
+  type IMessageService,
+  type IOrganizationService,
+  type IPresenceManager,
+  MessageService,
+  OrganizationService,
+  PresenceManager,
+  SystemEvents,
+} from '@metatell/core'
 import type {
   Animation,
   AvatarAsset,
@@ -16,7 +36,7 @@ import type {
   User,
   Vec3,
 } from './types.js'
-import { AuthError, MetatellError, NetworkError } from './types.js'
+import { AuthError, MetatellError, NetworkError, NotFoundError } from './types.js'
 
 /**
  * MetatellClient - メインのfacadeインターフェース
@@ -126,19 +146,77 @@ export interface MetatellClient {
  * MetatellClient実装
  */
 class MetatellClientImpl extends EventEmitter implements MetatellClient {
+  private serviceFactory: CoreServiceFactory
+  private connectionManager: IConnectionManager
+  private messageService: IMessageService
+  private avatarController: IAvatarController
+  private presenceManager: IPresenceManager
+  private organizationService: IOrganizationService
+  private animationService: IAnimationService
+  private eventBus: IEventBus
+  private configProvider: IConfigurationProvider
+
   constructor(private options: CreateClientOptions) {
     super()
 
-    // 仮実装: 実際のCoreServiceFactoryの実装が完成するまで
-    this.serviceFactory = null
+    // CoreServiceFactoryを初期化
+    this.serviceFactory = new CoreServiceFactory({
+      serverUrl: options.serverUrl,
+      hubUrl: options.serverUrl.replace(/^ws/, 'http'), // WebSocket URLからHTTP URLに変換
+      hubId: options.roomId,
+      profile: {
+        displayName: options.username || 'MetatellBot',
+        avatarId: '', // 後で設定
+      },
+      debug: options.debug || false,
+    })
+
+    // 必要なサービスを取得
+    const container = this.serviceFactory.getContainer()
+    this.connectionManager = container.get(ConnectionManager) as IConnectionManager
+    this.messageService = container.get(MessageService) as IMessageService
+    this.avatarController = container.get(AvatarController) as IAvatarController
+    this.presenceManager = container.get(PresenceManager) as IPresenceManager
+    // userAvatarManagerは現在使用していないため、取得しない
+    this.organizationService = container.get(OrganizationService) as IOrganizationService
+    this.animationService = container.get(AnimationService) as IAnimationService
+    this.eventBus = container.get(EventBus) as IEventBus
+    this.configProvider = container.get(ConfigurationProvider) as IConfigurationProvider
+
+    // イベントのプロキシ設定
+    this.setupEventProxies()
+  }
+
+  private setupEventProxies(): void {
+    // Coreのイベントをクライアントイベントにマッピング
+    this.eventBus.on(SystemEvents.CONNECTION_ESTABLISHED, () => {
+      this.emit('connected')
+    })
+
+    this.eventBus.on(SystemEvents.CONNECTION_LOST, () => {
+      this.emit('disconnected')
+    })
+
+    this.eventBus.on(SystemEvents.MESSAGE_RECEIVED, (data: unknown) => {
+      this.emit('message', data as import('./types.js').MessageEventData)
+    })
   }
 
   async connect(): Promise<void> {
     try {
-      // 仮実装: 実際の接続ロジック
-      // await this.serviceFactory.initialize();
-      this.connected = true
-      this.emit('connected')
+      await this.connectionManager.connect({
+        serverUrl: this.options.serverUrl,
+        hubId: this.options.roomId,
+      })
+      // アバター設定を取得してスポーン
+      const config = this.configProvider.getConfiguration()
+      if (config.profile.avatarId) {
+        await this.avatarController.spawn(
+          config.profile.avatarId,
+          undefined,
+          config.organizationAvatarUrl,
+        )
+      }
     } catch (error) {
       // エラーを適切なタイプに変換
       if (error instanceof Error && error.message.includes('auth')) {
@@ -149,103 +227,180 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
   }
 
   async disconnect(): Promise<void> {
-    // 仮実装: 実際の切断ロジック
-    // await this.serviceFactory.cleanup();
-    this.connected = false
-    this.emit('disconnected')
+    await this.connectionManager.disconnect()
   }
 
   readonly room = {
     getUsers: async (): Promise<User[]> => {
-      // 仮実装: 実際のプレゼンスマネージャーからユーザー一覧を取得
-      return []
+      const users = this.presenceManager.getUsers()
+      // PresenceUserをUser型に変換
+      return users.map((u) => ({
+        id: u.id,
+        name: u.profile.displayName || u.id.split('#')[0] || u.id,
+        isBot: false,
+      }))
     },
   }
 
   readonly chat = {
     send: async (text: string): Promise<void> => {
-      // 仮実装: メッセージ送信
-      console.log('Sending message:', text)
+      await this.messageService.sendMessage(text)
     },
 
     onMention: (
-      _handler: (event: {
+      handler: (event: {
         from: User
         text: string
         reply: (text: string) => Promise<void>
       }) => void,
     ): void => {
-      // 仮実装: メンション監視
-      console.log('Setting up mention handler')
+      // メッセージ受信イベントをサブスクライブ
+      this.eventBus.on(SystemEvents.MESSAGE_RECEIVED, async (data: unknown) => {
+        const messageData = data as import('./types.js').MessageEventData
+        const botName = this.configProvider.getConfiguration().profile?.displayName || 'bot'
+        const mentionPattern = new RegExp(`@${botName}\\s+(.+)`, 'i')
+        const match = messageData.body?.match(mentionPattern)
+
+        if (match) {
+          const user: User = {
+            id: messageData.senderId || '',
+            name: messageData.senderId?.split('#')[0] || 'Unknown',
+            isBot: false,
+          }
+
+          handler({
+            from: user,
+            text: match[1].trim(),
+            reply: async (replyText: string) => {
+              await this.messageService.sendMessage(replyText)
+            },
+          })
+        }
+      })
     },
   }
 
   readonly avatar = {
     select: async (assetId: string): Promise<void> => {
-      // 仮実装: アバター選択
-      console.log('Selecting avatar:', assetId)
+      // アバターを変更するには再度spawnを呼び出す
+      const state = this.avatarController.getState()
+      await this.avatarController.spawn(assetId, state?.position)
     },
 
     play: async (animation: Animation): Promise<void> => {
-      // 仮実装: アニメーション再生
-      console.log('Playing animation:', animation.name)
+      try {
+        // アニメーションオプションを変換
+        const playOptions = {
+          loop: animation.loop || false,
+          duration: animation.duration,
+          transitionDuration: animation.transitionDuration,
+        }
+
+        if ('id' in animation && animation.id) {
+          await this.avatarController.playAnimation(animation.id, playOptions)
+        } else if ('url' in animation && animation.url) {
+          // URLベースのアニメーションは現在のインターフェースではサポートされていない
+          // カスタムアニメーションとして扱う必要がある
+          throw new NotFoundError(
+            'ANIMATION_NOT_FOUND',
+            'URL-based animations are not yet supported',
+          )
+        } else {
+          throw new NotFoundError('ANIMATION_NOT_FOUND', 'Animation must have either id or url')
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('not found')) {
+          throw new NotFoundError('ANIMATION_NOT_FOUND', error.message, error)
+        }
+        throw error
+      }
     },
 
     moveTo: async (position: Vec3): Promise<void> => {
-      // 仮実装: 移動
-      console.log('Moving to:', position)
+      await this.avatarController.move(position)
     },
 
     rotateTo: async (rotation: Euler): Promise<void> => {
-      // 仮実装: 回転
-      console.log('Rotating to:', rotation)
+      // Euler角をラジアンに変換（SDKは度数法、Coreはラジアン）
+      const radians = {
+        x: (rotation.x * Math.PI) / 180,
+        y: (rotation.y * Math.PI) / 180,
+        z: (rotation.z * Math.PI) / 180,
+      }
+      // AvatarControllerのrotateメソッドを使用
+      await this.avatarController.rotate(radians)
     },
 
     getAvailableAssets: async (): Promise<AvatarAsset[]> => {
-      // 仮実装: 利用可能アセット取得
-      return []
+      // organizationInfoを取得するには、hubUrlとhubIdが必要
+      const config = this.configProvider.getConfiguration()
+      const orgInfo = await this.organizationService.getOrganizationInfo(
+        config.hubUrl,
+        config.hubId,
+      )
+      const avatars = await this.organizationService.fetchOrganizationAvatars(
+        config.hubUrl,
+        orgInfo.organizationId,
+      )
+      return avatars.map((avatar) => ({
+        id: avatar.id,
+        name: avatar.name,
+        thumbnailUrl: avatar.thumbnail_url || '',
+        modelUrl: avatar.gltf.avatar,
+      }))
     },
 
     getAvailableAnimations: async (): Promise<Animation[]> => {
-      // 仮実装: 利用可能アニメーション取得
-      return []
+      // 現在のアバターIDを取得
+      const state = this.avatarController.getState()
+      if (!state) {
+        return []
+      }
+      const animations = await this.animationService.getAvailableAnimations(state.avatarId)
+      return animations.map((anim) => ({
+        id: anim.id,
+        name: anim.name || 'Unknown Animation',
+        duration: anim.duration,
+      }))
     },
   }
 
   readonly voice = {
-    playPcm: async (_input: PcmInput, options: PcmInputOptions): Promise<PlaybackControls> => {
-      // 仮実装: PCM音声再生
-      console.log('Playing PCM audio with options:', options)
+    playPcm: async (_input: PcmInput, _options: PcmInputOptions): Promise<PlaybackControls> => {
+      // 音声機能は別パッケージ（@metatell/realtime）で実装
+      // ここではプレースホルダーを返す
+      const finishedPromise = new Promise<void>((resolve) => {
+        setTimeout(resolve, 1000)
+      })
 
       return {
         stop: async () => {
-          console.log('Stopping audio playback')
+          // 音声停止の実装は別パッケージで行う
         },
-        finished: Promise.resolve(),
+        finished: finishedPromise,
       }
     },
   }
 
   async getInfo(): Promise<BotInfo> {
-    // 仮実装: ボット情報取得
+    const config = this.configProvider.getConfiguration()
     return {
-      name: 'MetatellBot',
+      name: config.profile?.displayName || 'MetatellBot',
       version: '1.0.0',
-      roomId: this.options.roomId,
+      roomId: config.hubId,
     }
   }
 
   // EventEmitterのメソッドをオーバーライド
   on<E extends keyof MetatellClientEvents>(event: E, listener: MetatellClientEvents[E]): this {
-    // @ts-expect-error EventEmitter has looser types
-    super.on(event, listener)
-    return this
+    // EventEmitterは汎用的な型を期待するため、型変換が必要
+    // string型にキャストして、リスナーは関数型として扱う
+    return super.on(event as string, listener as (...args: unknown[]) => void)
   }
 
   off<E extends keyof MetatellClientEvents>(event: E, listener: MetatellClientEvents[E]): this {
-    // @ts-expect-error EventEmitter has looser types
-    super.off(event, listener)
-    return this
+    // EventEmitterは汎用的な型を期待するため、型変換が必要
+    return super.off(event as string, listener as (...args: unknown[]) => void)
   }
 }
 

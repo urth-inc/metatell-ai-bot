@@ -28,6 +28,7 @@ export type {
   BotConfiguration,
   BotContext,
   BotProfile,
+  BotVoiceConfig,
 } from './interfaces/IConfigurationProvider.js'
 export {
   ConfigurationProvider,
@@ -55,6 +56,8 @@ export type {
   IWebSocketConnectionManager,
   WebSocketState,
 } from './interfaces/IWebSocketConnectionManager.js'
+// Logging
+export { DefaultLoggerProvider, registerLoggerProvider } from './logging/index.js'
 // Service Container (DIコンテナ)
 export { ServiceContainer, type ServiceKey } from './ServiceContainer.js'
 export type { ServiceType } from './ServiceIdentifier.js'

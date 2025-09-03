@@ -4,7 +4,7 @@ import { DefaultLoggerProvider, registerLoggerProvider } from '../logging/index.
 // Register logger provider for tests
 registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
 
-import { findEventBusCall } from '../../../../../test-utils/mocks.js'
+import { findEventBusCall } from '../../../../test-utils/mocks.js'
 import type {
   BotConfiguration,
   IConfigurationProvider,
