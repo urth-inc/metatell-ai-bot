@@ -24,7 +24,7 @@ export async function startInteractiveMode(url: string, options: CliOptions) {
 
     // Event handlers
     client.on('connected', () => {
-      console.log('[Connected] Session:', client.getSessionId())
+      console.log('[Connected]')
     })
 
     client.on('disconnected', (reason) => {
@@ -35,6 +35,11 @@ export async function startInteractiveMode(url: string, options: CliOptions) {
     client.on('chat-message', (message) => {
       const mentionInfo = message.mention ? ` (mentions @${message.mention.name})` : ''
       console.log(`[Chat] ${message.from.name}: ${message.text}${mentionInfo}`)
+
+      // デバッグ情報
+      if (options.debug) {
+        console.log(`[Debug] Sender ID: ${message.from.id}`)
+      }
     })
 
     // メンションハンドラーを設定
@@ -56,6 +61,7 @@ export async function startInteractiveMode(url: string, options: CliOptions) {
 
     await client.connect()
     console.log('Connected to room:', roomId)
+    console.log('Session ID:', client.getSessionId())
     console.log('Commands: /help for list of commands')
     console.log('Type messages to send, or "quit" to exit\n')
 
@@ -92,7 +98,7 @@ export async function startInteractiveMode(url: string, options: CliOptions) {
         // それ以外はすべてメッセージとして送信
         try {
           await client.chat.send(input)
-          console.log('[Sent]', input)
+          console.log(`[Sent] ${input}`)
         } catch (error) {
           console.error('[Error sending message]', error)
         }

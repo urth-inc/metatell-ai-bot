@@ -188,7 +188,14 @@ export class WebSocketConnectionManager implements IConnectionManager {
           .join()
           .receive('ok', (response: unknown) => {
             this.logger.debug('Joined hub channel:', { response })
-            this.sessionId = (response as { session_id: string }).session_id
+
+            // session_idまたはsessionIdを探す
+            const sessionResponse = response as Record<string, unknown>
+            this.sessionId =
+              ((sessionResponse.session_id ||
+                sessionResponse.sessionId ||
+                sessionResponse.id) as string) || null
+
             this.eventBus.emit(SystemEvents.ROOM_JOINED, response)
             resolve()
           })

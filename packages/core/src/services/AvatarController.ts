@@ -17,6 +17,7 @@ import type { AnimationPlaybackResult, AnimationPlayOptions } from '../types/ani
 // Constants for default values
 const DEFAULT_TEMPLATE = '#remote-avatar'
 const DEFAULT_AVATAR_TYPE = 'skinnable'
+const ORGANIZATION_AVATAR_TYPE = 'avatar-bot'
 
 export class AvatarController implements IAvatarController {
   private state: AvatarState | null = null
@@ -59,12 +60,8 @@ export class AvatarController implements IAvatarController {
       finalAvatarSrc = avatarSrc
       this.logger.debug('Using provided avatar source URL', { avatarSrc })
     } else if (this.isOrganizationAvatar(avatarId)) {
-      // Organization avatar (UUID format) - should not reach here if avatarSrc is provided
-      this.logger.warn('Organization avatar without avatarSrc provided, using fallback URL', {
-        avatarId,
-      })
-      const hubUrl = new URL(config.hubUrl || '')
-      finalAvatarSrc = `${hubUrl.origin}/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`
+      // Organization avatar (UUID format) - avatarSrc must be provided
+      throw new Error(`Organization avatar requires avatarSrc URL. Avatar ID: ${avatarId}`)
     } else {
       // Individual avatar (non-UUID format) - use storage URL
       let storageUrl = config.storageUrl
@@ -95,9 +92,15 @@ export class AvatarController implements IAvatarController {
       .withPosition(spawnPosition)
       .withAvatar({
         avatarSrc: this.state.avatarSrc || '',
-        avatarType: DEFAULT_AVATAR_TYPE,
+        avatarType:
+          this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
+            ? ORGANIZATION_AVATAR_TYPE
+            : DEFAULT_AVATAR_TYPE,
         muted: false,
         isSharingAvatarCamera: false,
+        ...(this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
+          ? { files: {} }
+          : {}),
       })
       .build()
 
@@ -112,9 +115,15 @@ export class AvatarController implements IAvatarController {
       .withPosition(spawnPosition)
       .withAvatar({
         avatarSrc: this.state.avatarSrc || '',
-        avatarType: DEFAULT_AVATAR_TYPE,
+        avatarType:
+          this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
+            ? ORGANIZATION_AVATAR_TYPE
+            : DEFAULT_AVATAR_TYPE,
         muted: false,
         isSharingAvatarCamera: false,
+        ...(this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
+          ? { files: {} }
+          : {}),
       })
       .build()
 
@@ -247,9 +256,15 @@ export class AvatarController implements IAvatarController {
     if (state.avatarSrc || state.avatarId) {
       builder = builder.withAvatar({
         avatarSrc: this.state.avatarSrc || '',
-        avatarType: 'skinnable',
+        avatarType:
+          this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
+            ? ORGANIZATION_AVATAR_TYPE
+            : DEFAULT_AVATAR_TYPE,
         muted: false,
         isSharingAvatarCamera: false,
+        ...(this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
+          ? { files: {} }
+          : {}),
       })
     }
 
@@ -287,9 +302,15 @@ export class AvatarController implements IAvatarController {
       .withScale({ x: 1, y: 1, z: 1 })
       .withAvatar({
         avatarSrc: this.state.avatarSrc || '',
-        avatarType: DEFAULT_AVATAR_TYPE,
+        avatarType:
+          this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
+            ? ORGANIZATION_AVATAR_TYPE
+            : DEFAULT_AVATAR_TYPE,
         muted: false,
         isSharingAvatarCamera: false,
+        ...(this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
+          ? { files: {} }
+          : {}),
       })
       .withHeadRotation({ x: 0, y: 0, z: 0, w: 1 })
       .withLeftHandRotation({ x: 0, y: 0, z: 0, w: 1 })
