@@ -86,7 +86,27 @@ export class CoreServiceFactory {
         const logger = getLogger('AnimationService')
         const configProvider = container.get(ConfigurationProviderToken)
         const config = configProvider.getConfiguration()
-        const apiBaseUrl = config.storageUrl || 'https://storage.metatell.app:443'
+
+        // 環境に応じてstorage URLを決定
+        let apiBaseUrl = config.storageUrl
+        if (!apiBaseUrl) {
+          const hubUrl = config.hubUrl
+          try {
+            const url = new URL(hubUrl)
+            const hostname = url.hostname
+
+            if (hostname.includes('metatell-stg.app') || hostname.includes('-stg.')) {
+              apiBaseUrl = 'https://storage.metatell-stg.app:443'
+            } else if (hostname.includes('metatell-dev.app') || hostname.includes('-dev.')) {
+              apiBaseUrl = 'https://storage.metatell-dev.app:443'
+            } else {
+              apiBaseUrl = 'https://storage.metatell.app:443'
+            }
+          } catch {
+            apiBaseUrl = 'https://storage.metatell.app:443'
+          }
+        }
+
         return new AnimationServiceImpl(logger, apiBaseUrl)
       })
       .register(
