@@ -81,13 +81,17 @@ export interface MetatellClient {
     send(text: string): Promise<void>
 
     /**
-     * ボットへのメンションを購読します。
-     * SDKが"@ボット名"の形式を自動で解析し、メンション以降のテキストを渡します。
+     * すべてのチャットメッセージを購読します。
+     * メンションの有無に関わらず、すべてのメッセージを受信します。
      */
-    onMention(
+    onMessage(
       handler: (event: {
         from: User
         text: string
+        mention?: {
+          sessionId: string
+          name: string
+        }
         /** 受信したメッセージに簡易返信するユーティリティ関数 */
         reply: (text: string) => Promise<void>
       }) => void,
@@ -506,42 +510,43 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       })
     },
 
-    onMention: (
+    onMessage: (
       handler: (event: {
         from: User
         text: string
+        mention?: {
+          sessionId: string
+          name: string
+        }
         reply: (text: string) => Promise<void>
       }) => void,
     ): void => {
       // メッセージ受信イベントをサブスクライブ
       this.eventBus.on(SystemEvents.MESSAGE_RECEIVED, async (data: unknown) => {
         const messageData = data as MessageEventData
-        const botSessionId = this.getSessionId()
 
         if (messageData.type === 'chat' && messageData.body) {
           const parsed = this.parseMessageMention(messageData.body)
 
-          // ボットがメンションされた場合のみハンドラーを呼び出す
-          if (parsed.mention && parsed.mention.sessionId === botSessionId) {
-            // PresenceManagerから送信者の情報を取得
-            const users = this.presenceManager.getUsers()
-            const sender = users.find((u) => u.id === messageData.senderId)
-            const senderName = sender?.profile?.displayName || sender?.id.split('#')[0] || 'Unknown'
+          // PresenceManagerから送信者の情報を取得
+          const users = this.presenceManager.getUsers()
+          const sender = users.find((u) => u.id === messageData.senderId)
+          const senderName = sender?.profile?.displayName || sender?.id.split('#')[0] || 'Unknown'
 
-            const user: User = {
-              id: messageData.senderId || '',
-              name: senderName,
-              isBot: false,
-            }
-
-            handler({
-              from: user,
-              text: parsed.text,
-              reply: async (replyText: string) => {
-                await this.messageService.sendMessage(replyText)
-              },
-            })
+          const user: User = {
+            id: messageData.senderId || '',
+            name: senderName,
+            isBot: false,
           }
+
+          handler({
+            from: user,
+            text: parsed.text,
+            mention: parsed.mention,
+            reply: async (replyText: string) => {
+              await this.messageService.sendMessage(replyText)
+            },
+          })
         }
       })
     },
@@ -716,10 +721,12 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
   async getInfo(): Promise<BotInfo> {
     const config = this.configProvider.getConfiguration()
+    const sessionId = this.getSessionId()
     return {
       name: config.profile?.displayName || 'MetatellBot',
       version: '1.0.0',
       roomId: config.hubId,
+      sessionId: sessionId || undefined,
     }
   }
 

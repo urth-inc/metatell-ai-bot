@@ -12,7 +12,7 @@ export type User = {
   position?: Vec3
   rotation?: Euler
 }
-export type BotInfo = { name: string; version: string; roomId: string }
+export type BotInfo = { name: string; version: string; roomId: string; sessionId?: string }
 export type AvatarAsset = {
   id: string
   name: string

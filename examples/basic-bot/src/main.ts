@@ -37,10 +37,21 @@ async function main() {
     await client.connect()
     console.log('✅ 接続成功')
 
-    client.chat.onMention(async ({ from, text, reply }) => {
-      console.log(`💬 ${from.name}: ${text}`)
-      await reply(`${from.name} さんこんにちは！👋`)
-      // await client.avatar.play({ id: '31a7e9af-cd65-4efa-ad9c-132f21d03766', loop: false }) // 感謝するアニメーション(idはアバター依存なので適宜変更)
+    const botInfo = await client.getInfo()
+
+    client.chat.onMessage(async ({ from, text, mention, reply }) => {
+      if (mention && mention.sessionId === botInfo.sessionId) {
+        // ボット自身へのメンション
+        console.log(`💬 ${from.name} mentioned me: ${text}`)
+        await reply(`${from.name} さんこんにちは！👋`)
+        // await client.avatar.play({ id: '31a7e9af-cd65-4efa-ad9c-132f21d03766', loop: false }) // 感謝するアニメーション(idはアバター依存なので適宜変更)
+      } else if (mention) {
+        // 他のユーザーへのメンション
+        console.log(`📢 ${from.name} mentioned @${mention.name}: ${text}`)
+      } else {
+        // 通常のメッセージ
+        console.log(`💭 ${from.name}: ${text}`)
+      }
     })
 
     let isMoving = false
