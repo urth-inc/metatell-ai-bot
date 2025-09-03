@@ -144,7 +144,7 @@ export class BotInitializer {
     const client = createMetatellClient({
       serverUrl: botConfig.serverUrl,
       roomId: botConfig.hubId,
-      token: cliArgs.token,
+      token: cliArgs.token || '',
       username: botConfig.profile.displayName,
       debug: botConfig.debug,
     })

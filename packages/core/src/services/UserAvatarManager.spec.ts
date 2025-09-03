@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { findMockCall } from '../../../../../test-utils/mocks.js'
+import { findMockCall } from '../../../../test-utils/mocks.js'
 import type { IEventBus } from '../interfaces/IEventBus.js'
 import { SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'

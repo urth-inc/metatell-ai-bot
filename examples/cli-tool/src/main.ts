@@ -136,13 +136,7 @@ async function main() {
 
   try {
     // Connect to the room
-    await client.connect({
-      url: botConfig.hubUrl,
-      serverUrl: botConfig.serverUrl,
-      hubUrl: botConfig.hubUrl,
-      hubId: botConfig.hubId,
-      token: cliArgs.token,
-    })
+    await client.connect()
 
     // 接続後にコマンドコンテキストのmessageServiceを更新（一時的な回避策）
     // client内部のmessageServiceを使うようにする
@@ -153,7 +147,9 @@ async function main() {
       clientWithMessageService.messageService || commandContext.messageService
 
     // Start the CLI interface
-    const _cliApp = startInkCli(client, commandContext)
+    const { MetatellClientAdapter } = await import('./MetatellClientAdapter.js')
+    const adapterClient = new MetatellClientAdapter(client)
+    const _cliApp = startInkCli(adapterClient, commandContext)
 
     // CLI起動完了を通知
     const { logger: cliLogger } = await import('./utils/logger.js')

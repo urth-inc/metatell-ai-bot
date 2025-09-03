@@ -4,8 +4,8 @@ import { DefaultLoggerProvider, registerLoggerProvider } from '../logging/index.
 // Register logger provider for tests
 registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
 
-import { noop } from '../../../../../test-utils/helpers.js'
-import type { MockChannel, MockSocket, SocketOptions } from '../../../../../test-utils/mocks.js'
+import { noop } from '../../../../test-utils/helpers.js'
+import type { MockChannel, MockSocket, SocketOptions } from '../../../../test-utils/mocks.js'
 import type { IAppSettings } from '../interfaces/IAppSettings.js'
 import type {
   BotConfiguration,

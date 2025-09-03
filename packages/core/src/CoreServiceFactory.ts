@@ -18,8 +18,8 @@ import { PresenceManager as PresenceManagerToken } from './interfaces/IPresenceM
 import { UserAvatarManager as UserAvatarManagerToken } from './interfaces/IUserAvatarManager.js'
 // Realtime adapters are registered by the consuming package to avoid circular dependencies
 import { getLogger } from './logging/index.js'
-import { ServiceContainer, type ServiceKey } from './ServiceContainer.js'
-import type { ServiceType } from './ServiceIdentifier.js'
+import { ServiceContainer } from './ServiceContainer.js'
+import type { ServiceIdentifier } from './ServiceIdentifier.js'
 import { AnimationService as AnimationServiceImpl } from './services/AnimationService.js'
 import { AppSettings as AppSettingsImpl } from './services/AppSettings.js'
 import { AuthenticationService as AuthenticationServiceImpl } from './services/AuthenticationService.js'
@@ -133,7 +133,15 @@ export class CoreServiceFactory {
    * @param key Service identifier token or class
    * @returns Service instance
    */
-  public getService<T>(key: ServiceKey<T>): ServiceType<T> {
+  // Overload for interface tokens (abstract classes extending ServiceIdentifier)
+  // biome-ignore lint/suspicious/noExplicitAny: Required for type inference with abstract classes
+  public getService<T>(key: abstract new (...args: any[]) => ServiceIdentifier<T>): T
+  // Overload for concrete classes
+  // biome-ignore lint/suspicious/noExplicitAny: Required for type inference with concrete classes
+  public getService<C extends new (...args: any[]) => any>(key: C): InstanceType<C>
+  // Implementation
+  // biome-ignore lint/suspicious/noExplicitAny: Implementation signature must be broad to cover all overloads
+  public getService(key: any): any {
     return this.container.get(key)
   }
 }

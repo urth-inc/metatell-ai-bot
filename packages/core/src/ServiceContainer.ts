@@ -1,4 +1,4 @@
-import type { ServiceKey, ServiceType } from './ServiceIdentifier.js'
+import type { ServiceIdentifier, ServiceKey, ServiceType } from './ServiceIdentifier.js'
 
 export type { ServiceKey } from './ServiceIdentifier.js'
 
@@ -67,12 +67,20 @@ export class ServiceContainer {
    * const messageService = container.get(MessageService) // Type is inferred as IMessageService
    * const appSettings = container.get(AppSettings) // Type is inferred as IAppSettings
    */
-  get<T>(key: ServiceKey<T>): ServiceType<T> {
+  // Overload for interface tokens (abstract classes extending ServiceIdentifier)
+  // biome-ignore lint/suspicious/noExplicitAny: Required for type inference with abstract classes
+  get<T>(key: abstract new (...args: any[]) => ServiceIdentifier<T>): T
+  // Overload for concrete classes
+  // biome-ignore lint/suspicious/noExplicitAny: Required for type inference with concrete classes
+  get<C extends new (...args: any[]) => any>(key: C): InstanceType<C>
+  // Implementation
+  // biome-ignore lint/suspicious/noExplicitAny: Implementation signature must be broad to cover all overloads
+  get(key: any): any {
     const options = this.options.get(key as ServiceKey<unknown>)
 
     // Check for singleton instance
     if (options?.singleton && this.services.has(key as ServiceKey<unknown>)) {
-      return this.services.get(key as ServiceKey<unknown>) as ServiceType<T>
+      return this.services.get(key as ServiceKey<unknown>)
     }
 
     // Get factory
@@ -90,7 +98,7 @@ export class ServiceContainer {
       this.services.set(key as ServiceKey<unknown>, instance)
     }
 
-    return instance as ServiceType<T>
+    return instance
   }
 
   /**

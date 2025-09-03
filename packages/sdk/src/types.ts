@@ -5,16 +5,32 @@
 // Basic types
 export type Vec3 = { x: number; y: number; z: number } // 単位: メートル
 export type Euler = { x: number; y: number; z: number } // 単位: 度
-export type User = { id: string; name: string | null }
+export type User = { id: string; name: string | null; isBot?: boolean }
 export type BotInfo = { name: string; version: string; roomId: string }
-export type AvatarAsset = { id: string; name: string; tags?: string[] }
-export type Animation = { name: string; loop?: boolean; speed?: number }
+export type AvatarAsset = {
+  id: string
+  name: string
+  thumbnailUrl: string
+  modelUrl: string
+  tags?: string[]
+}
+export type Animation = {
+  id?: string
+  url?: string
+  name: string
+  loop?: boolean
+  speed?: number
+  duration?: number
+  transitionDuration?: number
+}
 
 // Configuration options
 export interface CreateClientOptions {
   serverUrl: string // ws(s)://...
   roomId: string
   token: string // 短命JWTを想定
+  username?: string // ボット名
+  debug?: boolean // デバッグモード
   logger?: 'silent' | 'info' | 'debug' // ログレベル
   reconnect?: { enabled?: boolean; maxDelayMs?: number }
 }
@@ -35,10 +51,19 @@ export interface PlaybackControls {
 }
 
 // Type-safe event system
+// メッセージイベントデータの型定義
+export interface MessageEventData {
+  body?: string
+  senderId?: string
+  type?: string
+  timestamp?: number
+}
+
 export interface MetatellClientEvents {
   connected: () => void
   disconnected: (reason?: string) => void
   error: (error: MetatellError) => void
+  message: (data: MessageEventData) => void
   'chat-message': (message: { from: User; text: string }) => void
   'user-join': (user: User) => void
   'user-leave': (user: User) => void

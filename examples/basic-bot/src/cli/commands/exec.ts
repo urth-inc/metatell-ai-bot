@@ -2,7 +2,7 @@
  * Command execution engine using unified commands
  */
 
-import type { AgentClient } from '@metatell/sdk'
+import type { MetatellClient } from '@metatell/sdk'
 import { getLogger } from '@metatell/sdk'
 import { type CommandContext, CommandRegistry } from '../../bots/commands/BotCommand.js'
 import { unifiedCommands } from '../../bots/commands/unifiedCommands.js'
@@ -20,7 +20,7 @@ export class CommandExecutor {
   private commandRegistry: CommandRegistry
 
   constructor(
-    _client: AgentClient,
+    _client: MetatellClient,
     private context: CommandContext,
   ) {
     // Initialize command registry with unified commands

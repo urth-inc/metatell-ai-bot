@@ -3,24 +3,30 @@
  */
 
 import { EventEmitter } from 'node:events'
+import type {
+  BotConfiguration,
+  BotVoiceConfig,
+  IUserAvatarManager,
+  UserAvatar,
+} from '@metatell/core'
 // Realtime types will be defined locally to avoid circular dependencies
-import { CoreServiceFactory } from '../core/CoreServiceFactory.js'
 import {
   AnimationNotFoundError,
   AnimationPlaybackError,
+  AnimationService,
+  AvatarController,
   AvatarNotSpawnedError,
-} from '../core/errors/animation-errors.js'
-import { AnimationService, type IAnimationService } from '../core/interfaces/IAnimationService.js'
-import { AvatarController, type IAvatarController } from '../core/interfaces/IAvatarController.js'
-import type { BotConfiguration, BotVoiceConfig } from '../core/interfaces/IConfigurationProvider.js'
-import { ConfigurationProvider } from '../core/interfaces/IConfigurationProvider.js'
-import {
+  ConfigurationProvider,
   ConnectionManager,
+  CoreServiceFactory,
+  type IAnimationService,
+  type IAvatarController,
+  type IConfigurationProvider,
   type IConnectionManager,
-} from '../core/interfaces/IConnectionManager.js'
-import { type IMessageService, MessageService } from '../core/interfaces/IMessageService.js'
-import type { IUserAvatarManager, UserAvatar } from '../core/interfaces/IUserAvatarManager.js'
-import { UserAvatarManager } from '../core/interfaces/IUserAvatarManager.js'
+  type IMessageService,
+  MessageService,
+  UserAvatarManager,
+} from '@metatell/core'
 import { getLogger } from './logging/index.js'
 import { RateLimitedQueue } from './rate.js'
 
@@ -96,11 +102,7 @@ export interface ConnectionStatus {
   rtt?: number
 }
 
-import type {
-  AnimationPlaybackResult,
-  AnimationPlayOptions,
-  VRMAnimation,
-} from '../core/types/animation.js'
+import type { AnimationPlaybackResult, AnimationPlayOptions, VRMAnimation } from '@metatell/core'
 
 export interface AgentClient {
   // Connection management
@@ -165,15 +167,18 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
     connecting: false,
     retries: 0,
   }
+  private lastConnectionOptions?: ConnectionOptions
+  private configProvider: IConfigurationProvider
 
   constructor(factory: CoreServiceFactory, config: AgentClientConfig = {}) {
     super()
     this.factory = factory
-    // コアサービスインターフェースのみに依存
+    // コアサービスインターフェースのみに依存（型推論で取得）
     this.avatarController = factory.getService(AvatarController)
     this.messageService = factory.getService(MessageService)
     this.userAvatarManager = factory.getService(UserAvatarManager)
     this.connectionManager = factory.getService(ConnectionManager)
+    this.configProvider = factory.getService(ConfigurationProvider)
 
     // Optional services
     try {
@@ -203,6 +208,9 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
   async connect(options: ConnectionOptions): Promise<void> {
     this.logger.info('Connecting to server', options)
     this.status.connecting = true
+
+    // 接続オプションを保存
+    this.lastConnectionOptions = options
 
     try {
       let serverUrl: string
@@ -267,7 +275,9 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
       })
 
       // Get avatar configuration and spawn
-      const configProvider = this.factory.getService(ConfigurationProvider)
+      const configProvider = this.factory.getService(
+        ConfigurationProvider,
+      ) as IConfigurationProvider
       const config = configProvider.getConfiguration()
 
       if (config.profile.avatarId) {
@@ -313,14 +323,48 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
 
   async join(room: string): Promise<void> {
     this.logger.info('Joining room', { room })
+
+    // 既に接続されている場合は、一旦切断してから再接続
+    if (this.status.connected) {
+      await this.disconnect()
+    }
+
+    // 新しいroomに接続
+    const config = this.configProvider.getConfiguration()
+    const newUrl = config.hubUrl.replace(/\/[^/]+\/$/, `/${room}/`) // URLのroom部分を更新
+
+    if (this.lastConnectionOptions?.url) {
+      // URL形式の接続オプションを使用
+      await this.connect({
+        url: newUrl,
+        token: this.lastConnectionOptions.token,
+        voice: this.lastConnectionOptions.voice,
+      })
+    } else if (this.lastConnectionOptions) {
+      // 個別パラメータ形式の接続オプションを使用
+      await this.connect({
+        ...this.lastConnectionOptions,
+        hubId: room,
+        hubUrl: newUrl,
+      })
+    } else {
+      // 新規接続
+      await this.connect({
+        url: newUrl,
+      })
+    }
+
     this.status.room = room
-    // TODO: 実装
   }
 
   async leave(): Promise<void> {
     this.logger.info('Leaving room')
+
+    if (this.status.connected) {
+      await this.disconnect()
+    }
+
     this.status.room = undefined
-    // TODO: 実装
   }
 
   getStatus(): ConnectionStatus {
@@ -495,7 +539,7 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
       return []
     }
 
-    const config = this.factory.getService(ConfigurationProvider)
+    const config = this.factory.getService(ConfigurationProvider) as IConfigurationProvider
     const avatarId = config.getConfiguration().profile.avatarId
 
     if (!avatarId) {
