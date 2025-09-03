@@ -94,7 +94,8 @@ export const LogPane: React.FC<LogPaneProps> = ({ logs, filterRegex, height }) =
                 <>
                   <Text dimColor>[{formatTime(item.log.ts)}]</Text>
                   <Text color={getLogColor(item.log.level)}> {getLogIcon(item.log.level)} </Text>
-                  <Text>{item.line}</Text>
+                  <Text dimColor>[{item.log.module}]</Text>
+                  <Text> {item.line}</Text>
                 </>
               ) : (
                 <Text> {item.line}</Text>

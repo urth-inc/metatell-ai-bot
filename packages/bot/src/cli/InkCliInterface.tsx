@@ -25,7 +25,7 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
   const { stdout } = useStdout()
   const { state, dispatch, setInput, addLogs, showModal, closeModal } = useCliState()
 
-  const logger = getLogger('CLI')
+  const logger = getLogger('InkCLI')
   const executor = useMemo(
     () => new CommandExecutor(client, commandContext),
     [client, commandContext],
@@ -33,20 +33,20 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
 
   // Initialize: Get buffered logs and subscribe to events
   useEffect(() => {
-    // Get existing buffered logs
-    const rb = getRingBuffer() as RingBufferLike
-    const logs = rb.drainNew ? rb.drainNew() : rb.drain()
-    if (logs.length > 0) {
-      addLogs(logs)
-    }
-
-    // Receive logs via event-driven updates
+    // First, subscribe to events to avoid missing any logs
     const logEmitter = getLogEventEmitter()
     const unsubscribe = logEmitter.onNewLogs((newLogs) => {
       if (newLogs.length > 0) {
         addLogs(newLogs)
       }
     })
+
+    // Then get existing buffered logs
+    const rb = getRingBuffer() as RingBufferLike
+    const logs = rb.drainNew ? rb.drainNew() : rb.drain()
+    if (logs.length > 0) {
+      addLogs(logs)
+    }
 
     return () => {
       unsubscribe()
@@ -129,8 +129,11 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
       try {
         const result = await executor.execute(plan)
         if (result.message) {
-          const level = result.success ? 'info' : 'error'
-          logger[level](result.message)
+          if (result.success) {
+            logger.info(result.message)
+          } else {
+            logger.error(result.message)
+          }
         }
         if (result.showModal && result.data) {
           showModal(input, String(result.data))
@@ -242,8 +245,8 @@ export const InkCliInterface: React.FC<CliInterfaceProps> = ({ client, commandCo
         input={state.input}
         onChange={(value) => setInput(value)}
         onSubmit={async (value) => {
-          await handleCommand(value)
           dispatch({ type: 'RESET_INPUT' })
+          await handleCommand(value)
         }}
         suggestions={state.suggestions}
         selectedSuggestionIndex={state.selectedSuggestionIndex}
