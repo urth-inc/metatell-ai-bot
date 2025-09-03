@@ -193,8 +193,7 @@ export class UserAvatarManager implements IUserAvatarManager {
     const positionComponent = data.components[NafComponentId.Position] as
       | { x: number; y: number; z: number; isVector3?: boolean }
       | undefined
-    
-    
+
     const position = positionComponent || existingUser?.position || { x: 0, y: 0, z: 0 }
 
     // デバッグ: 位置情報の更新をログ出力
@@ -247,7 +246,7 @@ export class UserAvatarManager implements IUserAvatarManager {
 
     // ユーザー情報を更新
     this.users.set(networkId, userAvatar)
-    
+
     // owner/creatorがセッションIDの場合、そのIDでも同じ情報を保存（逆マッピング）
     if (data.owner && data.owner !== networkId) {
       this.users.set(data.owner, { ...userAvatar, id: data.owner })

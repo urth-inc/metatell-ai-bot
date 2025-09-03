@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-import { createMetatellClient } from '@metatell/bot-sdk'
-import { Vec3 } from '@metatell/bot-sdk'
+import { createMetatellClient, type User } from '@metatell/bot-sdk'
 
 async function main() {
   const url = process.argv[2]
@@ -46,7 +45,7 @@ async function main() {
     })
 
     setInterval(async () => {
-      let notMeFirstUser: User | undefined;
+      let notMeFirstUser: User | undefined
       const meInfo = await client.getInfo()
       client.getUsers().forEach((user) => {
         console.log(user)
@@ -54,9 +53,10 @@ async function main() {
           notMeFirstUser = user
         }
       })
-      if (!notMeFirstUser) return
+
+      if (!notMeFirstUser?.position) return
       client.avatar.moveTo({ x: 0.1, y: 0.1, z: notMeFirstUser.position.z })
-    }, 5000)
+    }, 100)
   } catch (error) {
     console.error('❌ Connection failed:', error)
     process.exit(1)
