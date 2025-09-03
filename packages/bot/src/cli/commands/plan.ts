@@ -110,7 +110,7 @@ export function parseCommand(input: string): CommandPlan {
   const parts = trimmed.split(/\s+/)
   const command = parts[0].toLowerCase()
 
-  // エイリアスの解決
+  // Resolve aliases
   const resolvedCommand = resolveAlias(command)
 
   try {

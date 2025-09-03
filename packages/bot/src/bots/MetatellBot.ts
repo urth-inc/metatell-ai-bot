@@ -107,7 +107,7 @@ export class MetatellBot {
   }
 
   private setupDefaultHandlers(): void {
-    // Legacy compatibility: Keep addMessageHandler for custom handlers
+    // Keep addMessageHandler for custom handlers
     // All default commands are now handled by the command registry
   }
 

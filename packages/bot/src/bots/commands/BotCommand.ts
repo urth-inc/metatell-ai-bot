@@ -32,7 +32,7 @@ export interface UnifiedCommand {
 }
 
 /**
- * Legacy Bot command definition interface (for backward compatibility)
+ * Bot command definition interface
  */
 export interface BotCommand extends UnifiedCommand {
   /** Pattern to match the command */

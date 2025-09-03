@@ -2,13 +2,13 @@
  * Configuration management with priority:
  * 1. Command line flags (highest)
  * 2. Environment variables
- * 3. Config file (~/.metatell/config.json)
+ * 3. Config file (discovered by cosmiconfig)
  * 4. .env file (lowest)
  */
 
 import { existsSync, readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { cosmiconfig } from 'cosmiconfig'
 import { config as dotenvConfig } from 'dotenv'
 import * as v from 'valibot'
 import {
@@ -26,20 +26,17 @@ export type { Config, ConfigProfile } from '../../schemas/index.js'
 export class ConfigManager {
   private config: Config = {}
   private profiles: Map<string, ConfigProfile> = new Map()
+  private explorer = cosmiconfig('metatell')
 
   constructor() {
-    this.loadConfig()
+    // Synchronous initialization
+    this.loadEnvFile()
+    this.loadEnvironmentVariables()
   }
 
-  private loadConfig(): void {
-    // 1. Load .env file
-    this.loadEnvFile()
-
-    // 2. Load config file
-    this.loadConfigFile()
-
-    // 3. Load environment variables
-    this.loadEnvironmentVariables()
+  private async loadConfig(): Promise<void> {
+    // Load config file using cosmiconfig (async)
+    await this.loadConfigFile()
   }
 
   private loadEnvFile(): void {
@@ -56,38 +53,35 @@ export class ConfigManager {
     }
   }
 
-  private loadConfigFile(): void {
-    const configPath = join(homedir(), '.metatell', 'config.json')
-    if (existsSync(configPath)) {
-      try {
-        const content = readFileSync(configPath, 'utf-8')
-        const data = JSON.parse(content)
-
+  private async loadConfigFile(): Promise<void> {
+    try {
+      const result = await this.explorer.search()
+      if (result?.config) {
         // Validate config file
-        const result = v.safeParse(ConfigFileSchema, data)
-        if (!result.success) {
-          console.error('Invalid config file format:', v.flatten(result.issues))
+        const validationResult = v.safeParse(ConfigFileSchema, result.config)
+        if (!validationResult.success) {
+          console.error('Invalid config file format:', v.flatten(validationResult.issues))
           return
         }
 
-        const validatedData = result.output
+        const validatedData = validationResult.output
 
-        // メイン設定
+        // Main configuration
         if (validatedData.url) this.config.url = validatedData.url
         if (validatedData.token) this.config.token = validatedData.token
         if (validatedData.profile) this.config.profile = validatedData.profile
         if (validatedData.rate) this.config.rate = validatedData.rate
         if (validatedData.debug !== undefined) this.config.debug = validatedData.debug
 
-        // プロファイル
+        // Profiles
         if (validatedData.profiles) {
           Object.entries(validatedData.profiles).forEach(([name, profile]) => {
             this.profiles.set(name, { name, ...profile })
           })
         }
-      } catch (error) {
-        console.error('Failed to load config file:', error)
       }
+    } catch (error) {
+      console.error('Failed to load config file:', error)
     }
   }
 
@@ -131,7 +125,9 @@ export class ConfigManager {
   /**
    * Get configuration with command line overrides
    */
-  getConfig(flags: Record<string, string | boolean> = {}): Config {
+  async getConfig(flags: Record<string, string | boolean> = {}): Promise<Config> {
+    // Ensure config file is loaded
+    await this.loadConfig()
     // Validate flags
     const flagsResult = v.safeParse(FlagsSchema, flags)
     if (!flagsResult.success) {
@@ -142,7 +138,7 @@ export class ConfigManager {
 
     const result: Config = { ...this.config }
 
-    // プロファイルの適用
+    // Apply profile
     if (flags['--profile'] && typeof flags['--profile'] === 'string') {
       const profile = this.profiles.get(flags['--profile'])
       if (profile) {
@@ -150,7 +146,7 @@ export class ConfigManager {
       }
     }
 
-    // フラグによる上書き
+    // Override with flags
     if (flags['--url'] && typeof flags['--url'] === 'string') {
       result.url = flags['--url']
     }

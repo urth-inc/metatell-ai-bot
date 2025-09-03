@@ -486,7 +486,7 @@ export const unifiedCommands: UnifiedCommand[] = [
         await client.send(message)
         return {
           success: true,
-          message: 'Message sent',
+          message: `Message sent: ${message}`,
         }
       } catch (error) {
         return {
