@@ -1,4 +1,4 @@
-import { MetatellError } from '@metatell/sdk'
+import { MetatellError } from '@metatell/bot-sdk'
 
 export class RealtimeError extends MetatellError {
   constructor(

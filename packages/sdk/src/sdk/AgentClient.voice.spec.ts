@@ -1,12 +1,22 @@
 // MockAdapter functionality moved to consuming packages
-import { describe, expect, it, vi } from 'vitest'
-import { CoreServiceFactory } from '../core/CoreServiceFactory.js'
-import type { BotConfiguration } from '../core/interfaces/IConfigurationProvider.js'
-import { createAgentClient } from './AgentClient.js'
+
+// Register logger provider FIRST before any other imports
 import { DefaultLoggerProvider, registerLoggerProvider } from './logging/index.js'
 
-// Register logger provider for tests
 registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
+
+// Also register Core logger provider
+import {
+  DefaultLoggerProvider as CoreDefaultLoggerProvider,
+  registerLoggerProvider as registerCoreLoggerProvider,
+} from '@metatell/bot-core'
+
+registerCoreLoggerProvider(new CoreDefaultLoggerProvider(), { allowOverwrite: true })
+
+import type { BotConfiguration } from '@metatell/bot-core'
+import { CoreServiceFactory } from '@metatell/bot-core'
+import { describe, expect, it, vi } from 'vitest'
+import { createAgentClient } from './AgentClient.js'
 
 describe('AgentClient Voice Integration', () => {
   it('should handle voice-disabled configuration', async () => {

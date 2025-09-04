@@ -3,8 +3,6 @@
  * Allows applications to plug in their own logging implementations
  */
 
-import { DefaultLoggerProvider } from './providers/default.js'
-
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
 export interface LogEvent {
@@ -28,7 +26,7 @@ export interface LogSink {
 
 export interface LoggerProvider {
   getLogger(module: string): Logger
-  addSink?(sink: LogSink): undefined | (() => void)
+  addSink?(sink: LogSink): void
   setMinLevel?(level: LogLevel): void
   enableConsole?(debug?: boolean): void
 }
@@ -55,11 +53,7 @@ export function resetLoggerProvider(): void {
 
 export function getLogger(module: string): Logger {
   if (!_provider) {
-    // 自動的にデフォルトプロバイダーを登録
-    registerLoggerProvider(new DefaultLoggerProvider())
-  }
-  if (!_provider) {
-    throw new Error('LoggerProvider registration failed')
+    throw new Error('LoggerProvider not registered. Call registerLoggerProvider() first.')
   }
   return _provider.getLogger(module)
 }
