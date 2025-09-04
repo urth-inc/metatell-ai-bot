@@ -230,7 +230,7 @@ describe('UserAvatarManager', () => {
       // Check that user is added to internal state but no event is emitted yet
       const user = userAvatarManager.getUser('new-user')
       expect(user?.nickname).toBe('NewUser')
-      expect(user?.position).toBeNull() // Position is null until NAF message is received
+      expect(user?.position).toEqual({ x: 0, y: 0, z: 0 }) // Position defaults to origin
     })
 
     it('should handle user leave from presence', () => {
@@ -308,7 +308,7 @@ describe('UserAvatarManager', () => {
       // Check that user is added to internal state
       const user = userAvatarManager.getUser('system-user')
       expect(user?.nickname).toBe('SystemUser')
-      expect(user?.position).toBeNull() // Position is null until NAF message is received
+      expect(user?.position).toEqual({ x: 0, y: 0, z: 0 }) // Position defaults to origin
     })
 
     it('should handle system USER_LEFT event', () => {

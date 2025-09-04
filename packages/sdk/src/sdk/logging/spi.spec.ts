@@ -61,8 +61,13 @@ describe('Logging SPI', () => {
   })
 
   describe('getLogger', () => {
-    it('should throw error when no provider is registered', () => {
-      expect(() => getLogger('test')).toThrow('LoggerProvider not registered')
+    it('should automatically register default provider when no provider is registered', () => {
+      const logger = getLogger('test')
+      expect(logger).toBeDefined()
+      expect(logger.debug).toBeDefined()
+      expect(logger.info).toBeDefined()
+      expect(logger.warn).toBeDefined()
+      expect(logger.error).toBeDefined()
     })
 
     it('should return logger from registered provider', () => {
