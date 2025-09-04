@@ -1,23 +1,31 @@
-import type { Channel } from 'phoenix'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { CoreServiceFactory } from '../core/CoreServiceFactory.js'
-import { AvatarController, type IAvatarController } from '../core/interfaces/IAvatarController.js'
-import type { BotConfiguration } from '../core/interfaces/IConfigurationProvider.js'
+// Register logger provider FIRST before any other imports
+import { DefaultLoggerProvider, registerLoggerProvider } from './logging/index.js'
+
+registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
+
+// Also register Core logger provider
 import {
+  DefaultLoggerProvider as CoreDefaultLoggerProvider,
+  registerLoggerProvider as registerCoreLoggerProvider,
+} from '@metatell/bot-core'
+
+registerCoreLoggerProvider(new CoreDefaultLoggerProvider(), { allowOverwrite: true })
+
+import type { BotConfiguration } from '@metatell/bot-core'
+import {
+  AvatarController,
   ConnectionManager,
+  CoreServiceFactory,
+  EventBus,
+  type IAvatarController,
   type IConnectionManager,
-} from '../core/interfaces/IConnectionManager.js'
-import { EventBus } from '../core/interfaces/IEventBus.js'
-import {
   type IUserAvatarManager,
   type UserAvatar,
   UserAvatarManager,
-} from '../core/interfaces/IUserAvatarManager.js'
+} from '@metatell/bot-core'
+import type { Channel } from 'phoenix'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAgentClient, DefaultAgentClient } from './AgentClient.js'
-import { DefaultLoggerProvider, registerLoggerProvider } from './logging/index.js'
-
-// Register logger provider for tests
-registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
 
 describe('AgentClient', () => {
   let factory: CoreServiceFactory
