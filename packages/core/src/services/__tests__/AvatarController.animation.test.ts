@@ -41,9 +41,12 @@ const mockEventBus: IEventBus = {
 }
 
 const mockAnimationService: IAnimationService = {
-  getAvailableAnimations: vi.fn(),
+  getAvailableAnimations: vi.fn(() => Promise.resolve([])),
   loadAnimation: vi.fn(),
   validateAnimation: vi.fn(),
+  clearCache: vi.fn(),
+  getDefaultAnimations: vi.fn(() => []),
+  setCurrentAvatarId: vi.fn(),
 }
 
 describe('AvatarController - Animation Features', () => {

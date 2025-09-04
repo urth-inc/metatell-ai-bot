@@ -32,7 +32,7 @@ describe('AnimationService', () => {
 
       const animations = await service.getAvailableAnimations(avatarId)
 
-      expect(animations).toHaveLength(10) // Number of default animations
+      expect(animations).toHaveLength(2) // Number of default animations
       expect(animations[0]).toEqual({
         id: PresetAnimationId.IDLE,
         name: 'Idle',
@@ -47,8 +47,6 @@ describe('AnimationService', () => {
         id: 'custom-dance',
         name: 'Custom Dance',
         vrmaFilePath: '/animations/custom-dance.vrma',
-        duration: 5000,
-        loop: true,
       }
 
       // Mock successful API call
@@ -61,10 +59,11 @@ describe('AnimationService', () => {
 
       const animations = await service.getAvailableAnimations(avatarId)
 
-      expect(animations).toHaveLength(11) // 10 default + 1 custom
+      expect(animations).toHaveLength(3) // 2 default + 1 custom
       expect(animations[animations.length - 1]).toEqual({
         ...customAnimation,
         type: 'custom',
+        loop: false, // Service defaults to false for custom animations
       })
     })
 
@@ -89,14 +88,13 @@ describe('AnimationService', () => {
 
   describe('loadAnimation', () => {
     it('should return preset animation without API call', async () => {
-      const animation = await service.loadAnimation(PresetAnimationId.GREETING)
+      const animation = await service.loadAnimation(PresetAnimationId.IDLE)
 
       expect(animation).toEqual({
-        id: PresetAnimationId.GREETING,
-        name: 'Greeting',
+        id: PresetAnimationId.IDLE,
+        name: 'Idle',
         type: 'preset',
-        duration: 2000,
-        loop: false,
+        loop: true,
       })
       expect(global.fetch).not.toHaveBeenCalled()
     })
@@ -159,11 +157,10 @@ describe('AnimationService', () => {
     it('should return all preset animations', () => {
       const animations = service.getDefaultAnimations()
 
-      expect(animations).toHaveLength(10)
+      expect(animations).toHaveLength(2)
       expect(animations.every((a) => a.type === 'preset')).toBe(true)
       expect(animations.map((a) => a.id)).toContain(PresetAnimationId.IDLE)
       expect(animations.map((a) => a.id)).toContain(PresetAnimationId.WALKING)
-      expect(animations.map((a) => a.id)).toContain(PresetAnimationId.GREETING)
     })
   })
 

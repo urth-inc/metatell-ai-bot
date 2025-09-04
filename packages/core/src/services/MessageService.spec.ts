@@ -178,7 +178,15 @@ describe('MessageService', () => {
       channelHandler(payload)
 
       expect(handler).toHaveBeenCalledWith(payload)
-      expect(mockEventBus.emit).toHaveBeenCalledWith(SystemEvents.MESSAGE_RECEIVED, payload)
+      expect(mockEventBus.emit).toHaveBeenCalledWith(
+        SystemEvents.MESSAGE_RECEIVED,
+        expect.objectContaining({
+          body: 'Test message',
+          type: 'chat',
+          senderId: undefined,
+          timestamp: expect.any(Number),
+        }),
+      )
     })
 
     it('should handle multiple handlers for same event', () => {
@@ -246,7 +254,15 @@ describe('MessageService', () => {
       // Test each handler
       const messagePayload = { body: 'test' }
       messageHandler(messagePayload)
-      expect(mockEventBus.emit).toHaveBeenCalledWith(SystemEvents.MESSAGE_RECEIVED, messagePayload)
+      expect(mockEventBus.emit).toHaveBeenCalledWith(
+        SystemEvents.MESSAGE_RECEIVED,
+        expect.objectContaining({
+          body: 'test',
+          type: 'chat',
+          senderId: undefined,
+          timestamp: expect.any(Number),
+        }),
+      )
 
       const nafPayload = { id: 'naf-test' }
       nafHandler(nafPayload)
