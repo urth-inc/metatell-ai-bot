@@ -5,7 +5,6 @@ async function main() {
   const client = createMetatellClient({
     serverUrl: 'wss://metatell.app/socket',
     roomId: 'YOUR_ROOM_ID',
-    token: 'YOUR_AUTH_TOKEN',
     logger: 'debug',
   })
 
