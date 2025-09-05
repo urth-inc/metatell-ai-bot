@@ -1,6 +1,9 @@
 # Metatell Bot SDK
 
-Metatell Bot開発用のTypeScript SDKです。
+Metatell Bot開発用のTypeScript SDKです。外部公開に合わせ、導入から応用までを網羅したドキュメントを整備しました。まずは SDK パッケージの README とドキュメントをご覧ください。
+
+- SDK ドキュメント: `docs/`
+- SDK パッケージの概要: `packages/sdk/README.md`
 
 ## パッケージ
 
@@ -15,22 +18,23 @@ Metatell Bot開発用のTypeScript SDKです。
 npm install @metatell/bot-sdk
 ```
 
-## 使い方
+## 使い方（クイックスタート）
 
 ```typescript
 import { createMetatellClient } from '@metatell/bot-sdk'
 
 const client = createMetatellClient({
-  serverUrl: 'wss://metatell.app/socket',
+  serverUrl: 'wss://metatell.app',
   roomId: 'YOUR_ROOM_ID',
 })
 
 await client.connect()
+const botInfo = await client.getInfo()
 
-// メッセージハンドリング
-client.chat.onMessage(async ({ from, text, reply }) => {
-  if (text.includes('hello')) {
-    await reply('Hello!')
+// メンション宛てにのみ返信
+client.chat.onMessage(async ({ from, text, mention, reply }) => {
+  if (mention?.sessionId === botInfo.sessionId) {
+    await reply(`Hello ${from.name ?? ''}`.trim())
   }
 })
 ```
