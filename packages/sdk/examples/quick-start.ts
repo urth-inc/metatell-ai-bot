@@ -1,9 +1,9 @@
-import { createMetatellClient, pcm } from '@metatell/sdk'
+import { createMetatellClient, pcm } from '@metatell/bot-sdk'
 import { synthesizeWithExternalTTS } from './my-tts-service' // 外部TTSサービス
 
 async function main() {
   const client = createMetatellClient({
-    serverUrl: 'wss://metatell.app/socket',
+    serverUrl: 'wss://metatell.app',
     roomId: 'YOUR_ROOM_ID',
     logger: 'debug',
   })
