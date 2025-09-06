@@ -1,9 +1,9 @@
-// テストで使用する共通のヘルパー関数
+// Common helper functions for tests
 
-// 空のブロックを避けるためのnoop関数
+// No-op function to avoid empty blocks
 export const noop = (): void => undefined
 
-// console系のモック作成ヘルパー
+// Console mock creation helper
 export const mockConsole = {
   log: () => noop,
   error: () => noop,

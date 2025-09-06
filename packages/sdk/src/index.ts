@@ -1,71 +1,85 @@
 // Core Service Factory (SDKの基盤)
 
+// NAF Types (strongly-typed NAF message definitions)
 export type {
-  NafAvatarConfig,
-  NafDataType,
-  NafMessage,
-} from './core/builders/NafMessageBuilder.js'
-// NAF Message Builder (ユーティリティ)
-export { NafComponentId, NafMessageBuilder } from './core/builders/NafMessageBuilder.js'
-export {
-  CoreServiceFactory,
-  CoreServiceFactory as ServiceFactory,
-} from './core/CoreServiceFactory.js'
-export type { IAppSettings } from './core/interfaces/IAppSettings.js'
-export type { IAuthenticationService } from './core/interfaces/IAuthenticationService.js'
-export type { AvatarState, IAvatarController } from './core/interfaces/IAvatarController.js'
-export type {
+  AnimationPlaybackResult,
+  AnimationPlayOptions,
+  AvatarComponentData,
+  AvatarState,
   BotConfiguration,
   BotContext,
   BotProfile,
-  IConfigurationProvider,
-} from './core/interfaces/IConfigurationProvider.js'
-export type { IConnectionManager } from './core/interfaces/IConnectionManager.js'
-// Core Interfaces (公開する型定義)
-export type { IEventBus, SystemEvents } from './core/interfaces/IEventBus.js'
-export type { IMessageService } from './core/interfaces/IMessageService.js'
-export type {
-  IOrganizationService,
-  OrganizationAvatar,
-  OrganizationInfo,
-} from './core/interfaces/IOrganizationService.js'
-export type { IPresenceManager, PresenceUser } from './core/interfaces/IPresenceManager.js'
-export type {
-  IUserAvatarManager,
-  UserAvatar,
-  UserAvatarEvent,
-} from './core/interfaces/IUserAvatarManager.js'
-export type {
-  IWebSocketConnectionManager,
-  WebSocketState,
-} from './core/interfaces/IWebSocketConnectionManager.js'
-// Service Container (DIコンテナ)
-export { ServiceContainer } from './core/ServiceContainer.js'
-export { ChannelService } from './core/services/ChannelService.js'
-export type { IChannelService } from './core/services/IChannelService.js'
-// NAF Types (strongly-typed NAF message definitions)
-export type {
-  AvatarComponentData,
   EulerRotation,
+  IChannelService,
+  IWebSocketConnectionManager,
   NAFComponentMap,
   NAFCreateMessage,
   NAFEntityData,
   NAFMultiUpdateMessage,
   NAFRemoveMessage,
+  NafAvatarConfig,
+  NafDataType,
+  NafMessage,
+  OrganizationAvatar,
+  OrganizationInfo,
   Position3D,
+  PresenceUser,
   Quaternion,
   Scale3D,
+  ServiceType,
   TypedNAFMessage,
-} from './core/types/naf.js'
+  UserAvatar,
+  UserAvatarEvent,
+  VRMAnimation,
+  WebSocketState,
+} from '@metatell/bot-core'
+// NAF Message Builder (ユーティリティ)
+// Core Interfaces (公開する型定義)
+// Service Container (DIコンテナ)
 export {
+  AnimationService,
+  AppSettings,
+  AuthenticationService,
+  AvatarController,
+  ChannelService,
+  ConfigurationProvider,
+  ConnectionManager,
+  CoreServiceFactory,
+  CoreServiceFactory as ServiceFactory,
+  EventBus,
   extractAvatarData,
   extractBodyRotation,
   extractPosition,
+  type IAnimationService,
+  type IAppSettings,
+  type IAuthenticationService,
+  type IAvatarController,
+  type IConfigurationProvider,
+  type IConnectionManager,
+  type IEventBus,
+  type IMessageService,
+  type IOrganizationService,
+  type IPresenceManager,
+  type IUserAvatarManager,
   isNAFCreateMessage,
   isNAFMultiUpdateMessage,
   isNAFRemoveMessage,
   isTypedNAFMessage,
-} from './core/types/naf.js'
+  MessageService,
+  NafComponentId,
+  NafMessageBuilder,
+  OrganizationService,
+  PresenceManager,
+  ServiceContainer,
+  ServiceIdentifier,
+  type ServiceKey,
+  SystemEvents,
+  UserAvatarManager,
+} from '@metatell/bot-core'
+export type { MetatellClient } from './client.js'
+// New Facade API
+export { createMetatellClient } from './client.js'
+export { pcm } from './pcm-utils.js'
 export type {
   AgentClient,
   AgentClientConfig,
@@ -85,3 +99,18 @@ export * from './sdk/errors.js'
 export * from './sdk/logging/index.js'
 // Rate Limiting
 export { RateLimitedQueue, TokenBucketRateLimiter } from './sdk/rate.js'
+export type {
+  Animation,
+  AvatarAsset,
+  BotInfo,
+  CreateClientOptions,
+  Euler,
+  MetatellClientEvents,
+  PcmInput,
+  PcmInputOptions,
+  PlaybackControls,
+  User,
+  Vec3,
+  // Error classes are already exported from './sdk/errors.js'
+  // MetatellError, AuthError, NetworkError, NotFoundError, etc.
+} from './types.js'

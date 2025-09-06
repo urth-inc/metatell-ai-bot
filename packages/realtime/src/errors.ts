@@ -1,15 +1,14 @@
-export class RealtimeError extends Error {
+import { MetatellError } from '@metatell/bot-sdk'
+
+export class RealtimeError extends MetatellError {
   constructor(
     public readonly code: string,
     message: string,
     public readonly cause?: unknown,
   ) {
-    super(code) // エラーコードをメッセージとして使用
+    super(message)
     this.name = 'RealtimeError'
-    this.details = message // 詳細メッセージは別プロパティに保存
   }
-
-  public readonly details: string
 }
 
 export const ErrorCodes = {

@@ -1,11 +1,11 @@
-// Vitest expectのヘルパー関数
+// Vitest expect helper functions
 
-// 関数であることを検証するマッチャー
+// Matcher to verify something is a function
 export function toBeFunction(received: unknown): boolean {
   return typeof received === 'function'
 }
 
-// カスタムマッチャーのエラーメッセージ
+// Custom matcher error messages
 export function toBeFunctionMessage(received: unknown, pass: boolean): string {
   return pass
     ? `expected ${received} not to be a function`
