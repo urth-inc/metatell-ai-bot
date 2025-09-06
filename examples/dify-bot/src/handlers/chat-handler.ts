@@ -1,4 +1,5 @@
 import type { MetatellClient } from '@metatell/bot-sdk'
+import { config } from '../config/index.js'
 import { DifyClient } from '../services/dify-client.js'
 
 export class ChatHandler {
@@ -23,16 +24,51 @@ export class ChatHandler {
         console.log(`💬 ${from.name} mentioned me: ${text}`)
 
         try {
-          console.log('Dify APIに問い合わせ')
-          // Dify APIに問い合わせ
-          const response = await this.difyClient.sendMessage(
-            text,
-            from.id || from.name || 'anonymous',
-          )
-          console.log('Dify APIに問い合わせ完了')
+          if (config.dify.streamingMode) {
+            console.log('Dify APIに問い合わせ (ストリーミングモード)')
 
-          // Difyからの応答をリプライ
-          await reply(response.answer)
+            // ストリーミングモードでDify APIに問い合わせ
+            const stream = this.difyClient.sendMessageStream(
+              text,
+              from.id || from.name || 'anonymous',
+            )
+
+            let messageBuffer = ''
+            let lastReplyTime = Date.now()
+            const BATCH_INTERVAL = 100 // 100msごとにバッチ送信
+
+            for await (const event of stream) {
+              if (event.answer) {
+                messageBuffer += event.answer
+
+                // バッファがたまったら、または指定時間が経過したら送信
+                const now = Date.now()
+                if (messageBuffer.length > 0 && now - lastReplyTime > BATCH_INTERVAL) {
+                  await reply(messageBuffer)
+                  messageBuffer = ''
+                  lastReplyTime = now
+                }
+              }
+            }
+
+            // 残りのバッファを送信
+            if (messageBuffer.length > 0) {
+              await reply(messageBuffer)
+            }
+
+            console.log('Dify APIストリーミング完了')
+          } else {
+            console.log('Dify APIに問い合わせ (ブロッキングモード)')
+
+            // ブロッキングモードでDify APIに問い合わせ
+            const response = await this.difyClient.sendMessage(
+              text,
+              from.id || from.name || 'anonymous',
+            )
+
+            console.log('Dify APIブロッキング完了')
+            await reply(response.answer)
+          }
 
           // 感謝のアニメーション（アバター依存のIDなので環境に合わせて変更が必要）
           /*
