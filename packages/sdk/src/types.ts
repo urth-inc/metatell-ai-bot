@@ -98,11 +98,41 @@ export class MetatellError extends Error {
     public cause?: unknown,
   ) {
     super(message)
+    this.name = 'MetatellError'
   }
 }
 
-export class AuthError extends MetatellError {}
-export class NetworkError extends MetatellError {}
-export class NotFoundError extends MetatellError {}
-export class RateLimitError extends MetatellError {}
-export class UnsupportedAudioFormatError extends MetatellError {}
+export class AuthError extends MetatellError {
+  constructor(code: string, message: string, cause?: unknown) {
+    super(code, message, cause)
+    this.name = 'AuthError'
+  }
+}
+
+export class NetworkError extends MetatellError {
+  constructor(code: string, message: string, cause?: unknown) {
+    super(code, message, cause)
+    this.name = 'NetworkError'
+  }
+}
+
+export class NotFoundError extends MetatellError {
+  constructor(code: string, message: string, cause?: unknown) {
+    super(code, message, cause)
+    this.name = 'NotFoundError'
+  }
+}
+
+export class RateLimitError extends MetatellError {
+  constructor(code: string, message: string, cause?: unknown) {
+    super(code, message, cause)
+    this.name = 'RateLimitError'
+  }
+}
+
+export class UnsupportedAudioFormatError extends MetatellError {
+  constructor(code: string, message: string, cause?: unknown) {
+    super(code, message, cause)
+    this.name = 'UnsupportedAudioFormatError'
+  }
+}

@@ -3,7 +3,6 @@
  */
 
 import type { LogRecord, RingBufferLike } from '../index.js'
-import { getLogEventEmitter } from '../LogEventEmitter.js'
 import type { Logger, LoggerProvider, LogLevel, LogSink } from '../spi.js'
 
 /**
@@ -24,9 +23,7 @@ class RingBuffer implements RingBufferLike {
       this.wrapped = true
     }
 
-    // Emit event for new log
-    const eventEmitter = getLogEventEmitter()
-    eventEmitter.emitNewLogs([record])
+    // イベント機能は削除されました
   }
 
   drain(): LogRecord[] {

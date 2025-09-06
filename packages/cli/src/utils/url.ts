@@ -38,7 +38,7 @@ export function parseUrl(url: string): { serverUrl: string; roomId: string } {
       ? removeMetatellTenantSubdomain(urlObj.hostname)
       : urlObj.hostname
 
-    const protocol = urlObj.protocol === 'https:' ? 'wss:' : 'ws:'
+    const protocol = urlObj.protocol === 'https:' || urlObj.protocol === 'wss:' ? 'wss:' : 'ws:'
     const port = urlObj.port ? `:${urlObj.port}` : ''
     const serverUrl = `${protocol}//${hostname}${port}`
 
