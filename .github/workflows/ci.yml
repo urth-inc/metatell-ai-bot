@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - develop
+  pull_request:
+    branches:
+      - develop
+      - main
 
 jobs:
   lint-test-build:
@@ -31,7 +35,7 @@ jobs:
         run: npm run typecheck
 
       - name: Run tests
-        run: npm run test:coverage
+        run: npm run test:coverage -- --reporter=github-actions
 
       - name: Build all packages
         run: npm run build:all

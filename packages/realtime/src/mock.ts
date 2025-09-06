@@ -43,7 +43,7 @@ export class MockAdapter implements RealtimeTransport {
 
   async connect(opts: RealtimeOptions): Promise<void> {
     if (this.state === 'connecting' || this.state === 'connected') {
-      throw new RealtimeError(ErrorCodes.ALREADY_CONNECTING, 'Already connecting or connected')
+      throw new RealtimeError(ErrorCodes.ALREADY_CONNECTING, ErrorCodes.ALREADY_CONNECTING)
     }
 
     this.options = opts
@@ -83,11 +83,11 @@ export class MockAdapter implements RealtimeTransport {
 
   async send(topic: string, data: Uint8Array | string): Promise<void> {
     if (this.state !== 'connected') {
-      throw new RealtimeError(ErrorCodes.NOT_CONNECTED, 'Not connected')
+      throw new RealtimeError(ErrorCodes.NOT_CONNECTED, ErrorCodes.NOT_CONNECTED)
     }
 
     if (!this.activeTopics.has(topic)) {
-      throw new RealtimeError(ErrorCodes.UNKNOWN_TOPIC, `Unknown topic: ${topic}`)
+      throw new RealtimeError(ErrorCodes.UNKNOWN_TOPIC, ErrorCodes.UNKNOWN_TOPIC)
     }
 
     const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data
@@ -109,7 +109,7 @@ export class MockAdapter implements RealtimeTransport {
 
   async startAudioPublisher(): Promise<void> {
     if (this.state !== 'connected') {
-      throw new RealtimeError(ErrorCodes.NOT_CONNECTED, 'Not connected')
+      throw new RealtimeError(ErrorCodes.NOT_CONNECTED, ErrorCodes.NOT_CONNECTED)
     }
 
     this.audioStarted = true
@@ -119,7 +119,7 @@ export class MockAdapter implements RealtimeTransport {
 
   async pushPcmFrame(frame: Int16Array): Promise<void> {
     if (!this.audioStarted) {
-      throw new RealtimeError(ErrorCodes.AUDIO_NOT_STARTED, 'Audio publisher not started')
+      throw new RealtimeError(ErrorCodes.AUDIO_NOT_STARTED, ErrorCodes.AUDIO_NOT_STARTED)
     }
 
     this.audioFrameCount++

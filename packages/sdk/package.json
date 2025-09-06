@@ -1,6 +1,6 @@
 {
-  "name": "@metatell/sdk",
-  "version": "1.0.0",
+  "name": "@metatell/bot-sdk",
+  "version": "0.0.1",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,18 +10,18 @@
       "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc --build",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
     "test": "vitest"
   },
   "dependencies": {
-    "@livekit/agents": "^0.7.9",
-    "@metatell/realtime": "1.0.0",
-    "@types/uuid": "^10.0.0",
-    "phoenix": "1.8.1",
-    "uuid": "^11.1.0",
-    "ws": "8.18.3"
+    "@metatell/bot-core": "^0.0.1",
+    "@types/uuid": "^10.0.0"
   },
   "peerDependencies": {
     "@types/node": "*",

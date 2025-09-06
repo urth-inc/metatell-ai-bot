@@ -1,6 +1,6 @@
 {
-  "name": "@metatell/realtime",
-  "version": "1.0.0",
+  "name": "@metatell/bot-realtime",
+  "version": "0.0.1",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,6 +10,10 @@
       "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc --build",
     "clean": "rm -rf dist tsconfig.tsbuildinfo",
@@ -19,10 +23,11 @@
   "devDependencies": {
     "@types/node": "^22.10.6",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^3.0.0"
   },
   "license": "MIT",
   "dependencies": {
-    "@livekit/rtc-node": "^0.13.18"
+    "@livekit/rtc-node": "^0.13.18",
+    "@metatell/bot-sdk": "file:../sdk"
   }
 }

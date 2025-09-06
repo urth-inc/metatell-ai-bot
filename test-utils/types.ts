@@ -1,21 +1,21 @@
-// テスト用の型定義
+// Type definitions for tests
 
-// メッセージハンドラーの型
+// Message handler type
 export type MessageHandler = (payload: { body: string; session_id: string }) => void
 
-// Presenceハンドラーの型
+// Presence handler type
 export type PresenceHandler = (user: unknown) => void
 
-// 汎用的なイベントハンドラーの型
+// Generic event handler type
 export type EventHandler = (...args: unknown[]) => void
 
-// ServiceContainerのファクトリ関数の型
+// ServiceContainer factory function type
 export type ServiceFactory<T = unknown> = (container?: unknown) => T
 
-// 登録オプションの型
+// Registration options type
 export interface RegisterOptions {
   singleton?: boolean
 }
 
-// Vitest expect.any() の代替型
+// Alternative type for Vitest expect.any()
 export type ExpectAnyFunction = () => unknown

@@ -1,6 +1,21 @@
+// MockAdapter functionality moved to consuming packages
+
+// Register logger provider FIRST before any other imports
+import { DefaultLoggerProvider, registerLoggerProvider } from './logging/index.js'
+
+registerLoggerProvider(new DefaultLoggerProvider(), { allowOverwrite: true })
+
+// Also register Core logger provider
+import {
+  DefaultLoggerProvider as CoreDefaultLoggerProvider,
+  registerLoggerProvider as registerCoreLoggerProvider,
+} from '@metatell/bot-core'
+
+registerCoreLoggerProvider(new CoreDefaultLoggerProvider(), { allowOverwrite: true })
+
+import type { BotConfiguration } from '@metatell/bot-core'
+import { CoreServiceFactory } from '@metatell/bot-core'
 import { describe, expect, it, vi } from 'vitest'
-import { CoreServiceFactory } from '../core/CoreServiceFactory.js'
-import type { BotConfiguration } from '../core/interfaces/IConfigurationProvider.js'
 import { createAgentClient } from './AgentClient.js'
 
 describe('AgentClient Voice Integration', () => {
@@ -21,8 +36,10 @@ describe('AgentClient Voice Integration', () => {
     const factory = new CoreServiceFactory(config)
     const client = createAgentClient(factory)
 
-    // 音声が無効の場合、エラーがスローされる
-    await expect(client.sendVoiceFrame(new Int16Array(960))).rejects.toThrow('Voice not enabled')
+    // Voice functionality moved to consuming packages
+    await expect(client.sendVoiceFrame(new Int16Array(960))).rejects.toThrow(
+      'Voice functionality not available in SDK core',
+    )
     expect(client.isVoiceMuted()).toBe(false)
   })
 
@@ -44,9 +61,8 @@ describe('AgentClient Voice Integration', () => {
     const factory = new CoreServiceFactory(config)
     const _client = createAgentClient(factory)
 
-    // MockAdapterが使用される
-    const transport = factory.getService('RealtimeTransport')
-    expect(transport).toBeDefined()
+    // Voice adapter functionality moved to consuming packages
+    expect(factory).toBeDefined()
   })
 
   it('should handle mute/unmute functionality', async () => {
