@@ -13,10 +13,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout latest develop
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: develop
+          # 呼び出し元のrefを使用（通常はマージ後のdevelop）
+          ref: ${{ github.ref }}
           fetch-depth: 0
 
       - name: Setup Node from package.json (engines/volta)
