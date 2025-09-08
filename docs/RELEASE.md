@@ -2,9 +2,25 @@
 
 このプロジェクトはpnpm、changesets、npm OIDC trusted publishingを使用してリリースを管理しています。
 
-## セットアップ
+## リリースワークフロー概要
 
-### 1. npm OIDC Trusted Publisher の設定
+1. **release.yml**: メインワークフロー（チェンジセット作成、バージョンPR作成・マージ、publish.yml呼び出し）
+2. **publish.yml**: 再利用可能ワークフロー（npmへの公開とGitHubリリース作成）
+
+## 初回セットアップ
+
+### 1. スコープパッケージの公開設定
+
+初回公開時は各パッケージの`package.json`に以下の設定が必要です：
+
+```json
+"publishConfig": {
+  "access": "public",
+  "registry": "https://registry.npmjs.org/"
+}
+```
+
+### 2. npm OIDC Trusted Publisher の設定
 
 各パッケージでOIDC trusted publisherを設定する必要があります：
 
@@ -18,10 +34,10 @@
 4. "GitHub Actions" を選択して以下を入力：
    - **Organization/Username**: `urth-inc`
    - **Repository**: `metatell-ai-bot`
-   - **Workflow file name**: `release.yml`
+   - **Workflow file name**: `publish.yml` （注意：publish.ymlを指定）
    - **Environment name**: (空欄のまま)
 
-### 2. GitHub リポジトリの設定
+### 3. GitHub リポジトリの設定
 
 NPM_TOKENは不要です。OIDCが自動的に認証を処理します。
 
@@ -55,32 +71,56 @@ git push
 
 1. [GitHub Actions](https://github.com/urth-inc/metatell-ai-bot/actions/workflows/release.yml) へアクセス
 2. "Run workflow" をクリック
-3. Branch: `develop` を選択
+3. 設定：
+   - Branch: `develop`
+   - Semver bump type: `patch`、`minor`、または `major` を選択
 4. "Run workflow" をクリック
 
 ### 3. リリースプロセス
 
 自動的に以下が実行されます：
 
-1. **初回実行時**：バージョン更新PRが作成される
-   - CHANGELOGの更新
-   - package.jsonのバージョン更新
-   - changesetファイルの削除
+1. **release.yml ワークフロー**：
+   - コミット履歴から自動的にチェンジセットを生成（create-changeset.mjs）
+   - changesets/actionでバージョン更新PRを作成
+   - PRを自動マージ（gh pr merge --auto --merge）
+   - マージ完了を待機（最大10分）
+   - publish.ymlワークフローを呼び出し
 
-2. **バージョンPRマージ後の再実行時**：
-   - npmへの公開（OIDC認証）
-   - GitHub Releaseの作成
-   - タグの作成
+2. **publish.yml ワークフロー**（release完了後に自動実行）：
+   - 最新の`develop`ブランチをチェックアウト
+   - 依存関係をインストール（pnpm install）
+   - ワークスペース全体をビルド（pnpm build）
+   - changesets/actionでnpmへ公開（OIDC認証、Provenance付き）
+   - GitHub Releaseを自動作成
+   - バージョンタグを作成
 
 ## トラブルシューティング
 
-### npm公開エラー
+### 初回パッケージ公開エラー
+
+エラー: `E404 Not Found - PUT https://registry.npmjs.org/@metatell%2fbot-* - Not found`
+
+原因：スコープパッケージ（@組織名/*）の初回公開時に発生
+
+対策：
+1. 各パッケージの`package.json`に`publishConfig`を追加：
+   ```json
+   "publishConfig": {
+     "access": "public",
+     "registry": "https://registry.npmjs.org/"
+   }
+   ```
+2. コミットしてPRを作成・マージ
+3. リリースワークフローを再実行
+
+### npm公開エラー（E403）
 
 エラー: `npm error code E403`
 
 原因と対策：
 1. Trusted Publisherが未設定 → 上記のセットアップ手順を確認
-2. ワークフロー名が一致しない → `release.yml` であることを確認
+2. ワークフロー名が一致しない → `publish.yml` であることを確認
 3. ブランチが異なる → `develop` ブランチから実行
 
 ### 権限エラー
