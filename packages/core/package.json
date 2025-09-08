@@ -23,7 +23,7 @@
     "@livekit/agents": "^1.0.0",
     "@types/uuid": "^10.0.0",
     "phoenix": "1.8.1",
-    "uuid": "^11.1.0",
+    "uuid": "^12.0.0",
     "ws": "8.18.3"
   },
   "peerDependencies": {
