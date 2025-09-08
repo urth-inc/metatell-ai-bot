@@ -1,32 +1,27 @@
 # @metatell/bot-core
 
-Core service architecture and infrastructure for MetaTell AI Bot applications. This package provides the foundational services, interfaces, and dependency injection container for building scalable bot applications.
+MetaTell Bot SDKのコアライブラリ。
 
-## Features
+## 必要要件
 
-- **Service-Oriented Architecture**: Clean separation of concerns with well-defined service interfaces
-- **Dependency Injection Container**: Type-safe service registration and resolution
-- **Core Services**: Pre-built services for authentication, messaging, presence, animations, and more
-- **Event-Driven Architecture**: Built-in event bus for decoupled communication
-- **NAF Protocol Support**: Comprehensive support for Networked Aframe (NAF) messaging
-- **Type Safety**: Full TypeScript support with strongly-typed interfaces
+- Node.js 22+ (推奨)
+- TypeScript 5.0+
 
-## Installation
+## インストール
 
 ```bash
 npm install @metatell/bot-core
-# or
+# または
 pnpm add @metatell/bot-core
-# or
+# または
 yarn add @metatell/bot-core
 ```
 
-## Quick Start
+## 使い方
 
 ```typescript
 import { CoreServiceFactory } from '@metatell/bot-core';
 
-// Create the service factory with configuration
 const factory = new CoreServiceFactory({
   organizationId: 'your-org-id',
   hubId: 'your-hub-id',
@@ -35,291 +30,54 @@ const factory = new CoreServiceFactory({
     avatarUrl: 'https://example.com/avatar.vrm'
   }
 });
-
-// Get services from the container
-const container = factory.getContainer();
-const eventBus = container.get(EventBus);
-const avatarController = container.get(AvatarController);
-
-// Listen for system events
-eventBus.on(SystemEvents.CONNECTION_STATE_CHANGED, (state) => {
-  console.log('Connection state:', state);
-});
-
-// Control avatar
-await avatarController.spawn();
 ```
 
-## Core Services
+## 主なサービス
 
-### Service Container
+### EventBus
 
-The heart of the architecture - provides dependency injection and service lifecycle management.
-
-```typescript
-import { ServiceContainer, ServiceIdentifier } from '@metatell/bot-core';
-
-const container = new ServiceContainer();
-
-// Register a service
-container.register(MyService, new MyServiceImpl());
-
-// Get a service
-const service = container.get(MyService);
-```
-
-### Event Bus
-
-Facilitates decoupled communication between services.
+イベントの発行と購読を管理します。
 
 ```typescript
 const eventBus = container.get(EventBus);
 
-// Subscribe to events
+// イベントの購読
 eventBus.on('custom.event', (data) => {
-  console.log('Event received:', data);
+  console.log('イベントを受信:', data);
 });
 
-// Emit events
+// イベントの発行
 eventBus.emit('custom.event', { message: 'Hello' });
 
-// System events
 eventBus.on(SystemEvents.AVATAR_SPAWNED, (avatar) => {
-  console.log('Avatar spawned:', avatar.id);
+  console.log('アバターがスポーンされました:', avatar.id);
 });
 ```
 
-### Avatar Controller
+### AvatarController
 
-Manages bot avatar lifecycle and animations.
+ボットアバターの管理とアニメーション制御。
 
 ```typescript
 const avatarController = container.get(AvatarController);
 
-// Spawn avatar in the world
+// アバターをスポーン
 await avatarController.spawn();
 
-// Play animations
+// アニメーション再生
 await avatarController.playAnimation(PresetAnimationId.WAVE);
 
-// Move avatar
+// 移動
 await avatarController.setPosition({ x: 10, y: 0, z: 5 });
-
-// Cleanup
-await avatarController.cleanup();
 ```
 
-### Animation Service
+### その他のサービス
 
-Handles VRM animation playback and management.
-
-```typescript
-const animationService = container.get(AnimationService);
-
-// Register custom animation
-animationService.registerAnimation({
-  id: 'custom-dance',
-  url: 'https://example.com/dance.anim',
-  loop: AnimationLoopBehavior.LOOP
-});
-
-// Play animation with options
-const result = await animationService.playAnimation('custom-dance', {
-  duration: 5000,
-  loop: true,
-  onComplete: () => console.log('Animation finished')
-});
-```
-
-### Message Service
-
-Handles NAF protocol messaging and communication.
-
-```typescript
-const messageService = container.get(MessageService);
-
-// Send NAF message
-messageService.send({
-  dataType: 'u',
-  data: {
-    networkId: 'avatar-123',
-    owner: 'bot-user-id',
-    components: {
-      position: { x: 0, y: 0, z: 0 }
-    }
-  }
-});
-```
-
-### Presence Manager
-
-Tracks user presence and avatar states in the hub.
-
-```typescript
-const presenceManager = container.get(PresenceManager);
-
-// Get all users in hub
-const users = presenceManager.getUsers();
-
-// Get specific user
-const user = presenceManager.getUser('user-id');
-
-// Listen for presence updates
-presenceManager.on('userJoined', (user) => {
-  console.log('User joined:', user.displayName);
-});
-```
-
-## NAF Message Builder
-
-Utility for constructing type-safe NAF messages.
-
-```typescript
-import { NafMessageBuilder, NafComponentId } from '@metatell/bot-core';
-
-// Create avatar spawn message
-const spawnMessage = NafMessageBuilder.createAvatarSpawn({
-  networkId: 'avatar-123',
-  displayName: 'Bot',
-  avatarUrl: 'https://example.com/avatar.vrm'
-});
-
-// Update position
-const updateMessage = NafMessageBuilder.createComponentUpdate(
-  'avatar-123',
-  NafComponentId.POSITION,
-  { x: 10, y: 0, z: 5 }
-);
-```
-
-## Type-Safe NAF Messages
-
-The package provides strongly-typed NAF message definitions:
-
-```typescript
-import { 
-  TypedNAFMessage, 
-  isNAFCreateMessage,
-  extractPosition,
-  extractAvatarData 
-} from '@metatell/bot-core';
-
-// Type guard for message types
-if (isNAFCreateMessage(message)) {
-  const position = extractPosition(message);
-  const avatarData = extractAvatarData(message);
-}
-```
-
-## Custom Service Integration
-
-Extend the factory to add your own services:
-
-```typescript
-class ExtendedServiceFactory extends CoreServiceFactory {
-  protected registerServices(config?: BotConfiguration): void {
-    super.registerServices(config);
-    
-    // Register custom services
-    this.container.register(MyCustomService, new MyCustomServiceImpl());
-  }
-}
-```
-
-## Configuration
-
-```typescript
-interface BotConfiguration {
-  organizationId: string;
-  hubId: string;
-  avatarData?: {
-    displayName: string;
-    avatarUrl?: string;
-    scale?: number;
-  };
-  voice?: {
-    provider: 'azure' | 'google';
-    voiceId: string;
-  };
-}
-```
-
-## Error Handling
-
-The package includes custom error types for better error handling:
-
-```typescript
-import { 
-  AnimationNotFoundError, 
-  AvatarNotSpawnedError,
-  AnimationPlaybackError 
-} from '@metatell/bot-core';
-
-try {
-  await avatarController.playAnimation('invalid-id');
-} catch (error) {
-  if (error instanceof AnimationNotFoundError) {
-    console.error('Animation not found:', error.animationId);
-  }
-}
-```
-
-## Logging
-
-Configure logging for debugging and monitoring:
-
-```typescript
-import { 
-  registerLoggerProvider, 
-  DefaultLoggerProvider 
-} from '@metatell/bot-core';
-
-const logger = new DefaultLoggerProvider();
-logger.setMinLevel('debug');
-registerLoggerProvider(logger);
-```
-
-## Testing
-
-The package is designed with testability in mind:
-
-```typescript
-import { CoreServiceFactory } from '@metatell/bot-core';
-import { MockRealtimeAdapter } from '@metatell/bot-core/testing';
-
-// Create factory with mock adapter
-const factory = new CoreServiceFactory();
-const container = factory.getContainer();
-
-// Register mock adapter for testing
-container.register(RealtimeAdapter, new MockRealtimeAdapter());
-```
-
-## API Reference
-
-### Interfaces
-
-- `IAnimationService` - Animation playback and management
-- `IAppSettings` - Application configuration
-- `IAuthenticationService` - Authentication handling  
-- `IAvatarController` - Avatar lifecycle management
-- `IConfigurationProvider` - Configuration access
-- `IConnectionManager` - Connection state management
-- `IEventBus` - Event publishing/subscription
-- `IMessageService` - Message sending/receiving
-- `IOrganizationService` - Organization data access
-- `IPresenceManager` - User presence tracking
-- `IUserAvatarManager` - Avatar instance management
-- `IChannelService` - Phoenix channel management
-
-### Types
-
-- `BotConfiguration` - Bot configuration options
-- `AvatarState` - Avatar state enumeration
-- `AnimationConfig` - Animation configuration
-- `NAFMessage` - NAF protocol message types
-- `PresenceUser` - User presence information
-- `SystemEvents` - System event constants
+- **AnimationService**: VRMアニメーションの管理
+- **MessageService**: NAFプロトコルメッセージの送受信
+- **PresenceManager**: ユーザープレゼンスの追跡
+- **AuthenticationService**: 認証処理
+- **ConfigurationProvider**: 設定管理
 
 ## License
 
