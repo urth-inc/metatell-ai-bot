@@ -118,12 +118,22 @@ async function getWorkspacePackages() {
 
 const allPkgs = await getWorkspacePackages()
 
+// ルートパッケージの情報を取得
+const rootPkgPath = path.join(cwd, 'package.json')
+const rootPkgContent = await fs.readFile(rootPkgPath, 'utf8')
+const rootPkg = JSON.parse(rootPkgContent)
+
 const targetPkgs = allPkgs
   .filter((p) => typeof p.name === 'string')
   .filter((p) => /^@metatell\/bot-/.test(p.name))
   .filter((p) => p.private !== true)
   .map((p) => p.name)
   .sort()
+
+// ルートパッケージも同じバージョンに更新（privateでも更新）
+if (rootPkg.name && rootPkg.private) {
+  targetPkgs.push(rootPkg.name)
+}
 
 if (targetPkgs.length === 0) {
   console.error('No target packages matched (@metatell/bot-*) or all are private.')
