@@ -113,5 +113,8 @@ jobs:
   publish:
     name: Publish via reusable workflow
     needs: release
+    permissions:
+      contents: write      # GitHub Release作成に必要
+      id-token: write      # npm OIDC認証に必要
     uses: ./.github/workflows/publish.yml
     secrets: inherit
