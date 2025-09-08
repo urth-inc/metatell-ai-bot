@@ -16,6 +16,10 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop'
+    permissions:
+      contents: write      # To create GitHub releases
+      pull-requests: write # To create version PRs
+      id-token: write      # To enable OIDC for npm publishing
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v5
@@ -62,7 +66,8 @@ jobs:
           setupGitUser: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # NPM_TOKEN is no longer needed with OIDC trusted publishing
+          # Configure trusted publisher at: https://www.npmjs.com/settings/[org]/integrations
 
       - name: Release Summary
         if: steps.changesets.outputs.published == 'true'
