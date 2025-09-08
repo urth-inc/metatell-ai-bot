@@ -3,12 +3,6 @@
  */
 
 // Export event emitter for reactive log updates
-export {
-  getLogEventEmitter,
-  type ILogEventEmitter,
-  type LogEventHandler,
-  resetLogEventEmitter,
-} from './LogEventEmitter.js'
 // Export default provider and CLI compatibility functions
 export { DefaultLoggerProvider, getRingBuffer } from './providers/default.js'
 // Export SPI interfaces and registration functions

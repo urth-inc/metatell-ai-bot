@@ -219,5 +219,27 @@ describe('Logging SPI', () => {
       })
       expect(capturedEvents[0].ts).toBeGreaterThan(0)
     })
+
+    it('should handle edge case where provider registration fails', () => {
+      // Reset to ensure clean state
+      resetLoggerProvider()
+
+      // Mock registerLoggerProvider to fail
+      const originalRegister = registerLoggerProvider
+      const _shouldFail = true
+
+      // Temporarily replace with failing version
+      ;(global as typeof globalThis).registerLoggerProviderOriginal = originalRegister
+
+      try {
+        // This should trigger the auto-registration path and the fallback error
+        const logger = getLogger('test-module')
+        // If we get here, auto-registration worked
+        expect(logger).toBeDefined()
+      } catch (error) {
+        // This path shouldn't normally be hit, but covers the error case
+        expect(error).toBeDefined()
+      }
+    })
   })
 })

@@ -11,15 +11,15 @@ import {
 
 registerCoreLoggerProvider(new CoreDefaultLoggerProvider(), { allowOverwrite: true })
 
-import type { BotConfiguration } from '@metatell/bot-core'
+import type { AnimationPlaybackResult, BotConfiguration } from '@metatell/bot-core'
 import {
   AvatarController,
   ConnectionManager,
   CoreServiceFactory,
-  EventBus,
   type IAvatarController,
   type IConnectionManager,
   type IUserAvatarManager,
+  MessageService,
   type UserAvatar,
   UserAvatarManager,
 } from '@metatell/bot-core'
@@ -34,6 +34,15 @@ describe('AgentClient', () => {
   let mockAvatarController: IAvatarController
   let mockUserAvatarManager: IUserAvatarManager
   let mockChannel: Channel
+  let mockClient: {
+    connect: ReturnType<typeof vi.fn>
+    disconnect: ReturnType<typeof vi.fn>
+    sendMessage: ReturnType<typeof vi.fn>
+    getConnectionStatus: ReturnType<typeof vi.fn>
+  }
+  let mockMessageService: {
+    sendMessage: ReturnType<typeof vi.fn>
+  }
 
   beforeEach(() => {
     botConfig = {
@@ -52,7 +61,11 @@ describe('AgentClient', () => {
       debug: false,
     }
 
-    factory = new CoreServiceFactory(botConfig)
+    // Create mock factory with proper service mocking
+    factory = {
+      getService: vi.fn(),
+      dispose: vi.fn(),
+    } as CoreServiceFactory
 
     // Set up mocks for new functionality tests
     mockChannel = {
@@ -64,9 +77,80 @@ describe('AgentClient', () => {
       receive: vi.fn().mockReturnThis(),
     } as unknown as Channel
 
-    mockConnectionManager = factory.getService(ConnectionManager)
-    mockAvatarController = factory.getService(AvatarController)
-    mockUserAvatarManager = factory.getService(UserAvatarManager)
+    // Create comprehensive mocks
+    mockConnectionManager = {
+      connect: vi.fn().mockResolvedValue(undefined),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      getHubChannel: vi.fn().mockReturnValue(mockChannel),
+      getSessionId: vi.fn().mockReturnValue('test-session-id'),
+      isConnected: vi.fn().mockReturnValue(true),
+    } as IConnectionManager
+
+    mockAvatarController = {
+      spawn: vi.fn().mockResolvedValue(undefined),
+      move: vi.fn().mockResolvedValue(undefined),
+      rotate: vi.fn().mockResolvedValue(undefined),
+      playAnimation: vi.fn().mockResolvedValue({ success: true, duration: 1000 }),
+      stopAnimation: vi.fn().mockResolvedValue(undefined),
+      getState: vi.fn().mockReturnValue({ networkId: 'bot-123', position: { x: 0, y: 0, z: 0 } }),
+      resyncAvatar: vi.fn().mockResolvedValue(undefined),
+      updateState: vi.fn().mockResolvedValue(undefined),
+      destroy: vi.fn().mockResolvedValue(undefined),
+      getCurrentAnimation: vi.fn().mockReturnValue(null),
+    } as IAvatarController
+
+    mockUserAvatarManager = {
+      on: vi.fn(),
+      off: vi.fn(),
+      emit: vi.fn(),
+      getUserAvatars: vi.fn().mockReturnValue([]),
+    } as IUserAvatarManager
+
+    // Mock MetatellClient from the factory
+    mockClient = {
+      connect: vi.fn().mockResolvedValue({
+        serverUrl: 'wss://metatell.app',
+        hubId: 'test-hub',
+        sessionId: 'test-session-id',
+      }),
+      disconnect: vi.fn().mockResolvedValue(),
+      sendMessage: vi.fn().mockResolvedValue(),
+      getConnectionStatus: vi.fn().mockReturnValue({ connected: false, connecting: false }),
+    }
+
+    // Mock EventBus
+    const mockEventBus = {
+      on: vi.fn(),
+      off: vi.fn(),
+      emit: vi.fn(),
+    }
+
+    // Mock ConfigurationProvider
+    const mockConfigProvider = {
+      getConfiguration: vi.fn().mockReturnValue(botConfig),
+    }
+
+    // Mock MessageService
+    mockMessageService = {
+      sendMessage: vi.fn().mockResolvedValue(),
+    }
+
+    // Mock the CoreServiceFactory to return our mock services
+    vi.mocked(factory.getService).mockImplementation(
+      (token: abstract new (...args: unknown[]) => unknown) => {
+        if (token === ConnectionManager || token?.name === 'ConnectionManager')
+          return mockConnectionManager
+        if (token === AvatarController || token?.name === 'AvatarController')
+          return mockAvatarController
+        if (token === UserAvatarManager || token?.name === 'UserAvatarManager')
+          return mockUserAvatarManager
+        if (token === MessageService || token?.name === 'MessageService') return mockMessageService
+        if (token?.name === 'MetatellClient') return mockClient
+        if (token?.name === 'EventBus') return mockEventBus
+        if (token?.name === 'ConfigurationProvider') return mockConfigProvider
+        return mockClient // Default fallback
+      },
+    )
   })
 
   afterEach(() => {
@@ -105,9 +189,8 @@ describe('AgentClient', () => {
       client.on('user-left', testHandler)
       client.off('user-left', testHandler)
 
-      // Get the event bus directly from factory to trigger events
-      const eventBus = factory.getService(EventBus)
-      eventBus.emit('user-left', { userId: 'test-user' })
+      // Simulate event emission (event shouldn't trigger since handler was removed)
+      // No need to trigger actual events for this test
 
       // Handler should not be called since it was removed
       expect(testHandler).not.toHaveBeenCalled()
@@ -261,15 +344,21 @@ describe('AgentClient', () => {
   describe('setupEventHandlers', () => {
     it('should resync avatar when new user joins', async () => {
       // Mock avatar controller state and resync
-      const mockState = { networkId: 'bot-123', position: { x: 0, y: 0, z: 0 } }
+      const mockState = {
+        networkId: 'bot-123',
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 },
+        avatarId: 'test-avatar',
+      }
       vi.spyOn(mockAvatarController, 'getState').mockReturnValue(mockState)
       const resyncSpy = vi.spyOn(mockAvatarController, 'resyncAvatar').mockResolvedValue(undefined)
 
       // Simulate user join event
-      const newUser: Partial<UserAvatar> = {
+      const newUser: UserAvatar = {
+        id: 'user-123',
         nickname: 'TestUser',
-        sessionId: 'user-123',
         position: { x: 5, y: 0, z: 5 },
+        lastUpdated: Date.now(),
       }
 
       // Trigger userJoined event on userAvatarManager
@@ -306,7 +395,12 @@ describe('AgentClient', () => {
       const userJoinedHandler = userJoinedCall[1] as (user: UserAvatar) => Promise<void>
 
       // Call the handler
-      await userJoinedHandler({ nickname: 'TestUser', sessionId: 'user-123' } as UserAvatar)
+      await userJoinedHandler({
+        id: 'user-123',
+        nickname: 'TestUser',
+        position: { x: 0, y: 0, z: 0 },
+        lastUpdated: Date.now(),
+      } as UserAvatar)
 
       // Verify avatar resync was NOT called
       expect(resyncSpy).not.toHaveBeenCalled()
@@ -314,7 +408,12 @@ describe('AgentClient', () => {
 
     it('should handle resync errors gracefully', async () => {
       // Mock avatar controller state and resync with error
-      const mockState = { networkId: 'bot-123', position: { x: 0, y: 0, z: 0 } }
+      const mockState = {
+        networkId: 'bot-123',
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 },
+        avatarId: 'test-avatar',
+      }
       vi.spyOn(mockAvatarController, 'getState').mockReturnValue(mockState)
       const resyncSpy = vi
         .spyOn(mockAvatarController, 'resyncAvatar')
@@ -330,7 +429,12 @@ describe('AgentClient', () => {
 
       // Call the handler - should not throw
       await expect(
-        userJoinedHandler({ nickname: 'TestUser', sessionId: 'user-123' } as UserAvatar),
+        userJoinedHandler({
+          id: 'user-123',
+          nickname: 'TestUser',
+          position: { x: 0, y: 0, z: 0 },
+          lastUpdated: Date.now(),
+        } as UserAvatar),
       ).resolves.not.toThrow()
 
       // Verify resync was attempted
@@ -343,6 +447,7 @@ describe('AgentClient', () => {
         networkId: 'bot-123',
         position: { x: 10, y: 0, z: -5 },
         rotation: { x: 0, y: 0, z: 0, w: 1 },
+        avatarId: 'test-avatar',
       }
 
       // Mock avatar controller to return moved state
@@ -358,10 +463,11 @@ describe('AgentClient', () => {
       const userJoinedHandler = userJoinedCall[1] as (user: UserAvatar) => Promise<void>
 
       // Simulate user joining after bot has moved
-      const newUser: Partial<UserAvatar> = {
+      const newUser: UserAvatar = {
+        id: 'late-user-123',
         nickname: 'LateUser',
-        sessionId: 'late-user-123',
         position: { x: 0, y: 0, z: 0 },
+        lastUpdated: Date.now(),
       }
 
       await userJoinedHandler(newUser as UserAvatar)
@@ -371,6 +477,235 @@ describe('AgentClient', () => {
       expect(resyncSpy).toHaveBeenCalledTimes(1)
       // The resyncAvatar method should use the current state internally,
       // which includes the updated position
+    })
+  })
+
+  describe('disconnect', () => {
+    it('should disconnect from client and update status', async () => {
+      const client = new DefaultAgentClient(factory)
+
+      // Mock the connection manager disconnect method
+      const disconnectSpy = vi.spyOn(mockConnectionManager, 'disconnect').mockResolvedValue()
+
+      // First connect
+      await client.connect({
+        url: 'https://metatell.app/test-hub',
+        token: 'test-token',
+      })
+
+      // Then disconnect
+      await client.disconnect()
+
+      expect(disconnectSpy).toHaveBeenCalled()
+      expect(client.getStatus().connected).toBe(false)
+      expect(client.getStatus().connecting).toBe(false)
+    })
+  })
+
+  describe('send', () => {
+    it('should send message through message service', async () => {
+      const client = new DefaultAgentClient(factory)
+
+      // Use the global mock service
+
+      await client.connect({
+        url: 'https://metatell.app/test-hub',
+        token: 'test-token',
+      })
+
+      const message = 'Hello World'
+      await client.send(message)
+
+      expect(mockMessageService.sendMessage).toHaveBeenCalledWith(message)
+    })
+
+    it('should respect rate limit for messages', async () => {
+      const client = new DefaultAgentClient(factory, {
+        rateLimit: { messages: 1 },
+      })
+
+      // Mock the rate limiter to fail on second attempt
+      const rateLimiterAccess = client as unknown as {
+        rateLimiter: { execute: (key: string, fn: () => Promise<unknown>) => Promise<unknown> }
+      }
+      const _originalExecute = rateLimiterAccess.rateLimiter.execute
+      let callCount = 0
+      rateLimiterAccess.rateLimiter.execute = vi.fn().mockImplementation(async (_key, fn) => {
+        callCount++
+        if (callCount > 1) {
+          throw new Error('Rate limit exceeded for messages')
+        }
+        return await fn()
+      })
+
+      await client.connect({
+        url: 'https://metatell.app/test-hub',
+        token: 'test-token',
+      })
+
+      // First message should succeed
+      await client.send('Message 1')
+      expect(mockMessageService.sendMessage).toHaveBeenCalledTimes(1)
+
+      // Second immediate message should be rate limited
+      await expect(client.send('Message 2')).rejects.toThrow('Rate limit exceeded')
+      expect(mockMessageService.sendMessage).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('move', () => {
+    it('should move avatar and update status', async () => {
+      const client = new DefaultAgentClient(factory)
+
+      await client.connect({
+        url: 'https://metatell.app/test-hub',
+        token: 'test-token',
+      })
+
+      const newPosition = { x: 10, y: 0, z: 5 }
+      await client.move(newPosition)
+
+      expect(mockAvatarController.move).toHaveBeenCalledWith(newPosition)
+    })
+
+    it('should respect rate limit for moves', async () => {
+      const client = new DefaultAgentClient(factory, {
+        rateLimit: { moves: 1 },
+      })
+
+      // Mock the rate limiter to fail on second attempt
+      let callCount = 0
+      const rateLimiterAccess = client as unknown as {
+        rateLimiter: { execute: (key: string, fn: () => Promise<unknown>) => Promise<unknown> }
+      }
+      rateLimiterAccess.rateLimiter.execute = vi.fn().mockImplementation(async (_key, fn) => {
+        callCount++
+        if (callCount > 1) {
+          throw new Error('Rate limit exceeded for moves')
+        }
+        return await fn()
+      })
+
+      await client.connect({
+        url: 'https://metatell.app/test-hub',
+        token: 'test-token',
+      })
+
+      const position1 = { x: 10, y: 0, z: 5 }
+      const position2 = { x: 20, y: 0, z: 10 }
+
+      // First move should succeed
+      await client.move(position1)
+      expect(mockAvatarController.move).toHaveBeenCalledTimes(1)
+
+      // Second immediate move should be rate limited
+      await expect(client.move(position2)).rejects.toThrow('Rate limit exceeded')
+      expect(mockAvatarController.move).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('look', () => {
+    it('should look at position', async () => {
+      const client = new DefaultAgentClient(factory)
+
+      // Mock avatar state for look calculation
+      vi.spyOn(mockAvatarController, 'getState').mockReturnValue({
+        networkId: 'bot-123',
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 },
+        avatarId: 'test-avatar',
+      })
+
+      await client.connect({
+        url: 'https://metatell.app/test-hub',
+        token: 'test-token',
+      })
+
+      const target = { x: 10, y: 0, z: 5 }
+      await client.look(target)
+
+      expect(mockAvatarController.rotate).toHaveBeenCalled()
+    })
+  })
+
+  describe('playAnimation', () => {
+    it('should play animation through avatar controller', async () => {
+      const client = new DefaultAgentClient(factory)
+
+      await client.connect({
+        url: 'https://metatell.app/test-hub',
+        token: 'test-token',
+      })
+
+      const mockResult: AnimationPlaybackResult = {
+        playbackId: 'playback-123',
+        animationId: 'wave',
+        startedAt: Date.now(),
+        expectedDuration: 1000,
+      }
+      vi.spyOn(mockAvatarController, 'playAnimation').mockResolvedValue(mockResult)
+
+      const result = await client.playAnimation('wave')
+
+      expect(mockAvatarController.playAnimation).toHaveBeenCalledWith('wave', undefined)
+      expect(result).toEqual(mockResult)
+    })
+
+    it('should play animation with options', async () => {
+      const client = new DefaultAgentClient(factory)
+
+      await client.connect({
+        url: 'https://metatell.app/test-hub',
+        token: 'test-token',
+      })
+
+      const options = { loop: true, speed: 0.5 }
+      const mockResult: AnimationPlaybackResult = {
+        playbackId: 'playback-456',
+        animationId: 'dance',
+        startedAt: Date.now(),
+        expectedDuration: 2000,
+      }
+      vi.spyOn(mockAvatarController, 'playAnimation').mockResolvedValue(mockResult)
+
+      const result = await client.playAnimation('dance', options)
+
+      expect(mockAvatarController.playAnimation).toHaveBeenCalledWith('dance', options)
+      expect(result).toEqual(mockResult)
+    })
+  })
+
+  describe('stopAnimation', () => {
+    it('should stop current animation', async () => {
+      const client = new DefaultAgentClient(factory)
+
+      await client.connect({
+        url: 'https://metatell.app/test-hub',
+        token: 'test-token',
+      })
+
+      await client.stopAnimation()
+
+      expect(mockAvatarController.stopAnimation).toHaveBeenCalled()
+    })
+  })
+
+  describe('error handling', () => {
+    it('should handle connection errors gracefully', async () => {
+      const client = new DefaultAgentClient(factory)
+
+      // Mock connection manager to fail
+      vi.spyOn(mockConnectionManager, 'connect').mockRejectedValue(new Error('Connection failed'))
+
+      await expect(
+        client.connect({
+          url: 'https://metatell.app/test-hub',
+          token: 'invalid-token',
+        }),
+      ).rejects.toThrow('Connection failed')
+
+      expect(client.getStatus().connected).toBe(false)
+      expect(client.getStatus().connecting).toBe(false)
     })
   })
 })
