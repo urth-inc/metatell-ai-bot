@@ -1,0 +1,117 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Semver bump type"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Create & merge version PR
+    if: ${{ github.ref_name == 'develop' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node from package.json (engines/volta)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Compute pnpm store path
+        id: pnpm-store
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package.json') }}-node${{ hashFiles('package.json') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}-
+            pnpm-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Changeset from commit subjects
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: node ./.github/scripts/create-changeset.mjs
+
+      - name: Create version PR (Changesets)
+        id: version_pr
+        uses: changesets/action@v1
+        with:
+          version: pnpm changeset version
+          commit: "chore(release): Version Packages"
+          title: "chore(release): Version Packages"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Find the version PR number
+        id: find_pr
+        shell: bash
+        run: |
+          PR=$(gh pr list --state open --base develop \
+                --json number,title --jq '.[] | select(.title=="chore(release): Version Packages") | .number')
+          if [ -z "$PR" ]; then
+            echo "No open version PR found. Either no changesets or action didn't create a PR."
+            exit 1
+          fi
+          echo "pr_number=$PR" >> "$GITHUB_OUTPUT"
+
+      - name: Enable auto-merge (--merge)
+        run: gh pr merge ${{ steps.find_pr.outputs.pr_number }} --auto --merge
+
+      - name: Wait until the PR is merged (max 10 min)
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          for i in $(seq 1 60); do
+            STATE=$(gh pr view ${{ steps.find_pr.outputs.pr_number }} --json state,mergedAt --jq '.state')
+            if [ "$STATE" = "MERGED" ]; then
+              echo "PR merged."
+              exit 0
+            fi
+            echo "Waiting... (state=$STATE)"
+            sleep 10
+          done
+          echo "Timed out waiting for PR merge."
+          exit 1
+
+      - name: Fetch latest develop after merge
+        run: |
+          echo "Fetching latest develop branch..."
+          git fetch origin develop:develop --force
+          echo "Latest develop commit: $(git rev-parse origin/develop)"
+
+  publish:
+    name: Publish via reusable workflow
+    needs: release
+    uses: ./.github/workflows/publish.yml
+    secrets: inherit

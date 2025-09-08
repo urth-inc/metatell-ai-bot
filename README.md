@@ -54,41 +54,9 @@ pnpm check
 pnpm typecheck
 ```
 
-## バージョン管理
+## リリース
 
-このプロジェクトはpnpmとchangesetsを使用してバージョン管理を行っています。
-
-### バージョンを上げる手順
-
-1. **changesetを作成**
-   ```bash
-   pnpm changeset
-   ```
-   - 変更したパッケージを選択
-   - major/minor/patchを選択
-   - 変更内容の説明を記入
-
-2. **バージョンを更新**
-   ```bash
-   pnpm bumpup
-   ```
-   - `.changeset`内のファイルを元に各パッケージのバージョンを更新
-   - CHANGELOGも自動生成
-
-3. **ビルド**
-   ```bash
-   pnpm build
-   ```
-
-4. **パッケージを公開**
-   ```bash
-   pnpm release
-   ```
-
-### 注意事項
-- ルートの`package.json`のバージョンは手動で更新する必要があります
-- 内部依存関係は`workspace:*`を使用しているため、バージョン番号の更新は不要
-- changesetの`fixed`設定により、全パッケージが同じバージョンになります
+リリースプロセスの詳細については [docs/RELEASE.md](./docs/RELEASE.md) を参照してください。
 
 ## ライセンス
 
