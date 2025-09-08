@@ -1,12 +1,12 @@
 pre-commit:
   parallel: true
   jobs:
-    - glob: "*.{js,ts,jsx,tsx,json,jsonc}"
+    - glob: "*.{js,mjs,ts,mts,jsx,tsx,json,jsonc}"
       run: pnpm check -- {staged_files}
 
 pre-push:
   parallel: true
   jobs:
-    - glob: "*.{js,ts,jsx,tsx,json,jsonc}"
+    - glob: "*.{js,mjs,ts,mts,jsx,tsx,json,jsonc}"
       run: pnpm check -- {push_files}
 
