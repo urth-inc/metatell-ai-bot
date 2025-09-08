@@ -95,6 +95,7 @@ jobs:
                   encoding: 'utf-8',
                   stdio: ['pipe', 'pipe', 'pipe']
                 });
+                console.log('cmd', `npm view ${packageName} dist.attestations --json`);
                 console.log('output', output);
                 return output && output.trim() !== 'null' && output.trim() !== '';
               } catch (error) {
