@@ -30,6 +30,11 @@
     "@livekit/rtc-node": "^0.13.18",
     "@metatell/bot-sdk": "workspace:*"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/urth-inc/metatell-ai-bot",
+    "directory": "packages/realtime"
+  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
