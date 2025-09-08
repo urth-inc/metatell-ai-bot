@@ -39,14 +39,56 @@ client.chat.onMessage(async ({ from, text, reply }) => {
 
 ```bash
 # インストール
-npm install
+pnpm install
 
 # ビルド
-npm run build
+pnpm build
 
 # テスト
-npm test
+pnpm test
+
+# コードチェック
+pnpm check
+
+# 型チェック
+pnpm typecheck
 ```
+
+## バージョン管理
+
+このプロジェクトはpnpmとchangesetsを使用してバージョン管理を行っています。
+
+### バージョンを上げる手順
+
+1. **changesetを作成**
+   ```bash
+   pnpm changeset
+   ```
+   - 変更したパッケージを選択
+   - major/minor/patchを選択
+   - 変更内容の説明を記入
+
+2. **バージョンを更新**
+   ```bash
+   pnpm bumpup
+   ```
+   - `.changeset`内のファイルを元に各パッケージのバージョンを更新
+   - CHANGELOGも自動生成
+
+3. **ビルド**
+   ```bash
+   pnpm build
+   ```
+
+4. **パッケージを公開**
+   ```bash
+   pnpm release
+   ```
+
+### 注意事項
+- ルートの`package.json`のバージョンは手動で更新する必要があります
+- 内部依存関係は`workspace:*`を使用しているため、バージョン番号の更新は不要
+- changesetの`fixed`設定により、全パッケージが同じバージョンになります
 
 ## ライセンス
 
