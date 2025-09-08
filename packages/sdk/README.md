@@ -1,14 +1,21 @@
-# @metatell/bot-sdk — 開発者ガイド（外部公開版）
+# @metatell/bot-sdk
 
-Metatell のボットを TypeScript/Node.js で素早く実装できる SDK です。最短の導入から、イベント、メッセージ、アバター、エラー処理までを段階的に説明します。
+The official SDK for building MetaTell bot applications in TypeScript/Node.js. This SDK provides a high-level, developer-friendly API for creating intelligent bots that can interact in MetaTell virtual spaces.
 
-- 公式パッケージ: `@metatell/bot-sdk`
-- 対応ランタイム: Node.js 18+（推奨: 20+）
-- 型サポート: TypeScript フルサポート
+## Features
 
-この README は概要とクイックスタートを扱います。詳細は リポジトリ直下の `docs/` を参照してください。
+- **Simple, Intuitive API**: High-level client for rapid bot development
+- **Full TypeScript Support**: Complete type definitions and IntelliSense
+- **Real-time Communication**: WebSocket-based messaging with automatic reconnection
+- **Avatar Control**: Full 3D avatar manipulation (movement, rotation, animations)
+- **Chat System**: Message sending/receiving with mention support
+- **Presence Management**: Track users and their states in real-time
+- **Event-Driven Architecture**: Strongly-typed event system
+- **Error Handling**: Comprehensive error types for robust applications
+- **Rate Limiting**: Built-in rate control for API calls
+- **Flexible Logging**: Configurable logging system
 
-## インストール
+## Installation
 
 ```bash
 npm install @metatell/bot-sdk
@@ -18,72 +25,502 @@ pnpm add @metatell/bot-sdk
 yarn add @metatell/bot-sdk
 ```
 
-## クイックスタート
+## Requirements
 
-```ts
-import { createMetatellClient } from '@metatell/bot-sdk'
+- Node.js 18+ (20+ recommended)
+- ESM module support
+- TypeScript 5.0+ (for TypeScript projects)
+
+## Quick Start
+
+### Basic Bot
+
+```typescript
+import { createMetatellClient } from '@metatell/bot-sdk';
 
 async function main() {
+  // Create client
   const client = createMetatellClient({
-    serverUrl: 'wss://metatell.app', // パス不要
+    serverUrl: 'wss://metatell.app',
     roomId: 'YOUR_ROOM_ID',
-    // token: process.env.METATELL_TOKEN, // 認証が必要な環境では設定
-    logger: 'info',
-  })
+    username: 'MyBot',
+    // token: process.env.METATELL_TOKEN, // Optional authentication
+    logger: 'info'
+  });
 
-  client.on('error', (e) => console.error('SDK error:', e))
+  // Handle errors
+  client.on('error', (error) => {
+    console.error('Bot error:', error);
+  });
 
-  await client.connect()
-  const botInfo = await client.getInfo()
+  // Connect to room
+  await client.connect();
+  
+  // Get bot info
+  const botInfo = await client.getInfo();
+  console.log('Connected as:', botInfo.username);
 
+  // Handle chat messages
   client.chat.onMessage(async ({ from, text, mention, reply }) => {
-    // 正しいメンション判定（自分宛てのみ応答）
+    // Respond only to mentions
     if (mention?.sessionId === botInfo.sessionId) {
-      await reply(`Hi ${from.name ?? 'there'}! You said: ${text}`)
+      await reply(`Hello ${from.name}! You said: ${text}`);
     }
-  })
+  });
+
+  // Spawn avatar in the world
+  await client.avatar.select('default-avatar');
+  await client.avatar.spawn();
 }
 
-main().catch(console.error)
+main().catch(console.error);
 ```
 
-## 主な機能
+### Advanced Features
 
-- メッセージ送受信（`client.chat.send`, `client.chat.onMessage`）
-- ルーム・プレゼンス（`room.getUsers`, `getUsers`）
-- アバター操作（選択・移動・回転・アニメーション再生）
-- 強力な型付きイベント（`MetatellClientEvents`）
-- レート制御・ロギング・エラー階層（再試行判定に便利）
+```typescript
+import { createMetatellClient } from '@metatell/bot-sdk';
 
-## API ハイライト（抜粋）
+const client = createMetatellClient({
+  serverUrl: 'wss://metatell.app',
+  roomId: 'YOUR_ROOM_ID',
+  username: 'AdvancedBot',
+  logger: 'debug' // Enable detailed logging
+});
 
-- `createMetatellClient(options)` → `MetatellClient`
-  - `connect()` / `disconnect()`
-  - `chat.send(text)` / `chat.onMessage(handler)`
-  - `room.getUsers()` / `getUsers()`
-  - `avatar.select(assetId)` / `avatar.moveTo(vec3)` / `avatar.rotateTo(euler)` / `avatar.play(animation)`
-  - イベント: `connected`, `disconnected`, `user-join`, `chat-message`, ほか
+// Event handling
+client.on('connected', () => {
+  console.log('Connected to MetaTell');
+});
 
-- 低レベル制御向け `AgentClient` も提供
-  - `createAgentClient(config)` / `connect`, `join`, `move`, `look`, `playAnimation` など
+client.on('user-join', (user) => {
+  console.log(`${user.name} joined the room`);
+  client.chat.send(`Welcome, ${user.name}!`);
+});
 
-詳細は「API リファレンス」を参照してください。
+client.on('user-leave', (user) => {
+  console.log(`${user.name} left the room`);
+});
 
-## ドキュメント
+await client.connect();
 
-- はじめに: `docs/getting-started.md`
-- API リファレンス: `docs/api.md`
-- 例・ベストプラクティス: `docs/examples.md`
-- ロギング/レート制御/エラー: `docs/logging-and-errors.md`
-- トラブルシューティング/FAQ: `docs/troubleshooting.md`, `docs/faq.md`
-- NAF プロトコル（同期基盤）: `docs/NAF.md`
+// Avatar control
+await client.avatar.spawn();
+await client.avatar.moveTo({ x: 10, y: 0, z: 5 });
+await client.avatar.rotateTo({ x: 0, y: 180, z: 0 });
+await client.avatar.play('wave');
 
-注記: 音声機能は現在開発中・検証中のため、本 README とドキュメントでは記載を最小化しています。将来的に仕様が変わる可能性があります。
+// Room information
+const users = await client.room.getUsers();
+console.log(`${users.length} users in room`);
 
-## サポート
+// Direct messaging with mentions
+await client.chat.mention('user123', 'Hello there!');
+```
 
-- ランタイム: Node.js 18+（LTS 推奨）
-- モジュール形式: ESM
-- 型定義: `dist/index.d.ts`
+## API Reference
 
-問題や改善提案はリポジトリの Issue までお願いします。
+### Client Creation
+
+```typescript
+const client = createMetatellClient(options: CreateClientOptions)
+```
+
+**Options:**
+- `serverUrl`: WebSocket server URL (e.g., 'wss://metatell.app')
+- `roomId`: Room identifier to join
+- `username`: Bot display name (optional)
+- `token`: Authentication token (optional)
+- `logger`: Logging configuration ('debug' | 'info' | 'warn' | 'error' | LoggerConfig)
+- `avatar`: Default avatar configuration
+
+### Connection Management
+
+```typescript
+// Connect to room
+await client.connect();
+
+// Disconnect
+await client.disconnect();
+
+// Get connection status
+const isConnected = client.isConnected;
+
+// Get bot information
+const info = await client.getInfo();
+// Returns: { sessionId, userId, username }
+```
+
+### Chat API
+
+```typescript
+// Send message
+await client.chat.send('Hello, world!');
+
+// Send with mention
+await client.chat.mention('userId', 'Hello @user!');
+
+// Handle incoming messages
+client.chat.onMessage(async (event) => {
+  console.log(`${event.from.name}: ${event.text}`);
+  
+  if (event.mention) {
+    console.log(`Mentioned: ${event.mention.name}`);
+  }
+  
+  // Reply directly
+  await event.reply('Thanks for your message!');
+});
+```
+
+### Avatar Control
+
+```typescript
+// Select avatar asset
+await client.avatar.select('avatar-asset-id');
+
+// Spawn in world
+await client.avatar.spawn();
+
+// Movement
+await client.avatar.moveTo({ x: 10, y: 0, z: 5 });
+
+// Rotation (Euler angles in degrees)
+await client.avatar.rotateTo({ x: 0, y: 90, z: 0 });
+
+// Play animation
+await client.avatar.play('dance', {
+  loop: true,
+  duration: 5000
+});
+
+// Stop animation
+await client.avatar.stop();
+
+// Despawn
+await client.avatar.despawn();
+```
+
+### Room and Presence
+
+```typescript
+// Get all users
+const users = await client.room.getUsers();
+
+// Get specific user
+const user = await client.room.getUser('userId');
+
+// Alternative API
+const users = await client.getUsers();
+```
+
+### Events
+
+```typescript
+// Connection events
+client.on('connected', () => {});
+client.on('disconnected', (reason) => {});
+client.on('error', (error) => {});
+
+// User events
+client.on('user-join', (user) => {});
+client.on('user-leave', (user) => {});
+client.on('user-update', (user) => {});
+
+// Chat events
+client.on('chat-message', (message) => {});
+
+// Avatar events
+client.on('avatar-spawned', (avatar) => {});
+client.on('avatar-moved', (position) => {});
+client.on('avatar-despawned', () => {});
+
+// Remove listener
+const off = client.on('event', handler);
+off(); // Unsubscribe
+```
+
+## Advanced Usage
+
+### Low-Level Agent Client
+
+For more control, use the low-level `AgentClient`:
+
+```typescript
+import { createAgentClient } from '@metatell/bot-sdk';
+
+const agent = createAgentClient({
+  organizationId: 'org-id',
+  hubId: 'hub-id',
+  profile: {
+    displayName: 'Agent',
+    avatarUrl: 'https://example.com/avatar.vrm'
+  }
+});
+
+// Direct service access
+const avatarController = agent.getService('AvatarController');
+await avatarController.spawn();
+```
+
+### Custom Error Handling
+
+```typescript
+import { 
+  MetatellError, 
+  AuthError, 
+  NetworkError, 
+  NotFoundError 
+} from '@metatell/bot-sdk';
+
+try {
+  await client.connect();
+} catch (error) {
+  if (error instanceof AuthError) {
+    console.error('Authentication failed:', error.message);
+  } else if (error instanceof NetworkError) {
+    console.error('Network error:', error.message);
+    // Retry logic
+  } else if (error instanceof NotFoundError) {
+    console.error('Room not found:', error.message);
+  }
+}
+```
+
+### Rate Limiting
+
+The SDK includes built-in rate limiting:
+
+```typescript
+import { RateLimitedQueue } from '@metatell/bot-sdk';
+
+// Custom rate limiter
+const queue = new RateLimitedQueue({
+  maxRequestsPerSecond: 10,
+  maxBurst: 20
+});
+
+// Use with client
+const client = createMetatellClient({
+  // ... options
+  rateLimiter: queue
+});
+```
+
+### Custom Logging
+
+```typescript
+import { createMetatellClient, LogLevel } from '@metatell/bot-sdk';
+
+// Simple configuration
+const client = createMetatellClient({
+  logger: 'debug' // 'debug' | 'info' | 'warn' | 'error'
+});
+
+// Custom logger
+const client = createMetatellClient({
+  logger: {
+    level: 'info',
+    handler: (level, message, meta) => {
+      console.log(`[${level}] ${message}`, meta);
+    }
+  }
+});
+```
+
+### PCM Audio Utilities
+
+```typescript
+import { pcm } from '@metatell/bot-sdk';
+
+// Convert audio formats
+const pcmData = await pcm.convert(audioBuffer, {
+  sampleRate: 48000,
+  channels: 1
+});
+
+// Stream audio
+const stream = pcm.createStream({
+  sampleRate: 48000,
+  channels: 1
+});
+```
+
+## Type Definitions
+
+### Core Types
+
+```typescript
+interface User {
+  id: string;
+  sessionId: string;
+  name?: string;
+  isGuest: boolean;
+}
+
+interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+interface Euler {
+  x: number; // Rotation around X axis (degrees)
+  y: number; // Rotation around Y axis (degrees)
+  z: number; // Rotation around Z axis (degrees)
+}
+
+interface Animation {
+  id: string;
+  name: string;
+  duration?: number;
+  loop?: boolean;
+}
+
+interface AvatarAsset {
+  id: string;
+  name: string;
+  url: string;
+  thumbnailUrl?: string;
+}
+```
+
+### Event Types
+
+```typescript
+type MetatellClientEvents = {
+  'connected': void;
+  'disconnected': string | undefined;
+  'error': Error;
+  'user-join': User;
+  'user-leave': User;
+  'user-update': User;
+  'chat-message': MessageEventData;
+  'avatar-spawned': { position: Vec3 };
+  'avatar-moved': Vec3;
+  'avatar-rotated': Euler;
+  'avatar-despawned': void;
+}
+```
+
+## Examples
+
+### Echo Bot
+
+```typescript
+const client = createMetatellClient({
+  serverUrl: 'wss://metatell.app',
+  roomId: 'echo-test-room',
+  username: 'EchoBot'
+});
+
+await client.connect();
+
+client.chat.onMessage(async ({ text, reply }) => {
+  await reply(`Echo: ${text}`);
+});
+```
+
+### Welcome Bot
+
+```typescript
+const client = createMetatellClient({
+  serverUrl: 'wss://metatell.app',
+  roomId: 'welcome-room',
+  username: 'WelcomeBot'
+});
+
+await client.connect();
+await client.avatar.spawn();
+
+client.on('user-join', async (user) => {
+  await client.chat.send(`Welcome to the room, ${user.name}!`);
+  await client.avatar.play('wave');
+});
+```
+
+### Movement Bot
+
+```typescript
+const client = createMetatellClient({
+  serverUrl: 'wss://metatell.app',
+  roomId: 'movement-demo',
+  username: 'MovementBot'
+});
+
+await client.connect();
+await client.avatar.spawn();
+
+// Patrol between points
+const points = [
+  { x: 0, y: 0, z: 0 },
+  { x: 10, y: 0, z: 0 },
+  { x: 10, y: 0, z: 10 },
+  { x: 0, y: 0, z: 10 }
+];
+
+let currentPoint = 0;
+setInterval(async () => {
+  await client.avatar.moveTo(points[currentPoint]);
+  currentPoint = (currentPoint + 1) % points.length;
+}, 5000);
+```
+
+## Best Practices
+
+1. **Error Handling**: Always handle connection errors and disconnections
+2. **Rate Limiting**: Be mindful of message frequency to avoid rate limits
+3. **Cleanup**: Properly disconnect when shutting down
+4. **Logging**: Use appropriate log levels for production
+5. **Security**: Never hardcode tokens; use environment variables
+6. **Presence**: Despawn avatars before disconnecting
+
+## Troubleshooting
+
+### Connection Issues
+- Verify the server URL and room ID
+- Check authentication token if required
+- Ensure network connectivity
+- Review firewall/proxy settings
+
+### Avatar Issues
+- Confirm avatar asset exists and is accessible
+- Check spawn position for collisions
+- Verify animation IDs are valid
+
+### Message Issues
+- Ensure proper user/mention IDs
+- Check rate limiting constraints
+- Verify message content limits
+
+## Documentation
+
+- Getting Started: `docs/getting-started.md`
+- API Reference: `docs/api.md`
+- Examples: `docs/examples.md`
+- Logging & Errors: `docs/logging-and-errors.md`
+- Troubleshooting: `docs/troubleshooting.md`
+- FAQ: `docs/faq.md`
+- NAF Protocol: `docs/NAF.md`
+
+## Contributing
+
+Contributions are welcome! Please see the main repository's contributing guidelines.
+
+## License
+
+MIT
+
+## Support
+
+- Runtime: Node.js 18+ (LTS recommended)
+- Module Format: ESM
+- TypeScript: Full support with type definitions
+
+For issues and feature requests, please visit the repository's issue tracker.
+
+## See Also
+
+- [@metatell/bot-core](../core/README.md) - Core services and infrastructure
+- [@metatell/bot-cli](../cli/README.md) - CLI tools for development
+- [@metatell/bot-realtime](../realtime/README.md) - Real-time communication layer
