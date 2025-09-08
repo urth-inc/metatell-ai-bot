@@ -23,3 +23,8 @@ metatell.config.cjs
 # Keep example files
 !.metatellrc.example.*
 !metatell.config.example.*
+
+# Changeset temporary files
+.changeset/*.md
+!.changeset/README.md
+!.changeset/config.json
