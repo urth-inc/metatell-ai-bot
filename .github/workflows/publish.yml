@@ -16,11 +16,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # developブランチの最新を明示的に取得
           ref: develop
           fetch-depth: 0
           
-      # 最新のコミットを確実に取得
       - name: Pull latest changes
         run: |
           git pull origin develop
