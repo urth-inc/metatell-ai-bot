@@ -1,6 +1,6 @@
 {
   "name": "@metatell/bot-sdk",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,7 +20,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@metatell/bot-core": "^0.0.1",
+    "@metatell/bot-core": "^0.0.2",
     "@types/uuid": "^10.0.0"
   },
   "peerDependencies": {

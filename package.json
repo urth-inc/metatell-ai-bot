@@ -1,24 +1,24 @@
 {
   "name": "metatell-ai-bot",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
-    "build": "npm run build -w @metatell/bot-core && npm run build -w @metatell/bot-sdk && npm run build -w @metatell/bot-realtime",
-    "build:all": "npm run build --workspaces",
+    "build": "pnpm -r build",
     "test": "vitest run",
     "test:ui": "vitest run --ui --coverage",
     "test:coverage": "vitest run --coverage",
     "check": "biome check --error-on-warnings",
     "check:fix": "biome check --error-on-warnings --write",
     "typecheck": "tsc --build",
-    "clean": "npm run clean --workspaces"
+    "clean": "pnpm -r clean",
+    "changeset": "changeset",
+    "bumpup": "changeset version",
+    "release": "pnpm build && changeset publish"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.2",
+    "@changesets/cli": "^2.29.6",
     "@testing-library/jest-dom": "6.8.0",
     "@testing-library/react": "16.3.0",
     "@types/node": "22.17.2",
@@ -34,7 +34,7 @@
   },
   "license": "MIT",
   "volta": {
-    "node": "22.18.0",
-    "npm": "11.5.2"
-  }
+    "node": "22.18.0"
+  },
+  "packageManager": "pnpm@10.15.1"
 }
