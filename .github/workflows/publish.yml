@@ -58,6 +58,7 @@ jobs:
 
       - name: Update npm
         run: npm install -g npm@latest
+
       - name: Publish to npm & create GitHub Releases (via Changesets)
         uses: changesets/action@v1
         with:
