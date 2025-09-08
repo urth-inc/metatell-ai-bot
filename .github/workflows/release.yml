@@ -1,9 +1,13 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - develop
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Create release and publish to npm'
+        required: true
+        type: boolean
+        default: true
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -11,9 +15,13 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v5
+        with:
+          # This makes Actions fetch all Git history so that Changesets can generate changelogs with the correct commits
+          fetch-depth: 0
 
       - name: Install Volta
         uses: volta-cli/action@v4
@@ -55,3 +63,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Release Summary
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          echo "### 🎉 Released packages:" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.changesets.outputs.publishedPackages }}" >> $GITHUB_STEP_SUMMARY
