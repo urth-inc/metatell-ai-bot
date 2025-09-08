@@ -1,10 +1,10 @@
 # @metatell/bot-cli
 
-MetaTell Bot開発とテスト用のCLIツール。
+MetaTell Bot 開発とテスト用の CLI ツール。
 
 ## 必要要件
 
-- Node.js 22+ (推奨)
+- Node.js 20 以上（推奨: 22+）
 
 ## インストール
 
@@ -12,7 +12,7 @@ MetaTell Bot開発とテスト用のCLIツール。
 # グローバルインストール
 npm install -g @metatell/bot-cli
 
-# またはnpxで実行
+# または npx で実行
 npx @metatell/bot-cli <command>
 
 # または開発依存として
@@ -46,14 +46,19 @@ metatell-cli interactive https://metatell.app/ROOM_ID [options]
 ```
 
 **利用可能なコマンド:**
-- `/status` - 接続状態とルーム情報を表示
-- `/users` - ルーム内の全ユーザーをリスト
-- `/avatar spawn` - ボットアバターをスポーン
-- `/avatar move <x> <y> <z>` - アバターを移動
-- `/avatar animate <animation>` - アニメーション再生
-- `/say <message>` - チャットメッセージ送信
-- `/mention <user> <message>` - メンション付きメッセージ送信
-- `/quit` または `/exit` - 切断して終了
+- `/say <message>` — チャットメッセージ送信
+- `/move <x> <y> <z>` — アバター移動
+- `/look <x> <y> <z>` または `/look @<username>` — 指定座標/ユーザーを見る
+- `/nearby [radius]` — 近傍ユーザーを表示（既定 10m）
+- `/users` — ルーム内の全ユーザーを表示
+- `/status` — 接続状態を表示
+- `/info` — ボット情報を表示
+- `/avatar <id>` — アバターを変更
+- `/assets` — 利用可能なアバター一覧
+- `/anime <name>` または `/animation <name>` — アニメーション再生
+- `/animations` — 利用可能なアニメーション一覧
+- `/stop` — アニメーション停止（アイドルに戻す）
+- `quit` / `exit` — 終了
 
 ### 接続テストコマンド
 
@@ -71,13 +76,13 @@ metatell-cli inspect https://metatell.app/ROOM_ID [options]
 
 | オプション | エイリアス | 説明 | デフォルト |
 |--------|-------|-------------|---------|
-| `--token` | `-t` | 認証トークン（任意） | `METATELL_TOKEN`環境変数 |
+| `--token` | `-t` | 認証トークン（任意） | `METATELL_TOKEN` 環境変数 |
 | `--name` | `-n` | ボット表示名 | "MetatellCLI" |
 | `--debug` | `-d` | デバッグログ有効 | false |
 
 ## 環境変数
 
-- `METATELL_TOKEN` - デフォルト認証トークン（任意）
+- `METATELL_TOKEN` — デフォルト認証トークン（任意）
 
 ## License
 
