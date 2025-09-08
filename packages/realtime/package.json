@@ -29,5 +29,9 @@
   "dependencies": {
     "@livekit/rtc-node": "^0.13.18",
     "@metatell/bot-sdk": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }
