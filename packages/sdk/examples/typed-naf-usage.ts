@@ -14,7 +14,7 @@ import {
   type Position3D,
   type Quaternion,
   type TypedNAFMessage,
-} from '@metatell/sdk'
+} from '@metatell/bot-sdk'
 
 // ============================================================================
 // Building Type-Safe NAF Messages

@@ -34,14 +34,14 @@ export type Animation = {
 export interface CreateClientOptions {
   /**
    * WebSocket server URL
-   * - Format: ws(s)://...
+   * - Format: ws(s)://<host> （パスは不要。例: wss://metatell.app）
    * - For Metatell domains (metatell.app, metatell-stg.app, metatell-dev.app),
    *   tenant subdomains are automatically removed.
    *   Example: https://urth.metatell-stg.app -> wss://metatell-stg.app
    */
   serverUrl: string
   roomId: string
-  token?: string // 認証トークン（オプション - 未ログインでも入室可能）
+  token?: string // 認証トークン（要否は環境設定に依存）
   username?: string // ボット名
   avatarId?: string // アバターID（未指定の場合はデフォルト）
   debug?: boolean // デバッグモード
