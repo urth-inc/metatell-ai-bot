@@ -1,76 +1,112 @@
-name: Release
+name: Create Release
 
 on:
   workflow_dispatch:
     inputs:
-      release:
-        description: 'Create release and publish to npm'
-        required: true
-        type: boolean
-        default: true
+      bump:
+        description: "Semver bump type"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   release:
-    name: Release
+    name: Create & merge version PR
+    if: ${{ github.ref_name == 'develop' }}
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop'
-    permissions:
-      contents: write      # To create GitHub releases
-      pull-requests: write # To create version PRs
-      id-token: write      # To enable OIDC for npm publishing
+    env:
+      # gh CLI 用
+      GH_TOKEN: ${{ github.token }}
+
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          # This makes Actions fetch all Git history so that Changesets can generate changelogs with the correct commits
           fetch-depth: 0
 
-      - name: Install Volta
-        uses: volta-cli/action@v4
+      - name: Setup Node from package.json (engines/volta)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
 
-      - name: Install pnpm
+      - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.15.1
+          run_install: false
 
-      - name: Get pnpm store directory
+      - name: Compute pnpm store path
+        id: pnpm-store
         shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        run: echo "STORE_PATH=$(pnpm store path)" >> "$GITHUB_OUTPUT"
 
-      - name: Setup pnpm cache
+      - name: Restore pnpm cache
         uses: actions/cache@v4
         with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+            pnpm-${{ runner.os }}-
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build packages
-        run: pnpm build
+      - name: Generate Changeset from commit subjects
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: node ./.github/scripts/create-changeset.mjs
 
-      - name: Create Release Pull Request or Publish to npm
-        id: changesets
+      - name: Create version PR (Changesets)
+        id: version_pr
         uses: changesets/action@v1
         with:
-          publish: pnpm release
-          version: pnpm bumpup
-          commit: "chore: version packages"
-          title: "chore: version packages"
-          createGithubReleases: true
-          setupGitUser: true
+          version: pnpm changeset version
+          commit: "chore(release): Version Packages"
+          title: "chore(release): Version Packages"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # NPM_TOKEN is no longer needed with OIDC trusted publishing
-          # Configure trusted publisher at: https://www.npmjs.com/settings/[org]/integrations
+          GITHUB_TOKEN: ${{ github.token }}
 
-      - name: Release Summary
-        if: steps.changesets.outputs.published == 'true'
+      - name: Find the version PR number
+        id: find_pr
+        # タイトル固定で検索し、PR番号を取得
+        shell: bash
         run: |
-          echo "### 🎉 Released packages:" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.changesets.outputs.publishedPackages }}" >> $GITHUB_STEP_SUMMARY
+          PR=$(gh pr list --state open --base develop \
+                --json number,title --jq '.[] | select(.title=="chore(release): Version Packages") | .number')
+          if [ -z "$PR" ]; then
+            echo "No open version PR found. Either no changesets or action didn't create a PR."
+            exit 1
+          fi
+          echo "pr_number=$PR" >> "$GITHUB_OUTPUT"
+
+      - name: Enable auto-merge (--merge)
+        run: gh pr merge ${{ steps.find_pr.outputs.pr_number }} --auto --merge
+
+      - name: Wait until the PR is merged (max 10 min)
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          for i in $(seq 1 60); do
+            STATE=$(gh pr view ${{ steps.find_pr.outputs.pr_number }} --json state,mergedAt --jq '.state')
+            if [ "$STATE" = "MERGED" ]; then
+              echo "PR merged."
+              exit 0
+            fi
+            echo "Waiting... (state=$STATE)"
+            sleep 10
+          done
+          echo "Timed out waiting for PR merge."
+          exit 1
+
+  publish:
+    name: Publish via reusable workflow
+    needs: release
+    uses: ./.github/workflows/publish.yml
+    secrets: inherit
