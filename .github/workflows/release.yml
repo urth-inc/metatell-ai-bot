@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches:
-      - main
+      - develop
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -50,6 +50,8 @@ jobs:
           version: pnpm bumpup
           commit: "chore: version packages"
           title: "chore: version packages"
+          createGithubReleases: true
+          setupGitUser: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
