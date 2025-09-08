@@ -77,12 +77,21 @@ jobs:
         id: find_pr
         shell: bash
         run: |
-          PR=$(gh pr list --state open --base develop \
-                --json number,title --jq '.[] | select(.title=="chore(release): Version Packages") | .number')
-          if [ -z "$PR" ]; then
+          # changesets/actionが作成したPRを最新のものから確実に取得
+          # ブランチ名で特定（changeset-release/develop）することで一意性を保証
+          PR_DATA=$(gh pr list --state open --base develop \
+                    --head changeset-release/develop \
+                    --json number,title,author,headRefName,createdAt \
+                    --limit 1)
+          
+          if [ -z "$PR_DATA" ] || [ "$PR_DATA" == "[]" ]; then
             echo "No open version PR found. Either no changesets or action didn't create a PR."
             exit 1
           fi
+          
+          PR=$(echo "$PR_DATA" | jq -r '.[0].number')
+          
+          echo "Found PR #$PR (branch: changeset-release/develop)"
           echo "pr_number=$PR" >> "$GITHUB_OUTPUT"
 
       - name: Enable auto-merge (--merge)
