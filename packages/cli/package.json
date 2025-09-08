@@ -1,6 +1,6 @@
 {
   "name": "@metatell/bot-cli",
-  "version": "0.0.4",
+  "version": "0.0.3",
   "description": "CLI tool for Metatell bot development and testing",
   "type": "module",
   "bin": {
