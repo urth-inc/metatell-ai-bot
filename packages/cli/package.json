@@ -1,6 +1,6 @@
 {
   "name": "@metatell/bot-cli",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "CLI tool for Metatell bot development and testing",
   "type": "module",
   "bin": {
@@ -17,12 +17,12 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --build",
     "dev": "tsx watch src/cli.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@metatell/bot-sdk": "file:../sdk",
+    "@metatell/bot-sdk": "workspace:*",
     "commander": "^12.0.0",
     "ink": "^5.0.1",
     "react": "^18.3.1"
