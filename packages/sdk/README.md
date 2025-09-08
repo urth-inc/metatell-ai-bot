@@ -1,12 +1,12 @@
 # @metatell/bot-sdk
 
-MetaTell BotをTypeScript/Node.jsで構築するための公式SDK。
+MetaTell Bot を TypeScript/Node.js で構築するための公式 SDK。
 
 ## 必要要件
 
-- Node.js 22+ (推奨)
-- ESMモジュールサポート
-- TypeScript 5.0+ (TypeScriptプロジェクトの場合)
+- Node.js 20 以上（推奨: 22+）
+- ESM モジュール
+- TypeScript 5.0+（TS プロジェクトの場合）
 
 ## インストール
 
@@ -21,44 +21,39 @@ yarn add @metatell/bot-sdk
 ## クイックスタート
 
 ```typescript
-import { createMetatellClient } from '@metatell/bot-sdk';
+import { createMetatellClient } from '@metatell/bot-sdk'
 
 async function main() {
-  // クライアント作成
   const client = createMetatellClient({
     serverUrl: 'wss://metatell.app',
     roomId: 'YOUR_ROOM_ID',
     username: 'MyBot',
-    // token: process.env.METATELL_TOKEN, // 認証が必要な場合
-    logger: 'info'
-  });
-
-  // エラーハンドリング
-  client.on('error', (error) => {
-    console.error('ボットエラー:', error);
-  });
+    // token: process.env.METATELL_TOKEN, // 認証が必要な環境では設定
+    debug: true, // 詳細ログ
+  })
 
   // 接続
-  await client.connect();
-  
-  // ボット情報取得
-  const botInfo = await client.getInfo();
-  console.log('接続しました:', botInfo.username);
+  await client.connect()
 
-  // チャットメッセージ処理
+  // ボット情報
+  const botInfo = await client.getInfo()
+  console.log('接続しました:', botInfo.name)
+
+  // メッセージ処理（メンションにのみ応答）
   client.chat.onMessage(async ({ from, text, mention, reply }) => {
-    // メンションに応答
     if (mention?.sessionId === botInfo.sessionId) {
-      await reply(`こんにちは ${from.name}さん！「${text}」とおっしゃいましたね。`);
+      await reply(`こんにちは ${from.name ?? ''}`.trim())
     }
-  });
+  })
 
-  // アバターをスポーン
-  await client.avatar.select('default-avatar');
-  await client.avatar.spawn();
+  // アバター選択と操作
+  await client.avatar.select('default-avatar')
+  await client.avatar.moveTo({ x: 1, y: 1.6, z: -2 })
+  await client.avatar.rotateTo({ x: 0, y: 180, z: 0 })
+  await client.avatar.play({ id: 'wave', loop: false })
 }
 
-main().catch(console.error);
+main().catch(console.error)
 ```
 
 ## 主な機能
@@ -66,122 +61,94 @@ main().catch(console.error);
 ### 接続管理
 
 ```typescript
-// 接続
-await client.connect();
-
-// 切断
-await client.disconnect();
+await client.connect()
+await client.disconnect()
 
 // 接続状態
-const isConnected = client.isConnected;
+const status = client.getStatus() // { connected: boolean, connecting: boolean }
 
 // ボット情報
-const info = await client.getInfo();
-// { sessionId, userId, username }
+const info = await client.getInfo() // { name, version, roomId, sessionId? }
 ```
 
 ### チャット
 
 ```typescript
 // メッセージ送信
-await client.chat.send('こんにちは！');
+await client.chat.send('こんにちは！')
 
-// メンション付き送信
-await client.chat.mention('userId', '@user さん、こんにちは！');
-
-// メッセージ受信
-client.chat.onMessage(async (event) => {
-  console.log(`${event.from.name}: ${event.text}`);
-  
-  // 返信
-  await event.reply('メッセージありがとうございます！');
-});
+// メッセージ購読 + 返信
+client.chat.onMessage(async ({ from, text, reply }) => {
+  console.log(`${from.name}: ${text}`)
+  await reply('メッセージありがとうございます！')
+})
 ```
 
 ### アバター制御
 
 ```typescript
 // アバター選択
-await client.avatar.select('avatar-asset-id');
+await client.avatar.select('avatar-asset-id')
 
-// スポーン
-await client.avatar.spawn();
-
-// 移動
-await client.avatar.moveTo({ x: 10, y: 0, z: 5 });
-
-// 回転（度数）
-await client.avatar.rotateTo({ x: 0, y: 90, z: 0 });
+// 移動/回転（度数法）
+await client.avatar.moveTo({ x: 10, y: 0, z: 5 })
+await client.avatar.rotateTo({ x: 0, y: 90, z: 0 })
 
 // アニメーション再生
-await client.avatar.play('wave', {
-  loop: true,
-  duration: 5000
-});
+await client.avatar.play({ id: 'wave', loop: true, duration: 5000 })
 
-// アニメーション停止
-await client.avatar.stop();
-
-// デスポーン
-await client.avatar.despawn();
+// 利用可能なアセット/アニメーション
+const assets = await client.avatar.getAvailableAssets()
+const animations = await client.avatar.getAvailableAnimations()
 ```
 
 ### ルームとプレゼンス
 
 ```typescript
-// 全ユーザー取得
-const users = await client.room.getUsers();
+// すべてのユーザー
+const users = await client.room.getUsers()
 
-// 特定ユーザー取得
-const user = await client.room.getUser('userId');
+// 近傍ユーザー（既定 10m）
+const nearby = await client.room.getNearbyUsers(10)
+
+// 現在キャッシュしているユーザー（同期）
+const cached = client.getUsers()
 ```
 
 ### イベント
 
 ```typescript
-// 接続イベント
-client.on('connected', () => {});
-client.on('disconnected', (reason) => {});
-client.on('error', (error) => {});
-
-// ユーザーイベント
-client.on('user-join', (user) => {});
-client.on('user-leave', (user) => {});
-
-// チャットイベント
-client.on('chat-message', (message) => {});
-
-// アバターイベント
-client.on('avatar-spawned', (avatar) => {});
-client.on('avatar-moved', (position) => {});
-
-// リスナー削除
-const off = client.on('event', handler);
-off(); // 購読解除
+client.on('connected', () => {})
+client.on('disconnected', (reason) => {})
+client.on('chat-message', (message) => {})
+client.on('user-join', (user) => {})
+client.on('user-leave', (user) => {})
 ```
+
+注記: 現状 `error` イベントの発火は限定的で、主に例外としてスローされます。
 
 ## エラーハンドリング
 
 ```typescript
-import { MetatellError, AuthError, NetworkError } from '@metatell/bot-sdk';
+import { AuthError, NetworkError } from '@metatell/bot-sdk'
 
 try {
-  await client.connect();
+  await client.connect()
 } catch (error) {
   if (error instanceof AuthError) {
-    console.error('認証に失敗しました:', error.message);
+    console.error('認証に失敗しました:', error.message)
   } else if (error instanceof NetworkError) {
-    console.error('ネットワークエラー:', error.message);
+    console.error('ネットワークエラー:', error.message)
   }
 }
 ```
 
 ## ベストプラクティス
 
-1. **エラーハンドリング**: 接続エラーと切断を必ず処理する
-2. **レート制限**: メッセージ頻度に注意
-3. **クリーンアップ**: 終了時は適切に切断
-4. **セキュリティ**: トークンはハードコードせず環境変数を使用
+1. エラーハンドリング: 接続エラーと切断を必ず処理する
+2. レート制御: `setRateLimit` で送信頻度を調整
+3. クリーンアップ: 終了時は `disconnect()`
+4. セキュリティ: トークンは環境変数で管理
 
 ## License
 
@@ -189,6 +156,7 @@ MIT
 
 ## 関連パッケージ
 
-- [@metatell/bot-core](../core/README.md) - コアサービスとインフラストラクチャ
-- [@metatell/bot-cli](../cli/README.md) - 開発用CLIツール
-- [@metatell/bot-realtime](../realtime/README.md) - リアルタイム通信レイヤー
+- [@metatell/bot-core](../core/README.md) — コアサービス/インフラ
+- [@metatell/bot-cli](../cli/README.md) — 開発用 CLI
+- [@metatell/bot-realtime](../realtime/README.md) — リアルタイム通信
+

@@ -4,7 +4,7 @@ MetaTell Bot SDKのコアライブラリ。
 
 ## 必要要件
 
-- Node.js 22+ (推奨)
+- Node.js 20 以上（推奨: 22+）
 - TypeScript 5.0+
 
 ## インストール
