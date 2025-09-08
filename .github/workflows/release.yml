@@ -106,6 +106,13 @@ jobs:
           echo "Timed out waiting for PR merge."
           exit 1
 
+      # マージ完了後、最新のdevelopを取得
+      - name: Fetch latest develop after merge
+        run: |
+          echo "Fetching latest develop branch..."
+          git fetch origin develop:develop --force
+          echo "Latest develop commit: $(git rev-parse origin/develop)"
+
   publish:
     name: Publish via reusable workflow
     needs: release

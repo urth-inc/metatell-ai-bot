@@ -16,9 +16,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # 呼び出し元のrefを使用（通常はマージ後のdevelop）
-          ref: ${{ github.ref }}
+          # developブランチの最新を明示的に取得
+          ref: develop
           fetch-depth: 0
+          
+      # 最新のコミットを確実に取得
+      - name: Pull latest changes
+        run: |
+          git pull origin develop
+          echo "Publishing from commit: $(git rev-parse HEAD)"
+          echo "Commit message: $(git log -1 --pretty=%B)"
 
       - name: Setup Node from package.json (engines/volta)
         uses: actions/setup-node@v4
