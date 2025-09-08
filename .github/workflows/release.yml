@@ -67,7 +67,7 @@ jobs:
         id: version_pr
         uses: changesets/action@v1
         with:
-          version: pnpm changeset version
+          version: pnpm changeset version && node ./.github/scripts/sync-root-version.mjs
           commit: "chore(release): Version Packages"
           title: "chore(release): Version Packages"
         env:
