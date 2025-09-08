@@ -39,8 +39,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
-          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package.json') }}-node${{ hashFiles('package.json') }}
           restore-keys: |
+            pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}-
             pnpm-${{ runner.os }}-
 
       - name: Install dependencies
