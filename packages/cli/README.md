@@ -23,16 +23,16 @@ npm install --save-dev @metatell/bot-cli
 
 ```bash
 # インタラクティブモード（デフォルト）
-metatell-cli https://metatell.app/ROOM_ID
+metatell-bot https://metatell.app/ROOM_ID
 
 # 認証トークン付き
-metatell-cli https://metatell.app/ROOM_ID -t "your-auth-token"
+metatell-bot https://metatell.app/ROOM_ID -t "your-auth-token"
 
 # カスタムボット名
-metatell-cli https://metatell.app/ROOM_ID -n "MyBot"
+metatell-bot https://metatell.app/ROOM_ID -n "MyBot"
 
 # デバッグログ有効
-metatell-cli https://metatell.app/ROOM_ID -d
+metatell-bot https://metatell.app/ROOM_ID -d
 ```
 
 ## コマンド
@@ -40,9 +40,9 @@ metatell-cli https://metatell.app/ROOM_ID -d
 ### インタラクティブモード
 
 ```bash
-metatell-cli https://metatell.app/ROOM_ID [options]
+metatell-bot https://metatell.app/ROOM_ID [options]
 # または
-metatell-cli interactive https://metatell.app/ROOM_ID [options]
+metatell-bot interactive https://metatell.app/ROOM_ID [options]
 ```
 
 **利用可能なコマンド:**
@@ -63,13 +63,13 @@ metatell-cli interactive https://metatell.app/ROOM_ID [options]
 ### 接続テストコマンド
 
 ```bash
-metatell-cli connect https://metatell.app/ROOM_ID [options]
+metatell-bot connect https://metatell.app/ROOM_ID [options]
 ```
 
 ### ルーム検査コマンド
 
 ```bash
-metatell-cli inspect https://metatell.app/ROOM_ID [options]
+metatell-bot inspect https://metatell.app/ROOM_ID [options]
 ```
 
 ## オプション
@@ -108,8 +108,8 @@ npm run build
 npm link
 
 # 6. 動作確認
-metatell-cli --version
-metatell-cli --help
+metatell-bot --version
+metatell-bot --help
 ```
 
 ### 開発時の便利なコマンド
