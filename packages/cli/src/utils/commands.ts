@@ -213,9 +213,18 @@ Available commands:
     }
 
     const avatarId = args[0]
-    await client.avatar.select(avatarId)
-    console.log(`[Avatar changed to] ${avatarId}`)
-    return { success: true }
+    try {
+      await client.avatar.select(avatarId)
+      console.log(`[Avatar changed to] ${avatarId}`)
+      return { success: true }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error('[Error]', errorMessage)
+      return {
+        success: false,
+        message: `Failed to change avatar: ${errorMessage}`,
+      }
+    }
   }
 
   private async listAssets(client: MetatellClient): Promise<CommandResult> {

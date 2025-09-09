@@ -445,7 +445,7 @@ describe('MetatellClient', () => {
   })
 
   describe('avatar', () => {
-    it('should select avatar', async () => {
+    it('should select regular avatar', async () => {
       await client.avatar.select('new-avatar-id')
 
       expect(mocks.avatarController.spawn).toHaveBeenCalledWith('new-avatar-id', {
@@ -453,6 +453,153 @@ describe('MetatellClient', () => {
         y: 0,
         z: 0,
       })
+    })
+
+    it('should handle organization avatar through error recovery', async () => {
+      const orgAvatarId = '69030ac8-1089-4686-82b2-1068bc4c776c'
+      const avatarUrl = 'https://example.com/avatar.gltf'
+
+      // First spawn fails with avatarSrc URL error
+      mocks.avatarController.spawn
+        .mockRejectedValueOnce(
+          new Error(`Organization avatar requires avatarSrc URL. Avatar ID: ${orgAvatarId}`),
+        )
+        .mockResolvedValueOnce(undefined)
+
+      // Mock organization service responses
+      mocks.organizationService.getOrganizationInfo.mockResolvedValue({
+        organizationId: 'org-123',
+        realmId: 'realm-123',
+      })
+      mocks.organizationService.fetchOrganizationAvatars.mockResolvedValue([
+        {
+          id: orgAvatarId,
+          name: 'Test Avatar',
+          gltf: { avatar: avatarUrl },
+          preview_url: 'https://example.com/preview.png',
+        },
+      ])
+      mocks.configProvider.getConfiguration.mockReturnValue({
+        hubUrl: 'https://test.metatell.app',
+        hubId: 'test-hub',
+        profile: { displayName: 'TestBot', avatarId: '' },
+      })
+
+      await client.avatar.select(orgAvatarId)
+
+      // First attempt without avatarSrc
+      expect(mocks.avatarController.spawn).toHaveBeenNthCalledWith(1, orgAvatarId, {
+        x: 0,
+        y: 0,
+        z: 0,
+      })
+
+      // Organization info and avatars fetched after first failure
+      expect(mocks.organizationService.getOrganizationInfo).toHaveBeenCalledWith(
+        'https://test.metatell.app',
+        'test-hub',
+      )
+      expect(mocks.organizationService.fetchOrganizationAvatars).toHaveBeenCalledWith(
+        'https://test.metatell.app',
+        'org-123',
+      )
+
+      // Second attempt with avatarSrc
+      expect(mocks.avatarController.spawn).toHaveBeenNthCalledWith(
+        2,
+        orgAvatarId,
+        {
+          x: 0,
+          y: 0,
+          z: 0,
+        },
+        avatarUrl,
+      )
+    })
+
+    it('should use cached organization avatar URL on second call', async () => {
+      const orgAvatarId = '69030ac8-1089-4686-82b2-1068bc4c776c'
+      const avatarUrl = 'https://example.com/avatar.gltf'
+
+      // Mock spawn to fail first time, succeed second time for each call
+      mocks.avatarController.spawn
+        .mockRejectedValueOnce(
+          new Error(`Organization avatar requires avatarSrc URL. Avatar ID: ${orgAvatarId}`),
+        )
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(
+          new Error(`Organization avatar requires avatarSrc URL. Avatar ID: ${orgAvatarId}`),
+        )
+        .mockResolvedValueOnce(undefined)
+
+      // Mock organization service responses (only called once)
+      mocks.organizationService.getOrganizationInfo.mockResolvedValue({
+        organizationId: 'org-123',
+        realmId: 'realm-123',
+      })
+      mocks.organizationService.fetchOrganizationAvatars.mockResolvedValue([
+        {
+          id: orgAvatarId,
+          name: 'Test Avatar',
+          gltf: { avatar: avatarUrl },
+          preview_url: 'https://example.com/preview.png',
+        },
+      ])
+      mocks.configProvider.getConfiguration.mockReturnValue({
+        hubUrl: 'https://test.metatell.app',
+        hubId: 'test-hub',
+        profile: { displayName: 'TestBot', avatarId: '' },
+      })
+
+      // First call - should fetch from OrganizationService
+      await client.avatar.select(orgAvatarId)
+
+      // Second call - should use cache
+      await client.avatar.select(orgAvatarId)
+
+      // OrganizationService should only be called once
+      expect(mocks.organizationService.getOrganizationInfo).toHaveBeenCalledTimes(1)
+      expect(mocks.organizationService.fetchOrganizationAvatars).toHaveBeenCalledTimes(1)
+
+      // But spawn should be called 4 times (2 attempts per select)
+      expect(mocks.avatarController.spawn).toHaveBeenCalledTimes(4)
+    })
+
+    it('should throw error for organization avatar not found', async () => {
+      const orgAvatarId = '69030ac8-1089-4686-82b2-1068bc4c776c'
+
+      // First spawn fails with avatarSrc URL error
+      mocks.avatarController.spawn.mockRejectedValueOnce(
+        new Error(`Organization avatar requires avatarSrc URL. Avatar ID: ${orgAvatarId}`),
+      )
+
+      mocks.organizationService.getOrganizationInfo.mockResolvedValue({
+        organizationId: 'org-123',
+        realmId: 'realm-123',
+      })
+      mocks.organizationService.fetchOrganizationAvatars.mockResolvedValue([])
+      mocks.configProvider.getConfiguration.mockReturnValue({
+        hubUrl: 'https://test.metatell.app',
+        hubId: 'test-hub',
+        profile: { displayName: 'TestBot', avatarId: '' },
+      })
+
+      await expect(client.avatar.select(orgAvatarId)).rejects.toThrow(
+        `Organization avatar not found: ${orgAvatarId}`,
+      )
+    })
+
+    it('should propagate non-organization avatar errors', async () => {
+      const avatarId = 'regular-avatar'
+      const error = new Error('Some other error')
+
+      mocks.avatarController.spawn.mockRejectedValueOnce(error)
+
+      await expect(client.avatar.select(avatarId)).rejects.toThrow('Some other error')
+
+      // Should not call organization service for non-organization errors
+      expect(mocks.organizationService.getOrganizationInfo).not.toHaveBeenCalled()
+      expect(mocks.organizationService.fetchOrganizationAvatars).not.toHaveBeenCalled()
     })
 
     it('should play animation by id', async () => {
