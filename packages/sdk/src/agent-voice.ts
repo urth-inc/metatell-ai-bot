@@ -140,9 +140,24 @@ export async function enableVoice(
  * @internal
  */
 function getRealtimeUrl(_client: VoiceCapableClient): string {
-  // In production, this would derive from client's API endpoint
-  // For now, use a default
-  return process.env.METATELL_REALTIME_URL || 'wss://realtime.metatell.ai'
+  // Use environment variable if provided
+  if (process.env.METATELL_REALTIME_URL) {
+    console.log('[Voice] Using realtime URL from env:', process.env.METATELL_REALTIME_URL)
+    return process.env.METATELL_REALTIME_URL
+  }
+
+  // Try to derive from client configuration if possible
+  // This is a temporary solution - in production, this should be properly implemented
+  let derivedUrl = 'wss://localhost:7880' // Default fallback
+
+  // Try common LiveKit subdomain patterns based on current staging setup
+  // urth.metatell-stg.app -> livekit.metatell-stg.app or ws.metatell-stg.app
+  if (process.env.NODE_ENV !== 'test') {
+    derivedUrl = 'wss://livekit.metatell-stg.app'
+  }
+
+  console.log('[Voice] Derived realtime URL:', derivedUrl)
+  return derivedUrl
 }
 
 /**
