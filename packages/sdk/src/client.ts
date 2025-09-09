@@ -200,6 +200,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
   private userAvatarManager: IUserAvatarManager
   private rateLimiter = new RateLimitedQueue()
   private logger = getLogger('MetatellClient')
+  private orgAvatarUrlCache = new Map<string, string>()
 
   constructor(private options: CreateClientOptions) {
     super()
@@ -250,15 +251,6 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
     // イベントのプロキシ設定
     this.setupEventProxies()
-  }
-
-  /**
-   * Check if avatar ID is organization avatar (UUID format)
-   */
-  private isOrganizationAvatar(avatarId: string): boolean {
-    // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-    return uuidRegex.test(avatarId)
   }
 
   /**
@@ -566,35 +558,55 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
       // アバターを変更するには再度spawnを呼び出す
       const state = this.avatarController.getState()
 
-      // 組織アバター（UUID形式）の場合、URLを取得する必要がある
-      let avatarSrc: string | undefined
-      if (this.isOrganizationAvatar(assetId)) {
-        // 組織情報とアバターリストを取得
-        const hubUrl = this.configProvider.getConfiguration().hubUrl
-        const hubId = this.configProvider.getConfiguration().hubId
-        const orgInfo = await this.organizationService.getOrganizationInfo(hubUrl, hubId)
+      try {
+        // まず通常のアバターとしてspawnを試みる
+        await this.avatarController.spawn(assetId, state?.position)
+      } catch (error) {
+        // avatarSrc URLが必要というエラーの場合のみ、組織アバターとして処理
+        if (
+          error instanceof Error &&
+          error.message.includes('Organization avatar requires avatarSrc URL')
+        ) {
+          // キャッシュをチェック
+          let avatarSrc = this.orgAvatarUrlCache.get(assetId)
 
-        if (orgInfo.organizationId) {
-          const avatars = await this.organizationService.fetchOrganizationAvatars(
-            hubUrl,
-            orgInfo.organizationId,
-          )
-          const targetAvatar = avatars.find((a) => a.id === assetId)
+          if (!avatarSrc) {
+            // キャッシュにない場合はOrganizationServiceから取得
+            const hubUrl = this.configProvider.getConfiguration().hubUrl
+            const hubId = this.configProvider.getConfiguration().hubId
+            const orgInfo = await this.organizationService.getOrganizationInfo(hubUrl, hubId)
 
-          if (targetAvatar) {
+            if (!orgInfo.organizationId) {
+              throw new Error(
+                `Cannot fetch organization avatars: organization ID not set for hub ${hubId}`,
+              )
+            }
+
+            const avatars = await this.organizationService.fetchOrganizationAvatars(
+              hubUrl,
+              orgInfo.organizationId,
+            )
+            const targetAvatar = avatars.find((a) => a.id === assetId)
+
+            if (!targetAvatar) {
+              throw new Error(`Organization avatar not found: ${assetId}`)
+            }
+
             avatarSrc = targetAvatar.gltf.avatar
-            this.logger.debug('Found organization avatar URL', { assetId, avatarSrc })
+            // URLをキャッシュに保存
+            this.orgAvatarUrlCache.set(assetId, avatarSrc)
+            this.logger.debug('Cached organization avatar URL', { assetId, avatarSrc })
           } else {
-            throw new Error(`Organization avatar not found: ${assetId}`)
+            this.logger.debug('Using cached organization avatar URL', { assetId, avatarSrc })
           }
+
+          // avatarSrc付きで再度spawnを試みる
+          await this.avatarController.spawn(assetId, state?.position, avatarSrc)
         } else {
-          throw new Error(
-            `Cannot fetch organization avatars: organization ID not set for hub ${hubId}`,
-          )
+          // その他のエラーはそのまま再スロー
+          throw error
         }
       }
-
-      await this.avatarController.spawn(assetId, state?.position, avatarSrc)
     },
 
     play: async (animation: Animation): Promise<void> => {
