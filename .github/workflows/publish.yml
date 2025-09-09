@@ -26,7 +26,7 @@ jobs:
           echo "Commit message: $(git log -1 --pretty=%B)"
 
       - name: Setup Node from package.json (engines/volta)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: package.json
           registry-url: https://registry.npmjs.org
