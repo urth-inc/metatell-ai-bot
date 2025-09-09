@@ -15,7 +15,8 @@ export enum NafComponentId {
   PinPosition = '10',
   PinScale = '11',
   FaceSnapshotEnabled = '12',
-  FaceSnapshot = '13',
+  FaceSnapshot = '13', // Also used for VRM avatar status (animation state) for compatibility
+  VrmAvatarStatus = '13', // Alias for FaceSnapshot when used for animation state
   BodyRotation = '14',
 }
 
@@ -317,7 +318,7 @@ export class NafMessageBuilder {
       throw new Error('networkId, owner, and creator are required')
     }
 
-    // Only include explicitly set components, no defaults
+    // Build components object including defaults set in constructor and any explicitly set components
     const mergedComponents = { ...this.components }
 
     if (this.isMultiData) {

@@ -87,9 +87,18 @@ function updateAvatarPosition(
     .withPosition(position)
 
   if (rotation) {
-    // Note: NafMessageBuilder expects Euler angles, not quaternions
-    // You'd need to convert quaternion to Euler first
-    builder.withBodyRotation([rotation.x, rotation.y, rotation.z])
+    // Note: Body rotation expects Euler angles in degrees, not quaternions
+    // Convert quaternion to Euler angles (simplified for Y-axis rotation)
+    const yaw = Math.atan2(
+      2 * (rotation.w * rotation.y + rotation.x * rotation.z),
+      1 - 2 * (rotation.y * rotation.y + rotation.z * rotation.z),
+    )
+
+    builder.withBodyRotation({
+      x: 0, // Pitch
+      y: yaw * (180 / Math.PI), // Yaw - convert radians to degrees
+      z: 0, // Roll
+    })
   }
 
   return builder.build()
