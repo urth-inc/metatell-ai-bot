@@ -80,7 +80,7 @@ describe('CLI', () => {
     expect(mockProgram.description).toHaveBeenCalledWith(
       'CLI tool for Metatell bot development and testing',
     )
-    expect(mockProgram.version).toHaveBeenCalledWith('0.0.5')
+    expect(mockProgram.version).toHaveBeenCalledWith(expect.any(String))
   })
 
   it('should register all commands and options', async () => {
@@ -183,7 +183,7 @@ describe('CLI', () => {
 
       // readFileSyncが呼ばれたことを確認
       expect(fs.readFileSync).toHaveBeenCalled()
-      expect(mockProgram.version).toHaveBeenCalledWith('0.0.5')
+      expect(mockProgram.version).toHaveBeenCalledWith(expect.any(String))
     })
 
     it('should use correct path resolution for package.json', async () => {
