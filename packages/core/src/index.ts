@@ -8,6 +8,12 @@ export type {
 } from './builders/NafMessageBuilder.js'
 export { NafComponentId, NafMessageBuilder } from './builders/NafMessageBuilder.js'
 export { CoreServiceFactory } from './CoreServiceFactory.js'
+// Client implementation
+export {
+  type CreateClientOptions,
+  createMetatellClient,
+  MetatellClientImpl,
+} from './client/MetatellClientImpl.js'
 // Errors
 export {
   AnimationNotFoundError,
@@ -24,7 +30,6 @@ export {
   TimeoutError,
   TransportError,
 } from './errors.js'
-
 // Core Interfaces (サービスインターフェース)
 export { AnimationService, type IAnimationService } from './interfaces/IAnimationService.js'
 export { AppSettings, type IAppSettings } from './interfaces/IAppSettings.js'
@@ -89,6 +94,19 @@ export type {
   VRMAnimation,
 } from './types/animation.js'
 export { AnimationLoopBehavior, PresetAnimationId } from './types/animation.js'
+// Client types
+export type {
+  Animation,
+  AvatarAsset,
+  BotInfo,
+  Euler,
+  MetatellClient,
+  MetatellClientEvents,
+  PcmInputOptions,
+  PlaybackControls,
+  User,
+  Vec3,
+} from './types/client.js'
 // NAF Types (strongly-typed NAF message definitions)
 export type {
   AvatarComponentData,
@@ -112,3 +130,5 @@ export {
   isNAFRemoveMessage,
   isTypedNAFMessage,
 } from './types/naf.js'
+// Voice types
+export type { VoiceCapableClient } from './types/voice.js'
