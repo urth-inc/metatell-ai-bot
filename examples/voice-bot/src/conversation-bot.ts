@@ -37,13 +37,13 @@ export class ConversationBot {
     // 録音開始
     this.audioRecorder.start()
 
-    // 音声機能を有効化 - 実際のLiveKit接続を使用
+    // 音声機能を有効化
     this.voice = await enableVoice(this.client, {
-      transport: { type: 'livekit' },
+      transport: { type: 'livekit' }, // 実際のLiveKit接続を使用
       handlers: {
         // リモート音声を受信 -> STTに送信 & 録音
         onRemotePcm: async (pcm, meta) => {
-          console.log(`📥 Audio from ${meta.fromIdentity || 'unknown'}`)
+          console.log(`📥 Audio from ${meta.fromIdentity || 'unknown'} (${pcm.length} samples)`)
 
           // 音声データを録音
           this.audioRecorder.addFrame(pcm)
@@ -63,6 +63,20 @@ export class ConversationBot {
     })
 
     console.log('✅ Conversation Bot: Ready!')
+    console.log('🎤 Waiting for audio input from LiveKit...')
+
+    // デバッグ: 10秒ごとに録音を保存
+    setInterval(() => {
+      if (this.audioRecorder.isRecording()) {
+        console.log('⏺️ Saving periodic recording...')
+        const savedFile = this.audioRecorder.stop()
+        if (savedFile) {
+          console.log(`🎵 Periodic save: ${savedFile}`)
+        }
+        // 新しい録音を開始
+        this.audioRecorder.start()
+      }
+    }, 10000)
   }
 
   /**
