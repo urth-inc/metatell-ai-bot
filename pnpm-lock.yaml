@@ -118,9 +118,9 @@ importers:
       '@livekit/rtc-node':
         specifier: 0.13.18
         version: 0.13.18
-      '@metatell/bot-sdk':
+      '@metatell/bot-core':
         specifier: workspace:*
-        version: link:../sdk
+        version: link:../core
     devDependencies:
       '@types/node':
         specifier: 22.10.6
