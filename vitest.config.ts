@@ -17,9 +17,6 @@ export default defineConfig({
         '**/types/**',
         '**/test-utils/**',
         '**/*.d.ts',
-        'packages/bot/src/example.ts',
-        'packages/bot/src/main.ts',
-        'packages/bot/src/websocket-polyfill.ts',
       ],
     },
     include: [
@@ -30,8 +27,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@metatell/sdk': path.resolve(__dirname, './packages/sdk/src'),
-      '@metatell/bot': path.resolve(__dirname, './packages/bot/src'),
+      '@metatell/bot-sdk': path.resolve(__dirname, './packages/sdk/src'),
+      '@metatell/bot-core': path.resolve(__dirname, './packages/core/src'),
     },
   },
 })

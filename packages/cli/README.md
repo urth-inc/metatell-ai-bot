@@ -1,63 +1,89 @@
-# @metatell/cli
+# @metatell/bot-cli
 
-CLI tool for Metatell bot development and testing.
+MetaTell Bot 開発とテスト用の CLI ツール。
 
-## Installation
+## 必要要件
+
+- Node.js 20 以上（推奨: 22+）
+
+## インストール
 
 ```bash
-npm install -g @metatell/cli
+# グローバルインストール
+npm install -g @metatell/bot-cli
+
+# または npx で実行
+npx @metatell/bot-cli <command>
+
+# または開発依存として
+npm install --save-dev @metatell/bot-cli
 ```
 
-## Usage
-
-### Interactive Mode (Default)
+## 使い方
 
 ```bash
-# 未ログインで入室
+# インタラクティブモード（デフォルト）
 metatell-cli https://metatell.app/ROOM_ID
 
-# ログイン済みユーザーとして入室
+# 認証トークン付き
 metatell-cli https://metatell.app/ROOM_ID -t "your-auth-token"
+
+# カスタムボット名
+metatell-cli https://metatell.app/ROOM_ID -n "MyBot"
+
+# デバッグログ有効
+metatell-cli https://metatell.app/ROOM_ID -d
 ```
 
-Interactive mode provides:
-- Real-time event monitoring
-- Simple chat interface
-- Commands: `status`, `users`, `quit`
+## コマンド
 
-### Connect Command
-
-Quick connection test:
+### インタラクティブモード
 
 ```bash
-# 未ログインで接続テスト
-metatell-cli connect https://metatell.app/ROOM_ID
+metatell-cli https://metatell.app/ROOM_ID [options]
+# または
+metatell-cli interactive https://metatell.app/ROOM_ID [options]
 ```
 
-### Inspect Command
+**利用可能なコマンド:**
+- `/say <message>` — チャットメッセージ送信
+- `/move <x> <y> <z>` — アバター移動
+- `/look <x> <y> <z>` または `/look @<username>` — 指定座標/ユーザーを見る
+- `/nearby [radius]` — 近傍ユーザーを表示（既定 10m）
+- `/users` — ルーム内の全ユーザーを表示
+- `/status` — 接続状態を表示
+- `/info` — ボット情報を表示
+- `/avatar <id>` — アバターを変更
+- `/assets` — 利用可能なアバター一覧
+- `/anime <name>` または `/animation <name>` — アニメーション再生
+- `/animations` — 利用可能なアニメーション一覧
+- `/stop` — アニメーション停止（アイドルに戻す）
+- `quit` / `exit` — 終了
 
-Room inspection and monitoring:
+### 接続テストコマンド
 
 ```bash
-# ルーム情報の確認
-metatell-cli inspect https://metatell.app/ROOM_ID
+metatell-cli connect https://metatell.app/ROOM_ID [options]
 ```
 
-### Options
+### ルーム検査コマンド
 
-- `-t, --token <token>`: Authentication token (optional - 未ログインでも入室可能)
-- `-n, --name <name>`: Bot display name (interactive mode)
-- `-d, --debug`: Enable debug logging
+```bash
+metatell-cli inspect https://metatell.app/ROOM_ID [options]
+```
 
-### Environment Variables
+## オプション
 
-- `METATELL_TOKEN`: Default authentication token (optional)
+| オプション | エイリアス | 説明 | デフォルト |
+|--------|-------|-------------|---------|
+| `--token` | `-t` | 認証トークン（任意） | `METATELL_TOKEN` 環境変数 |
+| `--name` | `-n` | ボット表示名 | "MetatellCLI" |
+| `--debug` | `-d` | デバッグログ有効 | false |
 
-## Features
+## 環境変数
 
-- Simple connection testing
-- Room state inspection
-- Interactive command-line interface
-- User presence monitoring
-- Message activity tracking
-- Clean implementation using SDK facade API
+- `METATELL_TOKEN` — デフォルト認証トークン（任意）
+
+## License
+
+MIT

@@ -49,9 +49,10 @@ describe('nafParser', () => {
 
       expect(result.bodyRotation).toEqual({ x: 0, y: 90, z: 0 })
       expect(result.rotation).toBeDefined()
-      // Note: The function expects angles in radians, not degrees
-      // So we need to convert 90 degrees to radians for the assertion
-      const expectedQuat = eulerToQuaternion(0, 90, 0) // This assumes radians
+      // NAF uses degrees, which are converted to radians in parseNAFComponents
+      // Convert 90 degrees to radians for the expected quaternion
+      const deg2rad = Math.PI / 180
+      const expectedQuat = eulerToQuaternion(0, 90 * deg2rad, 0) // Convert to radians
       expect(result.rotation?.y).toBeCloseTo(expectedQuat.y, 2)
     })
 

@@ -10,7 +10,9 @@ Metatell Bot開発用のTypeScript SDKです。導入、設定、API仕様を中
 - `@metatell/bot-core` - コア機能
 - `@metatell/bot-sdk` - Bot SDK
 - `@metatell/bot-cli` - CLIツール
-- `@metatell/bot-realtime` - リアルタイム通信
+- `@metatell/bot-realtime` - リアルタイム通信（音声機能含む）
+
+> **Note**: 音声通信機能は `@metatell/bot-realtime` パッケージで提供されます。現在開発中のため、音声関連のAPIは別途ドキュメントをご参照ください。
 
 ## インストール
 

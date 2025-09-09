@@ -68,7 +68,7 @@ export class AvatarController implements IAvatarController {
       if (!storageUrl && config.hubUrl) {
         storageUrl = this.determineStorageUrl(config.hubUrl)
       }
-      storageUrl = storageUrl || 'https://storage.metatell.app:443'
+      storageUrl = storageUrl || 'https://storage.metatell.app'
       finalAvatarSrc = `${storageUrl}/api/v1/avatars/${avatarId}/avatar.gltf?v=${timestamp}`
     }
 
@@ -104,30 +104,8 @@ export class AvatarController implements IAvatarController {
       })
       .build()
 
-    await this.messageService.sendNAF(nafMessage)
-
-    // Send NAFR message (reliable) to ensure critical spawn data arrives
-    const nafrMessage = new NafMessageBuilder()
-      .withDataType('um')
-      .withNetworkId(networkId)
-      .withOwner(this.sessionId)
-      .withCreator(this.sessionId)
-      .withPosition(spawnPosition)
-      .withAvatar({
-        avatarSrc: this.state.avatarSrc || '',
-        avatarType:
-          this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
-            ? ORGANIZATION_AVATAR_TYPE
-            : DEFAULT_AVATAR_TYPE,
-        muted: false,
-        isSharingAvatarCamera: false,
-        ...(this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
-          ? { files: {} }
-          : {}),
-      })
-      .build()
-
-    await this.messageService.sendNAFR(nafrMessage)
+    // Send spawn message with NAFR (reliable) for critical spawn data
+    await this.messageService.sendNAFR(nafMessage)
 
     // Emit event
     this.eventBus.emit(SystemEvents.AVATAR_SPAWNED, this.state)
@@ -153,16 +131,16 @@ export class AvatarController implements IAvatarController {
 
       // Map hub domains to storage domains
       if (hostname.includes('metatell-stg.app') || hostname.includes('-stg.')) {
-        return 'https://storage.metatell-stg.app:443'
+        return 'https://storage.metatell-stg.app'
       } else if (hostname.includes('metatell-dev.app') || hostname.includes('-dev.')) {
-        return 'https://storage.metatell-dev.app:443'
+        return 'https://storage.metatell-dev.app'
       } else {
         // Production or default
-        return 'https://storage.metatell.app:443'
+        return 'https://storage.metatell.app'
       }
     } catch (error) {
       this.logger.warn('Failed to parse hub URL for storage URL determination', { hubUrl, error })
-      return 'https://storage.metatell.app:443'
+      return 'https://storage.metatell.app'
     }
   }
 
@@ -182,8 +160,7 @@ export class AvatarController implements IAvatarController {
 
     this.state.position = position
 
-    // Send position update via NAFR (reliable) to ensure movement is received
-    // Position updates are critical for avatar synchronization
+    // Send position update via NAF (unreliable) for frequent updates
     const nafMessage = new NafMessageBuilder()
       .withDataType('um')
       .withNetworkId(this.state.networkId)
@@ -192,7 +169,7 @@ export class AvatarController implements IAvatarController {
       .withPosition(position)
       .build()
 
-    await this.messageService.sendNAFR(nafMessage)
+    await this.messageService.sendNAF(nafMessage)
     this.eventBus.emit(SystemEvents.AVATAR_MOVED, this.state)
     // 移動ログは頻繁すぎるのでコメントアウト
     // this.logger.debug(`Avatar moved to position (${position.x}, ${position.y}, ${position.z})`)
@@ -217,7 +194,7 @@ export class AvatarController implements IAvatarController {
       .withBodyRotation(euler) // ブラウザクライアント準拠（オイラー角、度数）
       .build()
 
-    await this.messageService.sendNAFR(nafMessage)
+    await this.messageService.sendNAF(nafMessage)
     this.eventBus.emit(SystemEvents.AVATAR_UPDATED, this.state)
   }
 
@@ -276,7 +253,7 @@ export class AvatarController implements IAvatarController {
     }
 
     const nafMessage = builder.build()
-    await this.messageService.sendNAFR(nafMessage)
+    await this.messageService.sendNAF(nafMessage)
     this.eventBus.emit(SystemEvents.AVATAR_UPDATED, this.state)
   }
 
@@ -334,7 +311,7 @@ export class AvatarController implements IAvatarController {
       .withTemporaryMegaphone(false)
       .build()
 
-    await this.messageService.sendNAF(nafMessage)
+    await this.messageService.sendNAFR(nafMessage)
 
     this.logger.debug(`✅ Avatar resynced for new user`)
   }
@@ -384,8 +361,8 @@ export class AvatarController implements IAvatarController {
       })
       .build()
 
-    // Send via NAFR for reliability
-    await this.messageService.sendNAFR(nafMessage)
+    // Send via NAF for frequent animation updates
+    await this.messageService.sendNAF(nafMessage)
 
     // Emit event
     this.eventBus.emit('animation:played', {
@@ -441,7 +418,7 @@ export class AvatarController implements IAvatarController {
       })
       .build()
 
-    await this.messageService.sendNAFR(nafMessage)
+    await this.messageService.sendNAF(nafMessage)
 
     this.eventBus.emit('animation:stopped', {
       animationId: 'idle',
