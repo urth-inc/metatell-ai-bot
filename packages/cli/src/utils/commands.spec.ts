@@ -9,6 +9,7 @@ import { CommandParser } from './commands.js'
 // Mock console
 const mockConsole = {
   log: vi.fn(),
+  error: vi.fn(),
 }
 
 describe('CommandParser', () => {
@@ -262,6 +263,53 @@ describe('CommandParser', () => {
       expect(result.success).toBe(true)
       expect(mockClient.avatar.select).toHaveBeenCalledWith('avatar-123')
       expect(mockConsole.log).toHaveBeenCalledWith('[Avatar changed to] avatar-123')
+    })
+
+    it('should handle organization avatar (UUID format)', async () => {
+      const orgAvatarId = '69030ac8-1089-4686-82b2-1068bc4c776c'
+      const result = await parser.execute(`/avatar ${orgAvatarId}`, mockClient as MetatellClient)
+
+      expect(result.success).toBe(true)
+      expect(mockClient.avatar.select).toHaveBeenCalledWith(orgAvatarId)
+      expect(mockConsole.log).toHaveBeenCalledWith(`[Avatar changed to] ${orgAvatarId}`)
+    })
+
+    it('should handle organization avatar selection error', async () => {
+      const orgAvatarId = '1851efd1-d5ec-43a7-aad3-f3126c407587'
+      mockClient.avatar.select = vi
+        .fn()
+        .mockRejectedValue(
+          new Error(`Organization avatar requires avatarSrc URL. Avatar ID: ${orgAvatarId}`),
+        )
+
+      const result = await parser.execute(`/avatar ${orgAvatarId}`, mockClient as MetatellClient)
+
+      expect(result.success).toBe(false)
+      expect(result.message).toBe(
+        `Failed to change avatar: Organization avatar requires avatarSrc URL. Avatar ID: ${orgAvatarId}`,
+      )
+      expect(mockConsole.error).toHaveBeenCalledWith(
+        '[Error]',
+        `Organization avatar requires avatarSrc URL. Avatar ID: ${orgAvatarId}`,
+      )
+    })
+
+    it('should handle organization avatar not found error', async () => {
+      const orgAvatarId = 'a1234567-89ab-cdef-0123-456789abcdef'
+      mockClient.avatar.select = vi
+        .fn()
+        .mockRejectedValue(new Error(`Organization avatar not found: ${orgAvatarId}`))
+
+      const result = await parser.execute(`/avatar ${orgAvatarId}`, mockClient as MetatellClient)
+
+      expect(result.success).toBe(false)
+      expect(result.message).toBe(
+        `Failed to change avatar: Organization avatar not found: ${orgAvatarId}`,
+      )
+      expect(mockConsole.error).toHaveBeenCalledWith(
+        '[Error]',
+        `Organization avatar not found: ${orgAvatarId}`,
+      )
     })
 
     it('should require avatar ID', async () => {
