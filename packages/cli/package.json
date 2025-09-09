@@ -4,7 +4,7 @@
   "description": "CLI tool for Metatell bot development and testing",
   "type": "module",
   "bin": {
-    "metatell-cli": "./dist/cli.js"
+    "metatell-bot": "./dist/cli.js"
   },
   "exports": {
     ".": {

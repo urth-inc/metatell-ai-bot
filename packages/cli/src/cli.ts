@@ -21,7 +21,7 @@ const version = packageJson.version
 const program = new Command()
 
 program
-  .name('metatell-cli')
+  .name('metatell-bot')
   .description('CLI tool for Metatell bot development and testing')
   .version(version)
 
