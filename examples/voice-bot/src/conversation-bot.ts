@@ -30,9 +30,9 @@ export class ConversationBot {
     // クライアントを接続
     await this.client.connect()
 
-    // 音声機能を有効化（デモ用にMockTransportを使用）
+    // 音声機能を有効化
+    // LiveKit実装は完了しているが、認証問題があるため一時的にMockTransportを使用
     this.voice = await enableVoice(this.client, {
-      // デモ用にMockTransportを使用してLiveKit接続を回避
       transport: { type: 'mock' },
       handlers: {
         // リモート音声を受信 -> STTに送信
