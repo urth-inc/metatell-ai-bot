@@ -58,7 +58,7 @@ export interface PcmInputOptions {
 }
 
 export interface PlaybackControls {
-  /** 現在の音声再生を即座に停止します。 */
+  /** 現在の音声再生を停止します。 */
   stop(): Promise<void>
   /** 再生が完了したときに解決されるPromise */
   finished: Promise<void>
