@@ -1,6 +1,6 @@
 # Metatell Bot SDK
 
-Metatell Bot開発用のTypeScript SDKです。外部公開に合わせ、導入から応用までを網羅したドキュメントを整備しました。まずは SDK パッケージの README とドキュメントをご覧ください。
+Metatell Bot開発用のTypeScript SDKです。導入、設定、API仕様を中心にドキュメントを用意しています。詳細は SDK パッケージの README とドキュメントを参照してください。
 
 - SDK ドキュメント: `docs/`
 - SDK パッケージの概要: `packages/sdk/README.md`

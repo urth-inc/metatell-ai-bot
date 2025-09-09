@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@metatell/bot-core": ["./packages/core/src/index.ts"],
+      "@metatell/bot-sdk": ["./packages/sdk/src/index.ts"],
+      "@metatell/bot-realtime": ["./packages/realtime/src/index.ts"],
+      "@livekit/rtc-node": ["./node_modules/@livekit/rtc-node"],
+      "uuid": ["./node_modules/uuid"]
+    }
+  },
+  "include": [
+    "./packages/core/src/**/*",
+    "./packages/sdk/src/**/*",
+    "./packages/cli/src/**/*",
+    "./packages/realtime/src/**/*"
+  ],
+  "exclude": ["**/*.spec.ts", "**/*.test.ts", "**/node_modules", "**/dist"]
+}

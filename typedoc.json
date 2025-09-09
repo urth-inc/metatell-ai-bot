@@ -1,0 +1,36 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPointStrategy": "packages",
+  "entryPoints": ["packages/*"],
+  "out": "./docs-generated",
+  "plugin": ["typedoc-plugin-missing-exports"],
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeExternals": true,
+  "includeVersion": true,
+  "hideGenerator": true,
+  "customCss": "./typedoc-theme.css",
+  "readme": "./README.md",
+  "navigationLinks": {
+    "GitHub": "https://github.com/urth-inc/metatell-ai-bot",
+    "NPM": "https://www.npmjs.com/search?q=%40metatell%2Fbot"
+  },
+  "name": "Metatell AI Bot",
+  "categorizeByGroup": true,
+  "sort": ["kind", "alphabetical"],
+  "searchInComments": true,
+  "tsconfig": "./tsconfig.typedoc.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "typeRoots": ["./types", "./node_modules/@types"],
+    "paths": {
+      "@livekit/rtc-node": ["./types/shims/livekit-rtc-node.d.ts"],
+      "uuid": ["./types/shims/uuid.d.ts"],
+      "commander": ["./types/shims/commander.d.ts"]
+    }
+  },
+  "skipErrorChecking": true,
+  "treatValidationWarningsAsErrors": false,
+  "treatWarningsAsErrors": false
+}

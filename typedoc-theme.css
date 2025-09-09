@@ -1,0 +1,25 @@
+/* TypeDoc custom theme CSS */
+:root {
+  --color-link: #0969da;
+  --color-link-hover: #0860ca;
+}
+
+.tsd-navigation {
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
+.tsd-page-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.tsd-signature {
+  margin-bottom: 1rem;
+}
+
+.tsd-sources {
+  font-size: 0.875rem;
+  color: #6e7781;
+}

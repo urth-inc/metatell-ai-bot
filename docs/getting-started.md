@@ -1,6 +1,6 @@
 # はじめに（Getting Started）
 
-本書では、外部公開された `@metatell/bot-sdk` を使って最短でボットを動かす手順を説明します。
+本書では、`@metatell/bot-sdk` を使った基本的な利用手順を説明します。
 
 ## 前提条件
 

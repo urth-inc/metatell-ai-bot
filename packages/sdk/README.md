@@ -58,6 +58,12 @@ main().catch(console.error)
 
 ## 主な機能
 
+- メッセージ送受信（`client.chat.send`, `client.chat.onMessage`）
+- ルーム・プレゼンス（`room.getUsers`, `getUsers`）
+- アバター操作（選択・移動・回転・アニメーション再生）
+- 型付きイベント（`MetatellClientEvents`）
+- レート制御・ロギング・エラー階層（再試行判定に便利）
+
 ### 接続管理
 
 ```typescript
