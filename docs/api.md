@@ -2,7 +2,7 @@
 
 SDK は 2 層の API を提供します。
 
-1. 高レベル: `MetatellClient`（最短で動かしたい方向け）
+1. 高レベル: `MetatellClient`（シンプルな利用）
 2. 低レベル: `AgentClient`（詳細制御や高度な拡張向け）
 
 ## `createMetatellClient(options)` → `MetatellClient`

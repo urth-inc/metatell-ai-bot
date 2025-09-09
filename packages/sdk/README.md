@@ -1,6 +1,6 @@
-# @metatell/bot-sdk — 開発者ガイド（外部公開版）
+# @metatell/bot-sdk — 開発者ガイド
 
-Metatell のボットを TypeScript/Node.js で素早く実装できる SDK です。最短の導入から、イベント、メッセージ、アバター、エラー処理までを段階的に説明します。
+TypeScript/Node.js でボットを実装するための SDK です。導入、イベント、メッセージ、アバター、エラー処理までを段階的に説明します。
 
 - 公式パッケージ: `@metatell/bot-sdk`
 - 対応ランタイム: Node.js 18+（推奨: 20+）
@@ -52,7 +52,7 @@ main().catch(console.error)
 - メッセージ送受信（`client.chat.send`, `client.chat.onMessage`）
 - ルーム・プレゼンス（`room.getUsers`, `getUsers`）
 - アバター操作（選択・移動・回転・アニメーション再生）
-- 強力な型付きイベント（`MetatellClientEvents`）
+- 型付きイベント（`MetatellClientEvents`）
 - レート制御・ロギング・エラー階層（再試行判定に便利）
 
 ## API ハイライト（抜粋）
