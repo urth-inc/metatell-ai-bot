@@ -1,4 +1,4 @@
-import type { AgentClient } from '@metatell/bot-sdk'
+import type { VoiceCapableClient } from '@metatell/bot-core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { InvalidAudioFrameError } from '../errors.js'
 import { MockAdapter } from '../mock.js'
@@ -12,16 +12,17 @@ interface MockAdapterInternal {
   listeners: Set<(e: RealtimeEvent) => void>
 }
 
-// Mock AgentClient
-function createMockAgent(): AgentClient {
+// Mock VoiceCapableClient
+function createMockAgent(): VoiceCapableClient {
   return {
     sendVoiceFrame: vi.fn().mockRejectedValue(new Error('Voice not implemented')),
     muteVoice: vi.fn().mockResolvedValue(undefined),
-  } as unknown as AgentClient
+    getSessionId: vi.fn().mockReturnValue('test-session-id'),
+  }
 }
 
 describe('agent-bridge', () => {
-  let agent: AgentClient
+  let agent: VoiceCapableClient
   let transport: MockAdapter
   let handlers: VoiceHandlers
 
@@ -147,7 +148,7 @@ describe('agent-bridge', () => {
       await transport.startAudioPublisher()
 
       const pcm = new Int16Array(960) // 20ms frame
-      await agent.sendVoiceFrame(pcm)
+      await agent.sendVoiceFrame?.(pcm)
 
       expect(transport.pushPcmFrame).toHaveBeenCalledWith(pcm)
 
@@ -161,8 +162,8 @@ describe('agent-bridge', () => {
 
       const invalidPcm = new Int16Array(480) // Wrong size for 20ms
 
-      await expect(agent.sendVoiceFrame(invalidPcm)).rejects.toThrow(InvalidAudioFrameError)
-      await expect(agent.sendVoiceFrame(invalidPcm)).rejects.toThrow('expected=960')
+      await expect(agent.sendVoiceFrame?.(invalidPcm)).rejects.toThrow(InvalidAudioFrameError)
+      await expect(agent.sendVoiceFrame?.(invalidPcm)).rejects.toThrow('expected=960')
 
       await attachment.detach()
     })
@@ -175,11 +176,11 @@ describe('agent-bridge', () => {
       await transport.startAudioPublisher()
 
       const validPcm = new Int16Array(480) // Correct for 10ms
-      await agent.sendVoiceFrame(validPcm)
+      await agent.sendVoiceFrame?.(validPcm)
       expect(transport.pushPcmFrame).toHaveBeenCalledWith(validPcm)
 
       const invalidPcm = new Int16Array(960) // Wrong size for 10ms
-      await expect(agent.sendVoiceFrame(invalidPcm)).rejects.toThrow('expected=480')
+      await expect(agent.sendVoiceFrame?.(invalidPcm)).rejects.toThrow('expected=480')
 
       await attachment.detach()
     })
@@ -192,13 +193,13 @@ describe('agent-bridge', () => {
 
       // Patched version works
       const pcm = new Int16Array(960)
-      await agent.sendVoiceFrame(pcm)
+      await agent.sendVoiceFrame?.(pcm)
       expect(transport.pushPcmFrame).toHaveBeenCalled()
 
       await attachment.detach()
 
       // Original throws again
-      await expect(agent.sendVoiceFrame(pcm)).rejects.toThrow('Voice not implemented')
+      await expect(agent.sendVoiceFrame?.(pcm)).rejects.toThrow('Voice not implemented')
     })
   })
 
@@ -207,10 +208,10 @@ describe('agent-bridge', () => {
       transport.setMicEnabled = vi.fn()
       const attachment = attachVoice(agent, transport, handlers)
 
-      await agent.muteVoice(true)
+      await agent.muteVoice?.(true)
       expect(transport.setMicEnabled).toHaveBeenCalledWith(false)
 
-      await agent.muteVoice(false)
+      await agent.muteVoice?.(false)
       expect(transport.setMicEnabled).toHaveBeenCalledWith(true)
 
       await attachment.detach()
@@ -235,7 +236,7 @@ describe('agent-bridge', () => {
       const attachment = attachVoice(agent, transportNoMic, handlers)
 
       // muteVoice should work without error (fallback to original)
-      await expect(agent.muteVoice(true)).resolves.toBeUndefined()
+      await expect(agent.muteVoice?.(true)).resolves.toBeUndefined()
 
       // Verify setMicEnabled was not called (it doesn't exist)
       expect(setMicSpy).not.toHaveBeenCalled()
@@ -256,14 +257,14 @@ describe('agent-bridge', () => {
       const originalMute = agent.muteVoice
       const attachment = attachVoice(agent, transport, handlers)
 
-      await agent.muteVoice(true)
+      await agent.muteVoice?.(true)
       expect(transport.setMicEnabled).toHaveBeenCalled()
 
       await attachment.detach()
 
       // Clear previous calls
       vi.clearAllMocks()
-      await agent.muteVoice(false)
+      await agent.muteVoice?.(false)
       expect(transport.setMicEnabled).not.toHaveBeenCalled()
       expect(originalMute).toHaveBeenCalledWith(false)
     })
@@ -399,8 +400,8 @@ describe('agent-bridge', () => {
       await transport2.startAudioPublisher()
 
       const pcm = new Int16Array(960)
-      await agent.sendVoiceFrame(pcm)
-      await agent2.sendVoiceFrame(pcm)
+      await agent.sendVoiceFrame?.(pcm)
+      await agent2.sendVoiceFrame?.(pcm)
 
       expect(transport.pushPcmFrame).toHaveBeenCalledWith(pcm)
       expect(transport2.pushPcmFrame).toHaveBeenCalledWith(pcm)
@@ -408,8 +409,8 @@ describe('agent-bridge', () => {
       await attachment1.detach()
 
       // agent1 restored, agent2 still patched
-      await expect(agent.sendVoiceFrame(pcm)).rejects.toThrow('Voice not implemented')
-      await agent2.sendVoiceFrame(pcm)
+      await expect(agent.sendVoiceFrame?.(pcm)).rejects.toThrow('Voice not implemented')
+      await agent2.sendVoiceFrame?.(pcm)
 
       await attachment2.detach()
       await transport2.disconnect()
@@ -456,7 +457,7 @@ describe('agent-bridge', () => {
       await attachment.detach()
 
       // Methods should still be restored
-      await expect(agent.sendVoiceFrame(new Int16Array(960))).rejects.toThrow(
+      await expect(agent.sendVoiceFrame?.(new Int16Array(960))).rejects.toThrow(
         'Voice not implemented',
       )
     })

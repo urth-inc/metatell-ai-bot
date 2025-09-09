@@ -1,4 +1,4 @@
-import type { AgentClient } from '@metatell/bot-sdk'
+import type { VoiceCapableClient } from '@metatell/bot-core'
 import { InvalidAudioFrameError } from '../errors.js'
 import type { RealtimeEvent, RealtimeTransport } from '../transport.js'
 import { chunkToFrames, toInt16View } from './frame-utils.js'
@@ -31,19 +31,19 @@ function createLogger(logger?: Logger): LoggerWrapper {
   }
 }
 
-// 二段マップで管理: agent → (transport → state)
-const attachments = new WeakMap<AgentClient, WeakMap<RealtimeTransport, AttachmentState>>()
+// 二段マップで管理: client → (transport → state)
+const attachments = new WeakMap<VoiceCapableClient, WeakMap<RealtimeTransport, AttachmentState>>()
 
 /**
- * AgentClient と RealtimeTransport の間に音声ブリッジを作成
- * @param agent - AgentClient インスタンス
+ * VoiceCapableClient と RealtimeTransport の間に音声ブリッジを作成
+ * @param client - VoiceCapableClient インスタンス
  * @param transport - RealtimeTransport インスタンス
  * @param handlers - 音声ハンドラー
  * @param opts - オプション
  * @returns VoiceAttachment
  */
 export function attachVoice(
-  agent: AgentClient,
+  client: VoiceCapableClient,
   transport: RealtimeTransport,
   handlers: VoiceHandlers = {},
   opts: AttachVoiceOptions = {},
@@ -62,10 +62,10 @@ export function attachVoice(
   const logger = createLogger(transportWithOptions.options?.logger)
 
   // 多重アタッチ防止
-  let inner = attachments.get(agent)
+  let inner = attachments.get(client)
   if (!inner) {
     inner = new WeakMap()
-    attachments.set(agent, inner)
+    attachments.set(client, inner)
   }
   const prev = inner.get(transport)
   if (prev) {
@@ -75,11 +75,11 @@ export function attachVoice(
 
   const expectedSamples = options.frameDurationMs === 10 ? 480 : 960
   const state: AttachmentState = {
-    agent,
+    agent: client,
     transport,
     original: {
-      sendVoiceFrame: agent.sendVoiceFrame.bind(agent),
-      muteVoice: agent.muteVoice.bind(agent),
+      sendVoiceFrame: client.sendVoiceFrame?.bind(client),
+      muteVoice: client.muteVoice?.bind(client),
     },
     isPublishing: false,
     expectedSamples,
@@ -145,13 +145,16 @@ function setupReceive(state: AttachmentState, handlers: VoiceHandlers, logger: L
  * 送信メソッドのパッチ
  */
 function patchSend(state: AttachmentState, _logger: LoggerWrapper) {
-  state.agent.sendVoiceFrame = async (pcm: Int16Array) => {
-    if (pcm.length !== state.expectedSamples) {
-      throw new InvalidAudioFrameError(
-        `invalid frame size: expected=${state.expectedSamples}, got=${pcm.length}`,
-      )
+  const client = state.agent
+  if (client.sendVoiceFrame) {
+    client.sendVoiceFrame = async (pcm: Int16Array) => {
+      if (pcm.length !== state.expectedSamples) {
+        throw new InvalidAudioFrameError(
+          `invalid frame size: expected=${state.expectedSamples}, got=${pcm.length}`,
+        )
+      }
+      await state.transport.pushPcmFrame(pcm)
     }
-    await state.transport.pushPcmFrame(pcm)
   }
 }
 
@@ -159,13 +162,16 @@ function patchSend(state: AttachmentState, _logger: LoggerWrapper) {
  * ミュート制御のパッチ
  */
 function patchMute(state: AttachmentState, logger: LoggerWrapper) {
-  state.agent.muteVoice = async (muted: boolean) => {
-    if (typeof state.transport.setMicEnabled === 'function') {
-      await state.transport.setMicEnabled(!muted)
-      logger.debug(`microphone ${muted ? 'muted' : 'unmuted'}`)
-    } else {
-      // フォールバック（元のフラグ操作）
-      await state.original.muteVoice(muted)
+  const client = state.agent
+  if (client.muteVoice) {
+    client.muteVoice = async (muted: boolean) => {
+      if (typeof state.transport.setMicEnabled === 'function') {
+        await state.transport.setMicEnabled(!muted)
+        logger.debug(`microphone ${muted ? 'muted' : 'unmuted'}`)
+      } else {
+        // フォールバック（元のフラグ操作）
+        await state.original.muteVoice?.(muted)
+      }
     }
   }
 }
@@ -205,6 +211,8 @@ async function startAutoPublish(
  * デタッチ処理
  */
 async function detachInternal(state: AttachmentState, logger: LoggerWrapper) {
+  const client = state.agent
+
   // 送信ループ停止
   state.abortController?.abort()
   state.abortController = undefined
@@ -225,11 +233,15 @@ async function detachInternal(state: AttachmentState, logger: LoggerWrapper) {
   state.removeListener = undefined
 
   // メソッド復元
-  state.agent.sendVoiceFrame = state.original.sendVoiceFrame
-  state.agent.muteVoice = state.original.muteVoice
+  if (client.sendVoiceFrame && state.original.sendVoiceFrame) {
+    client.sendVoiceFrame = state.original.sendVoiceFrame
+  }
+  if (client.muteVoice && state.original.muteVoice) {
+    client.muteVoice = state.original.muteVoice
+  }
 
   // 登録解除
-  const inner = attachments.get(state.agent)
+  const inner = attachments.get(client)
   inner?.delete(state.transport)
 
   logger.debug('voice bridge detached')
