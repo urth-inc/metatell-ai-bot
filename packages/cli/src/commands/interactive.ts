@@ -27,8 +27,8 @@ export async function startInteractiveMode(url: string, options: CliOptions) {
       console.log('[Connected]')
     })
 
-    client.on('disconnected', (reason) => {
-      console.log('[Disconnected]', reason || 'Connection closed')
+    client.on('disconnected', () => {
+      console.log('[Disconnected]', 'Connection closed')
     })
 
     // chat-messageイベントを使用して、より詳細なメッセージ情報を取得

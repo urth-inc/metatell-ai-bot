@@ -150,6 +150,10 @@ importers:
       '@types/phoenix':
         specifier: 1.6.6
         version: 1.6.6
+    optionalDependencies:
+      '@metatell/bot-realtime':
+        specifier: workspace:*
+        version: link:../realtime
 
 packages:
 
