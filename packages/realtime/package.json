@@ -21,13 +21,13 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^22.10.6",
-    "typescript": "^5.7.2",
-    "vitest": "^3.0.0"
+    "@types/node": "22.10.6",
+    "typescript": "5.7.2",
+    "vitest": "3.0.0"
   },
   "license": "MIT",
   "dependencies": {
-    "@livekit/rtc-node": "^0.13.18",
+    "@livekit/rtc-node": "0.13.18",
     "@metatell/bot-sdk": "workspace:*"
   },
   "repository": {
