@@ -72,6 +72,13 @@ export class LiveKitAdapter implements RealtimeTransport {
       // Get token from provider
       const token = await opts.tokenProvider()
 
+      this.options?.logger?.('info', 'Connecting to LiveKit', {
+        url: opts.url,
+        tokenLength: token.length,
+        autoSubscribe: opts.connect?.autoSubscribe ?? true,
+        dynacast: opts.connect?.dynacast ?? true,
+      })
+
       // Connect to the room
       await this.room.connect(opts.url, token, {
         autoSubscribe: opts.connect?.autoSubscribe ?? true,

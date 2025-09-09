@@ -139,7 +139,7 @@ export async function enableVoice(
  * Get realtime service URL from client configuration
  * @internal
  */
-function getRealtimeUrl(_client: VoiceCapableClient): string {
+function getRealtimeUrl(client: VoiceCapableClient): string {
   // Use environment variable if provided
   if (process.env.METATELL_REALTIME_URL) {
     console.log('[Voice] Using realtime URL from env:', process.env.METATELL_REALTIME_URL)
@@ -147,13 +147,26 @@ function getRealtimeUrl(_client: VoiceCapableClient): string {
   }
 
   // Try to derive from client configuration if possible
-  // This is a temporary solution - in production, this should be properly implemented
   let derivedUrl = 'wss://localhost:7880' // Default fallback
 
-  // Try common LiveKit subdomain patterns based on current staging setup
-  // urth.metatell-stg.app -> livekit.metatell-stg.app or ws.metatell-stg.app
-  if (process.env.NODE_ENV !== 'test') {
-    derivedUrl = 'wss://livekit.metatell-stg.app'
+  // Determine LiveKit URL based on server URL
+  if ('options' in client && client.options && typeof client.options === 'object') {
+    const options = client.options as { serverUrl?: string }
+    if (options.serverUrl) {
+      if (options.serverUrl.includes('metatell-stg.app')) {
+        // Staging environment
+        derivedUrl = 'wss://metatell-staging-5uyteddc.livekit.cloud'
+      } else if (options.serverUrl.includes('metatell.app')) {
+        // Production environment
+        derivedUrl = 'wss://metatell-j60u6y2i.livekit.cloud'
+      } else if (
+        options.serverUrl.includes('localhost') ||
+        options.serverUrl.includes('127.0.0.1')
+      ) {
+        // Development environment
+        derivedUrl = 'wss://metatell-development-dddrbuyu.livekit.cloud'
+      }
+    }
   }
 
   console.log('[Voice] Derived realtime URL:', derivedUrl)
@@ -198,8 +211,11 @@ async function getRealtimeToken(client: VoiceCapableClient): Promise<string> {
     const baseUrl = httpUrl
     const tokenUrl = `${baseUrl}/livekit/api/token`
 
+    // v-air_clientと同じ形式でroomNameを構成
+    const channelName = `microphone:${roomId}`
+
     console.log('[Voice] Requesting LiveKit token from:', tokenUrl)
-    console.log('[Voice] Request payload:', { roomName: roomId, identity: sessionId })
+    console.log('[Voice] Request payload:', { roomName: channelName, identity: sessionId })
 
     const response = await fetch(tokenUrl, {
       method: 'POST',
@@ -207,7 +223,7 @@ async function getRealtimeToken(client: VoiceCapableClient): Promise<string> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        roomName: roomId,
+        roomName: channelName,
         identity: sessionId,
       }),
     })

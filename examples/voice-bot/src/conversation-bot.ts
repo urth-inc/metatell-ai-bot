@@ -1,5 +1,6 @@
 import type { AgentVoiceAttachment, MetatellClient } from '@metatell/bot-sdk'
 import { createMetatellClient, enableVoice } from '@metatell/bot-sdk'
+import { AudioRecorder } from './audio-recorder.js'
 import { MockSTT, MockTTS } from './mock-stt-tts.js'
 
 /**
@@ -14,11 +15,13 @@ export class ConversationBot {
   private stt: MockSTT
   private tts: MockTTS
   private currentTtsStream?: AsyncIterator<Int16Array>
+  private audioRecorder: AudioRecorder
 
   constructor(serverUrl: string, roomId: string, username: string = 'VoiceBot', token?: string) {
     this.client = createMetatellClient({ serverUrl, roomId, username, token })
     this.stt = new MockSTT()
     this.tts = new MockTTS()
+    this.audioRecorder = new AudioRecorder('./audio-recordings')
 
     // STTの認識結果を受け取るコールバック
     this.stt.onTranscript = this.handleTranscript.bind(this)
@@ -26,18 +29,26 @@ export class ConversationBot {
 
   async connect() {
     console.log('🤖 Conversation Bot: Connecting...')
+    console.log('📁 Audio recordings will be saved to: ./audio-recordings')
 
     // クライアントを接続
     await this.client.connect()
 
-    // 音声機能を有効化
-    // LiveKit実装は完了しているが、認証問題があるため一時的にMockTransportを使用
+    // 録音開始
+    this.audioRecorder.start()
+
+    // 音声機能を有効化 - 実際のLiveKit接続を使用
     this.voice = await enableVoice(this.client, {
-      transport: { type: 'mock' },
+      transport: { type: 'livekit' },
       handlers: {
-        // リモート音声を受信 -> STTに送信
+        // リモート音声を受信 -> STTに送信 & 録音
         onRemotePcm: async (pcm, meta) => {
           console.log(`📥 Audio from ${meta.fromIdentity || 'unknown'}`)
+
+          // 音声データを録音
+          this.audioRecorder.addFrame(pcm)
+
+          // STTに送信
           await this.stt.addAudioFrame(pcm)
         },
 
@@ -58,15 +69,19 @@ export class ConversationBot {
    * 音声認識結果を処理
    */
   private async handleTranscript(text: string) {
-    console.log(`👂 Heard: "${text}"`)
+    try {
+      console.log(`👂 Heard: "${text}"`)
 
-    // AI応答を生成（実際の実装ではLLMを使用）
-    const response = await this.generateResponse(text)
+      // AI応答を生成（実際の実装ではLLMを使用）
+      const response = await this.generateResponse(text)
 
-    console.log(`💬 Response: "${response}"`)
+      console.log(`💬 Response: "${response}"`)
 
-    // TTSで音声に変換して送信開始
-    this.currentTtsStream = this.tts.textToSpeech(response)[Symbol.asyncIterator]()
+      // TTSで音声に変換して送信開始
+      this.currentTtsStream = this.tts.textToSpeech(response)[Symbol.asyncIterator]()
+    } catch (error) {
+      console.error('音声認識結果の処理エラー:', error)
+    }
   }
 
   /**
@@ -79,6 +94,8 @@ export class ConversationBot {
       元気: 'はい、元気です！あなたはいかがですか？',
       天気: '今日は晴れていて、とても過ごしやすい日ですね。',
       テスト: 'Voice I/O Bridgeは正常に動作しています！',
+      ありがとう: 'どういたしまして！お役に立てて嬉しいです。',
+      さようなら: 'さようなら！またお話ししましょう。',
     }
 
     // キーワードマッチング
@@ -132,6 +149,12 @@ export class ConversationBot {
    */
   async disconnect() {
     console.log('👋 Disconnecting...')
+
+    // 録音を停止して保存
+    const savedFile = this.audioRecorder.stop()
+    if (savedFile) {
+      console.log(`🎵 Audio recording saved: ${savedFile}`)
+    }
 
     if (this.voice) {
       await this.voice.detach()
