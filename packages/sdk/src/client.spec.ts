@@ -2,9 +2,12 @@
  * Test for MetatellClient implementation
  */
 
+import {
+  type CreateClientOptions,
+  createMetatellClient,
+  type MetatellClient,
+} from '@metatell/bot-core'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMetatellClient, type MetatellClient } from './client.js'
-import type { CreateClientOptions } from './types.js'
 
 // Mock modules
 vi.mock('@metatell/bot-core', () => {
@@ -33,6 +36,7 @@ vi.mock('@metatell/bot-core', () => {
     OrganizationService: createMockClass('OrganizationService'),
     PresenceManager: createMockClass('PresenceManager'),
     registerLoggerProvider: vi.fn(),
+    createMetatellClient: vi.fn(),
     SystemEvents: {
       CONNECTION_ESTABLISHED: 'connection:established',
       CONNECTION_LOST: 'connection:lost',

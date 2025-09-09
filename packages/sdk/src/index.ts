@@ -76,9 +76,11 @@ export {
   SystemEvents,
   UserAvatarManager,
 } from '@metatell/bot-core'
-export type { MetatellClient } from './client.js'
+export type { AgentVoiceAttachment, AgentVoiceConfig } from './agent-voice.js'
+// Voice capabilities (requires @metatell/bot-realtime)
+export { enableVoice } from './agent-voice.js'
 // New Facade API
-export { createMetatellClient } from './client.js'
+export { createMetatellClient, type MetatellClient } from './client-facade.js'
 export { pcm } from './pcm-utils.js'
 export type {
   AgentClient,
@@ -111,6 +113,4 @@ export type {
   PlaybackControls,
   User,
   Vec3,
-  // Error classes are already exported from './sdk/errors.js'
-  // MetatellError, AuthError, NetworkError, NotFoundError, etc.
-} from './types.js'
+} from './types-facade.js'
