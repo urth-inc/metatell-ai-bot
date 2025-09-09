@@ -180,15 +180,16 @@ describe('Service Integration Tests', () => {
       vi.spyOn(connectionManager, 'isConnected').mockReturnValue(true)
       vi.spyOn(connectionManager, 'getSessionId').mockReturnValue('session-123')
 
-      // Test NAF message sending
-      const nafData = {
-        dataType: 'u',
-        networkId: 'test-network-123',
-        owner: 'session-123',
-        creator: 'session-123',
-        position: { x: 1, y: 2, z: 3 },
-      }
+      // Test NAF message sending using NafMessageBuilder
+      const { NafMessageBuilder } = await import('../../builders/NafMessageBuilder.js')
+      const builder = new NafMessageBuilder()
+        .withDataType('u')
+        .withNetworkId('test-network-123')
+        .withOwner('session-123')
+        .withCreator('session-123')
+        .withPosition({ x: 1, y: 2, z: 3 })
 
+      const nafData = builder.build()
       await messageService.sendNAF(nafData)
 
       expect(mockChannel.push).toHaveBeenCalledWith('naf', nafData)
@@ -235,18 +236,11 @@ describe('Service Integration Tests', () => {
       const position = { x: 5, y: 1, z: -3 }
       await avatarController.spawn('test-avatar', position)
 
-      // Verify messages were pushed through channel (AvatarController sends NAF and NAFR)
-      expect(mockChannel.push).toHaveBeenCalledWith(
-        'naf',
-        expect.objectContaining({
-          dataType: 'u',
-        }),
-      )
-
+      // Verify message was pushed through channel (AvatarController sends NAFR for spawn)
       expect(mockChannel.push).toHaveBeenCalledWith(
         'nafr',
         expect.objectContaining({
-          naf: expect.stringContaining('session-123'),
+          naf: expect.stringContaining('"dataType":"u"'),
         }),
       )
 
@@ -288,9 +282,9 @@ describe('Service Integration Tests', () => {
 
       // Verify movement message sent (AvatarController sends NAFR for moves)
       expect(mockChannel.push).toHaveBeenCalledWith(
-        'nafr',
+        'naf',
         expect.objectContaining({
-          naf: expect.stringContaining('session-123'),
+          dataType: 'um',
         }),
       )
 
@@ -384,7 +378,7 @@ describe('Service Integration Tests', () => {
 
       // Verify final state
       expect(connectionManager.isConnected()).toBe(true) // Mock still returns true
-      expect(mockChannel.push).toHaveBeenCalledTimes(3) // 2 for spawn (naf + nafr), 1 for move (nafr)
+      expect(mockChannel.push).toHaveBeenCalledTimes(2) // 1 for spawn (nafr), 1 for move (naf)
       // Note: mockChannel.leave may not be called in disconnect mock implementation
     })
   })

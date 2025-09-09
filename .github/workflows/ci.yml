@@ -42,7 +42,6 @@ jobs:
           key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package.json') }}-node${{ hashFiles('package.json') }}
           restore-keys: |
             pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}-
-            pnpm-${{ runner.os }}-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

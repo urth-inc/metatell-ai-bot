@@ -32,18 +32,36 @@ export function parseNAFComponents(
   // Parse position using type-safe helper
   result.position = extractPosition(typedComponents)
 
-  // Parse head rotation
+  // Parse head rotation (supports both direct and wrapped components)
   const headRotComponent = typedComponents[NafComponentId.HeadRotation]
-  if (headRotComponent?.components && Array.isArray(headRotComponent.components)) {
-    const [x = 0, y = 0, z = 0] = headRotComponent.components
-    result.headRotation = { x, y, z }
+  if (headRotComponent) {
+    const data = (headRotComponent as { components?: unknown }).components ?? headRotComponent
+    if (Array.isArray(data) && data.length >= 3) {
+      const [x = 0, y = 0, z = 0] = data
+      result.headRotation = { x, y, z }
+    } else if (
+      typeof data === 'object' &&
+      data !== null &&
+      'x' in data &&
+      'y' in data &&
+      'z' in data
+    ) {
+      const obj = data as { x: number; y: number; z: number }
+      result.headRotation = { x: obj.x, y: obj.y, z: obj.z }
+    }
   }
 
-  // Parse body rotation and convert to quaternion
+  // Parse body rotation and convert to quaternion (NAF uses degrees)
   const bodyRotation = extractBodyRotation(typedComponents)
   if (bodyRotation) {
     result.bodyRotation = bodyRotation
-    result.rotation = eulerToQuaternion(bodyRotation.x, bodyRotation.y, bodyRotation.z)
+    // Convert degrees to radians for quaternion conversion
+    const deg2rad = Math.PI / 180
+    result.rotation = eulerToQuaternion(
+      bodyRotation.x * deg2rad,
+      bodyRotation.y * deg2rad,
+      bodyRotation.z * deg2rad,
+    )
   }
 
   // Parse avatar component using type-safe helper
@@ -64,6 +82,7 @@ export function parseNAFComponents(
 
 /**
  * Convert Euler angles to quaternion
+ * Note: This function expects radians. NAF uses degrees, so convert before calling.
  * @param x Rotation around X axis (radians)
  * @param y Rotation around Y axis (radians)
  * @param z Rotation around Z axis (radians)
