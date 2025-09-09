@@ -14,6 +14,16 @@ export {
   AnimationPlaybackError,
   AvatarNotSpawnedError,
 } from './errors/animation-errors.js'
+export {
+  AuthenticationError,
+  isMetatellError,
+  isRetryableError,
+  MetatellError,
+  ProtocolError,
+  RateLimitedError,
+  TimeoutError,
+  TransportError,
+} from './errors.js'
 
 // Core Interfaces (サービスインターフェース)
 export { AnimationService, type IAnimationService } from './interfaces/IAnimationService.js'
