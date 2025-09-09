@@ -164,9 +164,75 @@ function getRealtimeUrl(_client: VoiceCapableClient): string {
  * Get realtime service token
  * @internal
  */
-async function getRealtimeToken(_client: VoiceCapableClient): Promise<string> {
-  // In production, this would request a token from the API
-  // using the client's existing authentication
-  // For now, return a placeholder
-  return 'realtime-token-placeholder'
+async function getRealtimeToken(client: VoiceCapableClient): Promise<string> {
+  // Try to get session ID for identity
+  const sessionId = client.getSessionId()
+  if (!sessionId) {
+    throw new Error('Client session not established. Cannot get realtime token.')
+  }
+
+  // Extract roomId and serverUrl from client if possible
+  let roomId = 'unknown-room'
+  let serverUrl = 'wss://urth.metatell-stg.app'
+
+  if (
+    'options' in client &&
+    client.options &&
+    typeof client.options === 'object' &&
+    client.options !== null
+  ) {
+    const options = client.options as { roomId?: string; serverUrl?: string }
+    if ('roomId' in options && options.roomId) {
+      roomId = options.roomId
+    }
+    if ('serverUrl' in options && options.serverUrl) {
+      serverUrl = options.serverUrl
+    }
+  }
+
+  // Use v-air_client compatible endpoint for LiveKit token
+  // POST /livekit/api/token with roomName and identity
+  try {
+    // Convert WebSocket URL to HTTP URL for API call
+    const httpUrl = serverUrl.replace(/^wss?:\/\//, 'https://')
+    const baseUrl = httpUrl
+    const tokenUrl = `${baseUrl}/livekit/api/token`
+
+    console.log('[Voice] Requesting LiveKit token from:', tokenUrl)
+    console.log('[Voice] Request payload:', { roomName: roomId, identity: sessionId })
+
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        roomName: roomId,
+        identity: sessionId,
+      }),
+    })
+
+    console.log('[Voice] Token response status:', response.status, response.statusText)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('[Voice] Token response body:', errorText)
+      throw new Error(`Failed to get LiveKit token: ${response.statusText} - ${errorText}`)
+    }
+
+    const data = (await response.json()) as { token?: string }
+    console.log('[Voice] Token response data:', data)
+
+    if (!data.token) {
+      throw new Error('LiveKit token not found in response')
+    }
+
+    console.log('[Voice] Successfully obtained LiveKit token (length:', data.token.length, ')')
+    return data.token
+  } catch (error) {
+    console.error('[Voice] Failed to get LiveKit token:', error)
+    // Fallback to placeholder for development
+    console.warn('[Voice] Using placeholder token for development')
+    return 'realtime-token-placeholder'
+  }
 }
