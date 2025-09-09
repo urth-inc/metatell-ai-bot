@@ -120,3 +120,60 @@ SDK が処理するエラー:
 - 音声フレーム検証
 - 切断時のクリーンアップ
 - 複数アタッチの防止
+
+### エラーハンドリングの実装例
+
+```typescript
+try {
+  const voice = await enableVoice(client, {
+    transport: { type: 'mock' },
+    handlers: {
+      onRemotePcm: async (pcm, meta) => {
+        try {
+          await stt.addAudioFrame(pcm)
+        } catch (error) {
+          console.error('STT処理エラー:', error)
+        }
+      },
+      getLocalPcmStream: async function* () {
+        try {
+          while (true) {
+            yield await getTTSFrame()
+          }
+        } catch (error) {
+          console.error('TTS処理エラー:', error)
+        }
+      }
+    }
+  })
+} catch (error) {
+  console.error('音声機能の有効化に失敗:', error)
+}
+```
+
+## トラブルシューティング
+
+### よくある問題
+
+1. **接続エラー**
+   ```
+   Error: Connection failed
+   ```
+   - 解決方法: サーバーURLとルームIDを確認してください
+
+2. **音声が聞こえない**
+   - MockTransportを使用していることを確認
+   - `transport: { type: 'mock' }` が設定されているか確認
+
+3. **依存関係エラー**
+   ```bash
+   # ワークスペースの依存関係を再インストール
+   pnpm install
+   pnpm build
+   ```
+
+4. **TypeScriptエラー**
+   ```bash
+   # 型チェックの実行
+   npm run typecheck
+   ```

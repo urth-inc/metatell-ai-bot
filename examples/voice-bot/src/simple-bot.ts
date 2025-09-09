@@ -33,8 +33,9 @@ export class SimpleVoiceBot {
     // クライアントを接続
     await this.client.connect()
 
-    // 音声機能を有効化（実装の詳細は SDK 内部に隠蔽）
+    // 音声機能を有効化 - 実際のLiveKit接続を使用
     this.voice = await enableVoice(this.client, {
+      transport: { type: 'livekit' },
       handlers: {
         // リモート音声を受信 -> STTに送信
         onRemotePcm: async (pcm, meta) => {
@@ -78,6 +79,12 @@ export class SimpleVoiceBot {
       return 'こんにちは！お元気ですか？'
     } else if (input.includes('ありがとう')) {
       return 'どういたしまして！'
+    } else if (input.includes('天気')) {
+      return '今日はいい天気ですね！'
+    } else if (input.includes('テスト')) {
+      return 'Voice I/O Bridgeのテストが成功しました！'
+    } else if (input.includes('さようなら')) {
+      return 'さようなら！また会いましょう。'
     } else {
       return 'なるほど、そうですね。'
     }

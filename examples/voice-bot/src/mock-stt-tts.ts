@@ -40,6 +40,8 @@ export class MockSTT {
         '今日はいい天気ですね',
         'Voice I/O Bridgeのテストです',
         '音声認識が動作しています',
+        'ありがとうございます',
+        'さようなら',
       ]
 
       const text = messages[Math.floor(Math.random() * messages.length)]
@@ -48,6 +50,8 @@ export class MockSTT {
       if (this.onTranscript) {
         this.onTranscript(text)
       }
+    } catch (error) {
+      console.error('STT処理エラー:', error)
     } finally {
       this.processing = false
     }
@@ -67,26 +71,30 @@ export class MockTTS {
   async *textToSpeech(text: string): AsyncIterable<Int16Array> {
     console.log(`🔊 TTS: "${text}"`)
 
-    // 文字数に応じてフレーム数を決定（1文字あたり10フレーム）
-    const frameCount = text.length * 10
+    try {
+      // 文字数に応じてフレーム数を決定（1文字あたり10フレーム）
+      const frameCount = text.length * 10
 
-    // 20msごとにフレームを生成
-    for (let i = 0; i < frameCount; i++) {
-      // 実際のTTSでは、ここで音声合成された波形データを生成
-      // デモ用：サイン波を生成（440Hz）
-      const frame = new Int16Array(960)
-      const frequency = 440 // A4音
-      const sampleRate = 48000
+      // 20msごとにフレームを生成
+      for (let i = 0; i < frameCount; i++) {
+        // 実際のTTSでは、ここで音声合成された波形データを生成
+        // デモ用：サイン波を生成（440Hz）
+        const frame = new Int16Array(960)
+        const frequency = 440 // A4音
+        const sampleRate = 48000
 
-      for (let j = 0; j < frame.length; j++) {
-        const t = (i * 960 + j) / sampleRate
-        frame[j] = Math.sin(2 * Math.PI * frequency * t) * 16000
+        for (let j = 0; j < frame.length; j++) {
+          const t = (i * 960 + j) / sampleRate
+          frame[j] = Math.sin(2 * Math.PI * frequency * t) * 16000
+        }
+
+        yield frame
+
+        // フレーム間の遅延をシミュレート
+        await new Promise((resolve) => setTimeout(resolve, 20))
       }
-
-      yield frame
-
-      // フレーム間の遅延をシミュレート
-      await new Promise((resolve) => setTimeout(resolve, 20))
+    } catch (error) {
+      console.error('TTS処理エラー:', error)
     }
   }
 }
