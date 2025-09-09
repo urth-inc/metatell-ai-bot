@@ -82,8 +82,8 @@ importers:
         specifier: 4.20.5
         version: 4.20.5
       typescript:
-        specifier: 5.6.3
-        version: 5.6.3
+        specifier: 5.9.2
+        version: 5.9.2
 
   packages/core:
     dependencies:
@@ -126,8 +126,8 @@ importers:
         specifier: 22.10.6
         version: 22.10.6
       typescript:
-        specifier: 5.7.2
-        version: 5.7.2
+        specifier: 5.9.2
+        version: 5.9.2
       vitest:
         specifier: 3.0.5
         version: 3.0.5(@types/node@22.10.6)(@vitest/ui@3.2.4(vitest@3.2.4))(happy-dom@18.0.1)(tsx@4.20.5)(yaml@2.8.1)
@@ -2028,16 +2028,6 @@ packages:
     hasBin: true
     peerDependencies:
       typescript: 5.0.x || 5.1.x || 5.2.x || 5.3.x || 5.4.x || 5.5.x || 5.6.x || 5.7.x || 5.8.x || 5.9.x
-
-  typescript@5.6.3:
-    resolution: {integrity: sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw==}
-    engines: {node: '>=14.17'}
-    hasBin: true
-
-  typescript@5.7.2:
-    resolution: {integrity: sha512-i5t66RHxDvVN40HfDd1PsEThGNnlMCMT3jMUuoh9/0TaqWevNontacunWyN02LA9/fIbEWlcHZcgTKb9QoaLfg==}
-    engines: {node: '>=14.17'}
-    hasBin: true
 
   typescript@5.9.2:
     resolution: {integrity: sha512-CWBzXQrc/qOkhidw1OzBTQuYRbfyxDXJMVJ1XNwUHGROVmuaeiEm3OslpZ1RV96d7SKKjZKrSJu3+t/xlw3R9A==}
@@ -4124,10 +4114,6 @@ snapshots:
       minimatch: 9.0.5
       typescript: 5.9.2
       yaml: 2.8.1
-
-  typescript@5.6.3: {}
-
-  typescript@5.7.2: {}
 
   typescript@5.9.2: {}
 
