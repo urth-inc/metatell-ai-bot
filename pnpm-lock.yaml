@@ -12,7 +12,7 @@ importers:
         specifier: 2.2.3
         version: 2.2.3
       '@changesets/cli':
-        specifier: ^2.29.6
+        specifier: 2.29.6
         version: 2.29.6(@types/node@22.17.2)
       '@testing-library/jest-dom':
         specifier: 6.8.0
@@ -45,10 +45,10 @@ importers:
         specifier: 1.12.3
         version: 1.12.3
       typedoc:
-        specifier: ^0.28.12
+        specifier: 0.28.12
         version: 0.28.12(typescript@5.9.2)
       typedoc-plugin-missing-exports:
-        specifier: ^4.1.0
+        specifier: 4.1.0
         version: 4.1.0(typedoc@0.28.12(typescript@5.9.2))
       typescript:
         specifier: 5.9.2
