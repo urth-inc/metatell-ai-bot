@@ -46,7 +46,7 @@ describe('createRealtimeTransport', () => {
   it('should create livekit transport when type is specified', async () => {
     const { LiveKitAdapter } = await import('./livekit.js')
     const options: CreateTransportOptions = { type: 'livekit' }
-    const _transport = createRealtimeTransport(options)
+    createRealtimeTransport(options)
     expect(LiveKitAdapter).toHaveBeenCalled()
   })
 
