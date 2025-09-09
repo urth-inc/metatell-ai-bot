@@ -1,10 +1,5 @@
+#!/usr/bin/env node
 import { ConversationBot } from './conversation-bot.js'
-
-// 環境変数から設定を読み込み
-const SERVER_URL = process.env.METATELL_SERVER_URL || 'wss://metatell.app'
-const ROOM_ID = process.env.METATELL_ROOM_ID || 'demo-room'
-const USERNAME = process.env.METATELL_USERNAME || 'VoiceBot'
-const TOKEN = process.env.METATELL_TOKEN
 
 /**
  * Voice I/O Bridge デモボット
@@ -21,13 +16,30 @@ const TOKEN = process.env.METATELL_TOKEN
  * - AI応答はLLM（GPT-4, Claude等）を使用
  */
 async function main() {
+  const url = process.argv[2]
+  if (!url) {
+    console.error('使い方: npm run voice:conversation <metatell-room-url>')
+    console.error('例: npm run voice:conversation https://metatell.app/your-room-id')
+    process.exit(1)
+  }
+
+  const urlObj = new URL(url)
+  const serverUrl = `wss://${urlObj.host}`
+  const roomId = urlObj.pathname.split('/')[1]
+
+  if (!roomId) {
+    console.error('ルームIDが見つかりません')
+    process.exit(1)
+  }
+
   console.log('🚀 Voice Bot Demo')
   console.log('================')
   console.log('This demo shows Voice I/O Bridge functionality with mock STT/TTS')
+  console.log(`Connecting to: ${serverUrl} (Room: ${roomId})`)
   console.log('')
 
   // ボットを作成
-  const bot = new ConversationBot(SERVER_URL, ROOM_ID, USERNAME, TOKEN)
+  const bot = new ConversationBot(serverUrl, roomId, 'VoiceBot', process.env.METATELL_TOKEN)
 
   // 接続
   await bot.connect()
