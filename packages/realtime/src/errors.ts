@@ -18,6 +18,12 @@ export const ErrorCodes = {
   NOT_CONNECTED: 'NotConnected',
   CONNECTION_FAILED: 'ConnectionFailed',
   SEND_FAILED: 'SendFailed',
+  INVALID_AUDIO_FRAME: 'InvalidAudioFrame',
 } as const
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes]
+
+// Voice-specific errors
+export class InvalidAudioFrameError extends MetatellError {
+  readonly code = 'INVALID_AUDIO_FRAME'
+}

@@ -9,3 +9,12 @@ export type {
   RealtimeTransport,
   TokenProvider,
 } from './transport.js'
+
+// Voice bridge exports
+export { attachVoice } from './voice/agent-bridge.js'
+export type {
+  AttachVoiceOptions,
+  VoiceAttachment,
+  VoiceHandlers,
+  VoiceMetadata,
+} from './voice/types.js'
