@@ -30,8 +30,10 @@ export class ConversationBot {
     // クライアントを接続
     await this.client.connect()
 
-    // 音声機能を有効化（実装の詳細は SDK 内部に隠蔽）
+    // 音声機能を有効化（デモ用にMockTransportを使用）
     this.voice = await enableVoice(this.client, {
+      // デモ用にMockTransportを使用してLiveKit接続を回避
+      transport: { type: 'mock' },
       handlers: {
         // リモート音声を受信 -> STTに送信
         onRemotePcm: async (pcm, meta) => {
