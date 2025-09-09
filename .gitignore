@@ -28,3 +28,6 @@ metatell.config.cjs
 .changeset/*.md
 !.changeset/README.md
 !.changeset/config.json
+
+# TypeDoc generated documentation
+docs-generated/
