@@ -31,3 +31,10 @@ metatell.config.cjs
 
 # TypeDoc generated documentation
 docs-generated/
+
+# Development workflow directories
+.spec-workflow/
+.tmp/
+
+# Claude commands
+.claude/
