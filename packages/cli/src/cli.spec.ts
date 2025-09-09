@@ -76,7 +76,7 @@ describe('CLI', () => {
     await import('./cli.js')
 
     expect(mockProgram).toBeDefined()
-    expect(mockProgram.name).toHaveBeenCalledWith('metatell-cli')
+    expect(mockProgram.name).toHaveBeenCalledWith('metatell-bot')
     expect(mockProgram.description).toHaveBeenCalledWith(
       'CLI tool for Metatell bot development and testing',
     )
