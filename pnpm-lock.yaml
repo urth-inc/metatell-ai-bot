@@ -103,10 +103,10 @@ importers:
         specifier: 1.8.1
         version: 1.8.1
       uuid:
-        specifier: 12.0.0
+        specifier: ^12.0.0
         version: 12.0.0
       ws:
-        specifier: 8.18.3
+        specifier: ^8.18.3
         version: 8.18.3
     devDependencies:
       '@types/phoenix':
@@ -118,9 +118,9 @@ importers:
       '@livekit/rtc-node':
         specifier: 0.13.18
         version: 0.13.18
-      '@metatell/bot-sdk':
+      '@metatell/bot-core':
         specifier: workspace:*
-        version: link:../sdk
+        version: link:../core
     devDependencies:
       '@types/node':
         specifier: 22.10.6
