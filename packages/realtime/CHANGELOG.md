@@ -1,5 +1,20 @@
 # @metatell/bot-realtime
 
+## 0.0.7
+
+### Patch Changes
+
+- - Merge pull request #88 from urth-inc/fix/esmodule-commonjs-compatibility
+  - docs: add development section to CLI README
+  - feat: dynamic version reading from package.json for CLI
+  - Merge pull request #86 from urth-inc/feature/pin-package-versions
+  - fix: align @types/node version in packages/cli with root package
+  - fix: resolve ESModule/CommonJS compatibility issue in CLI package
+  - chore: pin all package versions in workspace packages
+  - chore: pin all package versions to exact versions
+- Updated dependencies
+  - @metatell/bot-sdk@0.0.7
+
 ## 0.0.6
 
 ### Patch Changes
