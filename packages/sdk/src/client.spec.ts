@@ -445,14 +445,81 @@ describe('MetatellClient', () => {
   })
 
   describe('avatar', () => {
-    it('should select avatar', async () => {
+    it('should select regular avatar', async () => {
       await client.avatar.select('new-avatar-id')
 
-      expect(mocks.avatarController.spawn).toHaveBeenCalledWith('new-avatar-id', {
-        x: 0,
-        y: 0,
-        z: 0,
+      expect(mocks.avatarController.spawn).toHaveBeenCalledWith(
+        'new-avatar-id',
+        {
+          x: 0,
+          y: 0,
+          z: 0,
+        },
+        undefined,
+      )
+    })
+
+    it('should select organization avatar with URL', async () => {
+      const orgAvatarId = '69030ac8-1089-4686-82b2-1068bc4c776c'
+      const avatarUrl = 'https://example.com/avatar.gltf'
+
+      // Mock organization service responses
+      mocks.organizationService.getOrganizationInfo.mockResolvedValue({
+        organizationId: 'org-123',
+        realmId: 'realm-123',
       })
+      mocks.organizationService.fetchOrganizationAvatars.mockResolvedValue([
+        {
+          id: orgAvatarId,
+          name: 'Test Avatar',
+          gltf: { avatar: avatarUrl },
+          preview_url: 'https://example.com/preview.png',
+        },
+      ])
+      mocks.configProvider.getConfiguration.mockReturnValue({
+        hubUrl: 'https://test.metatell.app',
+        hubId: 'test-hub',
+        profile: { displayName: 'TestBot', avatarId: '' },
+      })
+
+      await client.avatar.select(orgAvatarId)
+
+      expect(mocks.organizationService.getOrganizationInfo).toHaveBeenCalledWith(
+        'https://test.metatell.app',
+        'test-hub',
+      )
+      expect(mocks.organizationService.fetchOrganizationAvatars).toHaveBeenCalledWith(
+        'https://test.metatell.app',
+        'org-123',
+      )
+      expect(mocks.avatarController.spawn).toHaveBeenCalledWith(
+        orgAvatarId,
+        {
+          x: 0,
+          y: 0,
+          z: 0,
+        },
+        avatarUrl,
+      )
+    })
+
+    it('should throw error for organization avatar not found', async () => {
+      const orgAvatarId = '69030ac8-1089-4686-82b2-1068bc4c776c'
+
+      mocks.organizationService.getOrganizationInfo.mockResolvedValue({
+        organizationId: 'org-123',
+        realmId: 'realm-123',
+      })
+      mocks.organizationService.fetchOrganizationAvatars.mockResolvedValue([])
+      mocks.configProvider.getConfiguration.mockReturnValue({
+        hubUrl: 'https://test.metatell.app',
+        hubId: 'test-hub',
+        profile: { displayName: 'TestBot', avatarId: '' },
+      })
+
+      await expect(client.avatar.select(orgAvatarId)).rejects.toThrow(
+        `Organization avatar not found: ${orgAvatarId}`,
+      )
     })
 
     it('should play animation by id', async () => {

@@ -253,6 +253,15 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
   }
 
   /**
+   * Check if avatar ID is organization avatar (UUID format)
+   */
+  private isOrganizationAvatar(avatarId: string): boolean {
+    // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    return uuidRegex.test(avatarId)
+  }
+
+  /**
    * Parse mention from message body
    * Format: [@displayName](session-id) message
    * Example: [@MetatellCLI](b754ca96-d395-4b80-adb1-77cb0240a43d) hello
@@ -556,7 +565,36 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
     select: async (assetId: string): Promise<void> => {
       // アバターを変更するには再度spawnを呼び出す
       const state = this.avatarController.getState()
-      await this.avatarController.spawn(assetId, state?.position)
+
+      // 組織アバター（UUID形式）の場合、URLを取得する必要がある
+      let avatarSrc: string | undefined
+      if (this.isOrganizationAvatar(assetId)) {
+        // 組織情報とアバターリストを取得
+        const hubUrl = this.configProvider.getConfiguration().hubUrl
+        const hubId = this.configProvider.getConfiguration().hubId
+        const orgInfo = await this.organizationService.getOrganizationInfo(hubUrl, hubId)
+
+        if (orgInfo.organizationId) {
+          const avatars = await this.organizationService.fetchOrganizationAvatars(
+            hubUrl,
+            orgInfo.organizationId,
+          )
+          const targetAvatar = avatars.find((a) => a.id === assetId)
+
+          if (targetAvatar) {
+            avatarSrc = targetAvatar.gltf.avatar
+            this.logger.debug('Found organization avatar URL', { assetId, avatarSrc })
+          } else {
+            throw new Error(`Organization avatar not found: ${assetId}`)
+          }
+        } else {
+          throw new Error(
+            `Cannot fetch organization avatars: organization ID not set for hub ${hubId}`,
+          )
+        }
+      }
+
+      await this.avatarController.spawn(assetId, state?.position, avatarSrc)
     },
 
     play: async (animation: Animation): Promise<void> => {
