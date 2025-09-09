@@ -14,7 +14,8 @@
     "clean": "pnpm -r clean",
     "changeset": "changeset",
     "bumpup": "changeset version",
-    "release": "pnpm build && changeset publish"
+    "release": "pnpm build && changeset publish",
+    "typedoc": "typedoc"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.2",
@@ -29,6 +30,8 @@
     "@vitest/ui": "3.2.4",
     "happy-dom": "18.0.1",
     "lefthook": "1.12.3",
+    "typedoc": "^0.28.12",
+    "typedoc-plugin-missing-exports": "^4.1.0",
     "typescript": "5.9.2",
     "vitest": "3.2.4"
   },
