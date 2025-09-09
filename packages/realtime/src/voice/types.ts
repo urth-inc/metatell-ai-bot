@@ -1,5 +1,5 @@
 // type-only import で循環依存を避ける
-import type { AgentClient } from '@metatell/bot-sdk'
+import type { VoiceCapableClient } from '@metatell/bot-core'
 import type { RealtimeTransport } from '../transport.js'
 
 /**
@@ -62,11 +62,11 @@ export interface VoiceAttachment {
  * 内部状態管理用（エクスポートしない）
  */
 export interface AttachmentState {
-  agent: AgentClient
+  agent: VoiceCapableClient
   transport: RealtimeTransport
   original: {
-    sendVoiceFrame: AgentClient['sendVoiceFrame']
-    muteVoice: AgentClient['muteVoice']
+    sendVoiceFrame?: VoiceCapableClient['sendVoiceFrame']
+    muteVoice?: VoiceCapableClient['muteVoice']
   }
   removeListener?: () => void
   abortController?: AbortController
