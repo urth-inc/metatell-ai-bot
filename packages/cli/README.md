@@ -84,6 +84,58 @@ metatell-cli inspect https://metatell.app/ROOM_ID [options]
 
 - `METATELL_TOKEN` — デフォルト認証トークン（任意）
 
+## 開発
+
+### ローカル開発環境のセットアップ
+
+CLIをローカルで開発・テストする場合の手順：
+
+```bash
+# 1. リポジトリをクローン
+git clone https://github.com/urth-inc/metatell-ai-bot.git
+cd metatell-ai-bot
+
+# 2. 依存関係をインストール
+npm install
+
+# 3. CLIパッケージへ移動
+cd packages/cli
+
+# 4. ビルド
+npm run build
+
+# 5. ローカルにリンク（グローバルコマンドとして登録）
+npm link
+
+# 6. 動作確認
+metatell-cli --version
+metatell-cli --help
+```
+
+### 開発時の便利なコマンド
+
+```bash
+# TypeScriptをウォッチモードでコンパイル
+npm run dev
+
+# ビルド
+npm run build
+
+# 型チェック
+npm run typecheck
+
+# テスト実行（ルートディレクトリから）
+cd ../.. && npm test packages/cli/src/cli.spec.ts
+```
+
+### アンリンク（クリーンアップ）
+
+開発が終了したら、グローバルリンクを削除：
+
+```bash
+npm unlink -g @metatell/bot-cli
+```
+
 ## License
 
 MIT
