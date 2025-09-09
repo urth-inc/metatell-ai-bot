@@ -1,5 +1,46 @@
 # @metatell/bot-core
 
+## 0.0.6
+
+### Patch Changes
+
+- - Merge pull request #36 from urth-inc/renovate/biomejs-biome-2.x
+  - Merge pull request #85 from urth-inc/fix/github-actions-node-setup
+  - Merge pull request #84 from urth-inc/fix/avatar-src-error
+  - fix: GitHub Actions docs ワークフローの Node.js セットアップを Volta に統一
+  - refactor: improve organization avatar detection to avoid UUID-based inference
+  - test: add unit tests to detect organization avatar URL bug
+  - Merge pull request #83 from urth-inc/feature/typedoc-githubpages
+  - style: typedoc テーマ CSS のフォーマット修正（末尾改行）
+  - fix: resolve organization avatar URL requirement in CLI
+  - Merge branch 'develop' into feature/typedoc-githubpages
+  - Merge pull request #82 from urth-inc/feature/add-package-readmes
+  - chore(deps): pnpm-lock.yaml を更新（typedoc 関連依存を反映）
+  - chore(tsconfig): プロジェクト参照の微調整（no functional change）
+  - docs(typedoc): tsconfig.typedoc.json とテーマ CSS を追加／.gitignore を整理
+  - fix: correct quaternion to euler conversion in SDK example
+  - docs: unify NAF debugging configuration to AppSettings only
+  - fix: remove legacy :443 port specifications from test URLs
+  - docs: 表現をエンジニア向けに調整（誇張語の削除・中立表現化）
+  - feat: add rotation test helpers for consistent angle conversion
+  - docs(typedoc): packages 戦略に切替・excludeInternal・リンク/並び順を調整
+  - fix: improve TypeScript type safety in NAF extraction functions
+  - ci(docs): CI を pnpm typedoc に統一／ローカルは docs:build・docs:watch へ整理
+  - fix: unify NAF/NAFR usage according to protocol design
+  - chore(typedoc): 型スタブを追加・lint 準拠（commander/livekit/uuid）
+  - fix: remove unnecessary sharp from ignoredBuiltDependencies
+  - docs: sync with implementation
+  - fix: update lockfile to resolve uuid dependency issue
+  - Merge remote-tracking branch 'origin/develop' into feature/add-package-readmes
+  - docs: translate READMEs to Japanese and update Node.js requirement to 22
+  - ci(cache): remove redundant pnpm cache restore key
+  - docs: add comprehensive README documentation for all packages
+  - Merge pull request #37 from urth-inc/renovate/uuid-12.x
+  - Merge pull request #80 from urth-inc/feature/20250904/add-docs
+  - fix(deps): update dependency uuid to v12
+  - chore(deps): update dependency @biomejs/biome to v2.2.3
+  - README.md のドキュメントを更新し、SDK の導入から応用までを網羅した内容に整備しました。また、NAF.md ファイルを削除し、クイックスタートの例を修正しました。SDK のインポートパスを更新し、CreateClientOptions のコメントを明確化しました。
+
 ## 0.0.5
 
 ### Patch Changes
