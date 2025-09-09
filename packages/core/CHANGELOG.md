@@ -1,5 +1,13 @@
 # @metatell/bot-core
 
+## 0.0.9
+
+### Patch Changes
+
+- - Merge pull request #94 from urth-inc/feature/rename-cli-alias
+  - fix: make CLI version test less brittle
+  - feat: rename CLI alias from metatell-cli to metatell-bot
+
 ## 0.0.8
 
 ### Patch Changes
