@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@metatell/bot-core": "workspace:*",
-    "@types/uuid": "^10.0.0"
+    "@types/uuid": "10.0.0"
   },
   "peerDependencies": {
     "@types/node": "*",
@@ -29,7 +29,7 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "@types/phoenix": "^1.6.6"
+    "@types/phoenix": "1.6.6"
   },
   "repository": {
     "type": "git",
