@@ -21,7 +21,7 @@ const mockMessageService: IMessageService = {
 
 const mockConfigProvider: IConfigurationProvider = {
   getConfiguration: vi.fn(() => ({
-    storageUrl: 'https://storage.metatell.app:443',
+    storageUrl: 'https://storage.metatell.app',
     profile: {
       displayName: 'Test Bot',
       avatarId: 'test-avatar',
@@ -136,7 +136,7 @@ describe('AvatarController - Animation Features', () => {
         expectedDuration: 2000 / 1.5, // duration / timeScale
       })
 
-      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+      expect(mockMessageService.sendNAF).toHaveBeenCalledWith(
         expect.objectContaining({
           dataType: 'um',
           data: expect.objectContaining({
@@ -198,7 +198,7 @@ describe('AvatarController - Animation Features', () => {
     it('should send idle animation message', async () => {
       await controller.stopAnimation()
 
-      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+      expect(mockMessageService.sendNAF).toHaveBeenCalledWith(
         expect.objectContaining({
           dataType: 'um',
           data: expect.objectContaining({

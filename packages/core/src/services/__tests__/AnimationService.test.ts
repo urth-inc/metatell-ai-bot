@@ -16,7 +16,7 @@ global.fetch = vi.fn()
 
 describe('AnimationService', () => {
   let service: AnimationService
-  const apiBaseUrl = 'https://storage.metatell.app:443'
+  const apiBaseUrl = 'https://storage.metatell.app'
 
   beforeEach(() => {
     service = new AnimationService(mockLogger, apiBaseUrl)

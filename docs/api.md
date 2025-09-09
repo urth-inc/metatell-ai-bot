@@ -13,8 +13,7 @@ SDK は 2 層の API を提供します。
 - `roomId: string`
 - `token?: string` — 認証トークン（要否は運用/環境に依存）
 - `username?: string`, `avatarId?: string`
-- `logger?: 'silent' | 'info' | 'debug'`
-- `debug?: boolean`
+- `debug?: boolean` — 詳細ログを有効化
 - `reconnect?: { enabled?: boolean; maxDelayMs?: number }`
 
 ### メソッド
@@ -22,7 +21,8 @@ SDK は 2 層の API を提供します。
 - `connect(): Promise<void>`
 - `disconnect(): Promise<void>`
 - `getInfo(): Promise<{ name; version; roomId; sessionId? }>`
-- `getUsers(): User[]` — 同期取得（内部キャッシュ/現在値）
+- `getUsers(): User[]` — 同期取得（内部キャッシュの現在値）
+- `getSessionId(): string | null`
 - `getRateLimit(key): number | undefined` / `setRateLimit(key, perSecond)`
 
 ### 名前空間: `room`
@@ -42,16 +42,21 @@ SDK は 2 層の API を提供します。
 - `avatar.select(assetId: string): Promise<void>`
 - `avatar.moveTo({ x,y,z }): Promise<void>`
 - `avatar.rotateTo({ x,y,z }): Promise<void>` — 角度（度数法）
-- `avatar.play(animation: { id; url?; name?; loop?; speed?; ... }): Promise<void>`
+- `avatar.play(animation: { id; url?; name?; loop?; duration?; transitionDuration? }): Promise<void>`
+- `avatar.getAvailableAssets(): Promise<AvatarAsset[]>`
+- `avatar.getAvailableAnimations(): Promise<Animation[]>`
 
-<!-- 音声機能は開発中のため、現時点ではドキュメント掲載を見合わせています。 -->
+### 音声（experimental）
+
+- `voice.playPcm(...)` は SDK 側にプレースホルダー実装があります。実動環境では `@metatell/bot-realtime` を併用してください（examples を参照）。
 
 ### イベント（`MetatellClientEvents`）
 
 - `connected()` / `disconnected(reason?)`
-- `error(MetatellError)`
 - `chat-message({ from, text, mention? })`
 - `user-join(User)` / `user-leave(User)`
+
+注記: `error(MetatellError)` は型として存在しますが、現状 SDK 内からの発火は限定的です（多くは例外としてスロー）。
 
 ### エラー
 
@@ -97,3 +102,4 @@ const client = createAgentClient({ /* BotConfiguration */ })
 ## NAF（同期メッセージ）
 
 `@metatell/bot-core` の型を再エクスポートしており、`NAF.md` に概要を記載しています。型安全なビルダー/型ガードを活用すると、3D 同期メッセージの扱いが楽になります。
+

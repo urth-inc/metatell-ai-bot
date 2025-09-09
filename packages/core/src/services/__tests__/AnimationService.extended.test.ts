@@ -20,7 +20,7 @@ global.fetch = vi.fn()
 
 describe('AnimationService - Extended Error Handling', () => {
   let service: AnimationService
-  const apiBaseUrl = 'https://storage.metatell.app:443'
+  const apiBaseUrl = 'https://storage.metatell.app'
 
   beforeEach(() => {
     service = new AnimationService(mockLogger, apiBaseUrl)
@@ -304,7 +304,7 @@ describe('AnimationService - Extended Error Handling', () => {
 
       // Should use the avatar ID in the URL (not necessarily encoded)
       expect(global.fetch).toHaveBeenCalledWith(
-        `https://storage.metatell.app:443/api/v1/avatars/${specialAvatarId}`,
+        `https://storage.metatell.app/api/v1/avatars/${specialAvatarId}`,
       )
     })
 
