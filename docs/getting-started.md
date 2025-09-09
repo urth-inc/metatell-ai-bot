@@ -4,7 +4,7 @@
 
 ## 前提条件
 
-- Node.js 18 以上（推奨: 20+）
+- Node.js 20 以上（推奨: 22+）
 - TypeScript 推奨（JS でも可）
 - ルーム URL または `roomId`
 - 認証トークン（要否は環境の設定に依存）
@@ -26,8 +26,6 @@ const client = createMetatellClient({
   // token: process.env.METATELL_TOKEN, // 認証が必要な環境では設定
 })
 
-client.on('error', (e) => console.error(e))
-
 await client.connect()
 const botInfo = await client.getInfo()
 
@@ -39,9 +37,11 @@ client.chat.onMessage(async ({ mention, reply }) => {
 })
 ```
 
+注記: 現状 `error` イベントの発火は限定的です。接続や送信の失敗は例外としてスローされるため、必要に応じて `try/catch` で保護してください。
+
 ## よく使うオプション
 
-- `logger`: `'silent' | 'info' | 'debug'`（開発時は `debug` が便利）
+- `debug`: `true | false`（開発時は `true` が便利）
 - `username`: 表示名
 - `avatarId`: 既存アバターの選択
 - `reconnect`: `{ enabled?: boolean; maxDelayMs?: number }`

@@ -5,7 +5,7 @@ async function main() {
   const client = createMetatellClient({
     serverUrl: 'wss://metatell.app',
     roomId: 'YOUR_ROOM_ID',
-    logger: 'debug',
+    debug: true,
   })
 
   client.on('error', (err) => console.error('SDK Error:', err))

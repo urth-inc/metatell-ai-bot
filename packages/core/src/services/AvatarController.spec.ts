@@ -74,7 +74,7 @@ describe('AvatarController', () => {
 
       // Verify session ID is set by trying to spawn
       avatarController.spawn('avatar-123').catch(() => undefined)
-      expect(mockMessageService.sendNAF).toHaveBeenCalled()
+      expect(mockMessageService.sendNAFR).toHaveBeenCalled()
     })
   })
 
@@ -89,7 +89,7 @@ describe('AvatarController', () => {
     it('should spawn avatar with default position', async () => {
       await avatarController.spawn('avatar-123')
 
-      expect(mockMessageService.sendNAF).toHaveBeenCalledWith({
+      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith({
         dataType: 'u',
         data: expect.objectContaining({
           networkId: 'test-session-123',
@@ -102,7 +102,6 @@ describe('AvatarController', () => {
         }),
       })
 
-      expect(mockMessageService.sendNAFR).toHaveBeenCalled()
       expect(mockEventBus.emit).toHaveBeenCalledWith(
         SystemEvents.AVATAR_SPAWNED,
         expect.any(Object),
@@ -113,7 +112,7 @@ describe('AvatarController', () => {
       const customPosition = { x: 5, y: 1, z: -3 }
       await avatarController.spawn('avatar-456', customPosition)
 
-      expect(mockMessageService.sendNAF).toHaveBeenCalledWith({
+      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith({
         dataType: 'u',
         data: expect.objectContaining({
           components: expect.objectContaining({
@@ -166,7 +165,7 @@ describe('AvatarController', () => {
       const newPosition = { x: 10, y: 0, z: -5 }
       await avatarController.move(newPosition)
 
-      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+      expect(mockMessageService.sendNAF).toHaveBeenCalledWith(
         expect.objectContaining({
           dataType: 'um',
           data: expect.objectContaining({
@@ -232,7 +231,7 @@ describe('AvatarController', () => {
       const newRotation = { x: 0, y: Math.sin(angle / 2), z: 0, w: Math.cos(angle / 2) }
       await avatarController.rotate(newRotation)
 
-      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+      expect(mockMessageService.sendNAF).toHaveBeenCalledWith(
         expect.objectContaining({
           dataType: 'um',
           data: expect.objectContaining({
@@ -296,7 +295,7 @@ describe('AvatarController', () => {
       const updates = { position: { x: 1, y: 2, z: 3 } }
       await avatarController.updateState(updates)
 
-      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+      expect(mockMessageService.sendNAF).toHaveBeenCalledWith(
         expect.objectContaining({
           dataType: 'um',
           data: expect.objectContaining({
@@ -322,7 +321,7 @@ describe('AvatarController', () => {
       const updates = { rotation: { x: 0.1, y: 0.2, z: 0.3, w: 0.9 } }
       await avatarController.updateState(updates)
 
-      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+      expect(mockMessageService.sendNAF).toHaveBeenCalledWith(
         expect.objectContaining({
           dataType: 'um',
           data: expect.objectContaining({
@@ -349,7 +348,7 @@ describe('AvatarController', () => {
       const updates = { avatarId: 'new-avatar-456' }
       await avatarController.updateState(updates)
 
-      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+      expect(mockMessageService.sendNAF).toHaveBeenCalledWith(
         expect.objectContaining({
           dataType: 'um',
           data: expect.objectContaining({
@@ -377,7 +376,7 @@ describe('AvatarController', () => {
       }
       await avatarController.updateState(updates)
 
-      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+      expect(mockMessageService.sendNAF).toHaveBeenCalledWith(
         expect.objectContaining({
           dataType: 'um',
           data: expect.objectContaining({
@@ -438,7 +437,7 @@ describe('AvatarController', () => {
     it('should resync avatar with current state', async () => {
       await avatarController.resyncAvatar()
 
-      expect(mockMessageService.sendNAF).toHaveBeenCalledWith(
+      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
         expect.objectContaining({
           dataType: 'u',
           data: expect.objectContaining({
@@ -466,7 +465,7 @@ describe('AvatarController', () => {
       await avatarController.resyncAvatar()
 
       // Verify that resync includes the new position
-      expect(mockMessageService.sendNAF).toHaveBeenCalledWith(
+      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
         expect.objectContaining({
           dataType: 'u',
           data: expect.objectContaining({
