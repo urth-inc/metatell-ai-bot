@@ -103,10 +103,10 @@ importers:
         specifier: 1.8.1
         version: 1.8.1
       uuid:
-        specifier: ^12.0.0
+        specifier: 12.0.0
         version: 12.0.0
       ws:
-        specifier: ^8.18.3
+        specifier: 8.18.3
         version: 8.18.3
     devDependencies:
       '@types/phoenix':
