@@ -1,5 +1,20 @@
 # @metatell/bot-realtime
 
+## 0.0.8
+
+### Patch Changes
+
+- - Merge pull request #92 from urth-inc/fix/circular-dependency-errors
+  - chore: update pnpm-lock.yaml for pinned dependencies
+  - fix: remove caret from uuid and ws versions to maintain pinned dependencies
+  - refactor: move error classes from sdk to core to prevent circular dependencies
+  - Merge pull request #90 from urth-inc/renovate/tsx-4.x
+  - Merge pull request #91 from urth-inc/renovate/livekit-agents-1.x
+  - fix(deps): update dependency @livekit/agents to v1.0.2
+  - chore(deps): update dependency tsx to v4.20.5
+- Updated dependencies
+  - @metatell/bot-core@0.0.8
+
 ## 0.0.7
 
 ### Patch Changes
