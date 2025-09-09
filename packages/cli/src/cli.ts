@@ -1,19 +1,29 @@
 #!/usr/bin/env node
+
 /**
  * Metatell CLI - Interactive tool for bot development and testing
  */
 
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Command } from 'commander'
 import { connectCommand } from './commands/connect.js'
 import { inspectCommand } from './commands/inspect.js'
 import { startInteractiveMode } from './commands/interactive.js'
+
+// パッケージのバージョンを動的に取得
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+const packageJson = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'))
+const version = packageJson.version
 
 const program = new Command()
 
 program
   .name('metatell-cli')
   .description('CLI tool for Metatell bot development and testing')
-  .version('1.0.0')
+  .version(version)
 
 // Connect command - Simple connection test
 program
