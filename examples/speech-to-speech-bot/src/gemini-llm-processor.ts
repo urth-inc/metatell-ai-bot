@@ -1,27 +1,18 @@
-import type { GenerativeModel } from '@google/generative-ai'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 
 /**
  * Gemini APIを使用したLLM処理
  */
 export class GeminiLLMProcessor {
-  private genAI: GoogleGenerativeAI
-  private model: GenerativeModel
+  private ai: GoogleGenAI
   private conversationHistory: Array<{
-    role: 'user' | 'model'
-    parts: string
+    role: 'user' | 'assistant'
+    content: string
   }> = []
 
   constructor(apiKey: string) {
-    this.genAI = new GoogleGenerativeAI(apiKey)
-    this.model = this.genAI.getGenerativeModel({
-      model: 'gemini-1.5-pro',
-      generationConfig: {
-        temperature: 0.9,
-        topK: 1,
-        topP: 1,
-        maxOutputTokens: 2048,
-      },
+    this.ai = new GoogleGenAI({
+      apiKey,
     })
   }
 
@@ -33,38 +24,38 @@ export class GeminiLLMProcessor {
       // 会話履歴に追加
       this.conversationHistory.push({
         role: 'user',
-        parts: input,
+        content: input,
       })
 
-      // システムプロンプトを含めた会話を開始
-      const chat = this.model.startChat({
-        history: [
-          {
-            role: 'user',
-            parts:
-              '以下の指示に従って応答してください:\n' +
-              '- 日本語で応答すること\n' +
-              '- フレンドリーで自然な会話を心がけること\n' +
-              '- 簡潔で分かりやすい応答をすること\n' +
-              '- ユーザーの質問や話題に適切に応じること',
-          },
-          {
-            role: 'model',
-            parts:
-              'はい、理解しました。日本語でフレンドリーに、簡潔で分かりやすい応答を心がけます。',
-          },
-          ...this.conversationHistory.slice(-10), // 直近10件の履歴のみ保持
-        ],
-      })
+      // システムプロンプトと会話履歴を含めたプロンプトを作成
+      const systemPrompt = `以下の指示に従って応答してください:
+- 日本語で応答すること
+- フレンドリーで自然な会話を心がけること
+- 簡潔で分かりやすい応答をすること
+- ユーザーの質問や話題に適切に応じること
+
+これまでの会話履歴:
+${this.conversationHistory
+  .slice(-10)
+  .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'アシスタント'}: ${msg.content}`)
+  .join('\n')}
+
+ユーザーの最新の発言: ${input}
+
+応答:`
 
       // 応答を生成
-      const result = await chat.sendMessage(input)
-      const response = result.response.text()
+      const response = await this.ai.models.generateContent({
+        model: 'gemini-2.0-flash-exp',
+        contents: systemPrompt,
+      })
+
+      const generatedText = response.text || 'すみません、応答の生成に失敗しました。'
 
       // 履歴に追加
       this.conversationHistory.push({
-        role: 'model',
-        parts: response,
+        role: 'assistant',
+        content: generatedText,
       })
 
       // 履歴が長くなりすぎないように制限
@@ -72,7 +63,7 @@ export class GeminiLLMProcessor {
         this.conversationHistory = this.conversationHistory.slice(-20)
       }
 
-      return response
+      return generatedText
     } catch (error) {
       console.error('Gemini API エラー:', error)
       return 'すみません、応答の生成に失敗しました。もう一度お試しください。'
