@@ -29,7 +29,9 @@ export class SpeechToSpeechBot {
   private isProcessing = false
   private audioBuffer: Int16Array[] = []
   private silenceFrames = 0
-  private readonly silenceThreshold = 50 // 50フレーム = 1秒の無音
+  private readonly silenceThreshold = 75 // 75フレーム = 1.5秒の無音
+  private isSpeaking = false
+  private readonly minSpeechFrames = 10 // 最小発話フレーム数（200ms）
 
   // 音声レベル表示用
   private voiceLevelInterval?: NodeJS.Timeout
@@ -89,16 +91,28 @@ export class SpeechToSpeechBot {
             return
           }
 
-          // 無音検出
-          const isSilent = amplitude < 500
+          // 無音検出（閾値を上げて環境ノイズに対応）
+          const isSilent = amplitude < 1000
 
           if (isSilent) {
-            this.silenceFrames++
-            // 1秒以上の無音で処理開始
-            if (this.silenceFrames >= this.silenceThreshold && this.audioBuffer.length > 0) {
-              await this.processAudioBuffer()
+            if (this.isSpeaking && this.audioBuffer.length > this.minSpeechFrames) {
+              // 話していた状態から無音になった
+              this.silenceFrames++
+              // 1.5秒以上の無音で処理開始
+              if (this.silenceFrames >= this.silenceThreshold) {
+                await this.processAudioBuffer()
+                this.isSpeaking = false
+              }
+            } else {
+              // まだ話し始めていない
+              this.silenceFrames = 0
             }
           } else {
+            // 音声検出
+            if (!this.isSpeaking) {
+              console.log('🎙️ 音声検出...')
+              this.isSpeaking = true
+            }
             this.silenceFrames = 0
             // 音声をバッファに追加
             this.audioBuffer.push(frame)
@@ -175,6 +189,7 @@ export class SpeechToSpeechBot {
       // バッファをクリア
       this.audioBuffer = []
       this.silenceFrames = 0
+      this.isSpeaking = false
       this.isProcessing = false
       console.log('✨ 音声処理完了\n')
     }
@@ -403,12 +418,13 @@ export class SpeechToSpeechBot {
   private startVoiceLevelMonitor(): void {
     this.voiceLevelInterval = setInterval(() => {
       const level = Math.min(10, Math.floor(this.lastVoiceLevel / 3000))
-      if (level > 0) {
+      if (level > 0 || this.isSpeaking) {
         const bar = `🎤 ${'▮'.repeat(level)}${'▯'.repeat(10 - level)}`
-        const db = Math.round(20 * Math.log10(this.lastVoiceLevel / 32768))
-        process.stdout.write(`\r${bar} ${db}dB `)
+        const db = Math.round(20 * Math.log10(Math.max(1, this.lastVoiceLevel) / 32768))
+        const status = this.isSpeaking ? '🔴 録音中' : '⚪ 待機中'
+        process.stdout.write(`\r${bar} ${db}dB ${status} `)
       } else {
-        process.stdout.write(`\r${' '.repeat(30)}\r`)
+        process.stdout.write(`\r${' '.repeat(40)}\r`)
       }
 
       this.lastVoiceLevel = Math.floor(this.lastVoiceLevel * 0.8)

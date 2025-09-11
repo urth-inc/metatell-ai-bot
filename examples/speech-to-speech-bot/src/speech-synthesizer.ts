@@ -33,8 +33,8 @@ export class SpeechSynthesizer {
         input: { text },
         voice: {
           languageCode: 'ja-JP',
-          name: 'ja-JP-Wavenet-D', // 男性の声
-          ssmlGender: textToSpeech.protos.google.cloud.texttospeech.v1.SsmlVoiceGender.MALE,
+          name: 'ja-JP-Chirp3-HD-Zephyr',
+          ssmlGender: textToSpeech.protos.google.cloud.texttospeech.v1.SsmlVoiceGender.FEMALE,
         },
         audioConfig: {
           audioEncoding: textToSpeech.protos.google.cloud.texttospeech.v1.AudioEncoding.LINEAR16,
