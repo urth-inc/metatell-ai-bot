@@ -4,20 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "voice:simple": "tsx src/run-simple.ts",
-    "voice:conversation": "tsx src/index.ts"
+    "demo:wav": "tsx --env-file=.env src/demo-wav.ts"
   },
   "dependencies": {
-    "@metatell/bot-sdk": "file:../../packages/sdk",
-    "@metatell/bot-realtime": "file:../../packages/realtime"
+    "@metatell/bot-realtime": "file:../../packages/realtime",
+    "@metatell/bot-sdk": "file:../../packages/sdk"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/ws": "8.18.1",
     "tsx": "^4.20.0",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "ws": "8.18.3"
   }
 }
