@@ -39,3 +39,6 @@ docs-generated/
 # Claude commands
 .claude/
 audio-recordings/
+
+# Voice bot recordings
+examples/voice-bot/recordings/
