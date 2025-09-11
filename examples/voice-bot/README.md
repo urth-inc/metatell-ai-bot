@@ -17,10 +17,9 @@ pnpm build
 ```
 examples/voice-bot/
 ├── src/
-│   ├── demo-wav.ts         # デモスクリプト（インタラクティブ）
+│   ├── main.ts             # メインエントリポイント
 │   ├── wav-voice-bot.ts    # WAVファイル再生・録音ボット
 │   └── wav-player.ts       # WAVファイルリーダー（リサンプリング対応）
-├── config.ts               # 設定ファイル
 ├── assets/                 # WAVファイル置き場
 │   └── 3.wav              # サンプル音声（24kHz）
 └── recordings/             # 録音ファイル保存先（自動作成）
@@ -30,13 +29,16 @@ examples/voice-bot/
 
 ```bash
 # インタラクティブモードで起動
-npm run demo:wav <room-url>
+npm start <room-url>
 
 # 例
-npm run demo:wav https://metatell-dev.app/scJgijz
+npm start https://metatell-dev.app/scJgijz
 
 # カスタムWAVファイル指定
-npm run demo:wav <room-url> ./path/to/your.wav
+npm start <room-url> ./path/to/your.wav
+
+# 開発モード（ファイル監視）
+npm run dev <room-url>
 ```
 
 ### コマンド操作
@@ -66,20 +68,12 @@ npm run demo:wav <room-url> ./path/to/your.wav
 
 ### 基本的な使い方
 
-```typescript
-import { createMetatellClient, enableVoice } from '@metatell/bot-sdk'
-import { WavPlayer } from './wav-player.js'
+```bash
+# ボットを起動してルームに接続
+npm start https://metatell-dev.app/your-room-id
 
-const client = createMetatellClient({ serverUrl, roomId, username })
-await client.connect()
-
-// WAVファイルからのストリーミング
-const player = new WavPlayer('path/to/audio.wav')
-const voice = await enableVoice(client, {
-  handlers: {
-    getLocalPcmStream: player.getFrameStream.bind(player)
-  }
-})
+# カスタムWAVファイルを指定
+npm start https://metatell-dev.app/your-room-id ./path/to/your.wav
 ```
 
 ## 🛠️ 技術詳細
