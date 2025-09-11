@@ -193,6 +193,7 @@ export class SpeechToSpeechBot {
       offset += frame.length
     }
 
+    // ベストプラクティス: 再サンプリングは避け、ネイティブの48kHzを維持
     return this.createWavBuffer(pcmData, 48000)
   }
 
