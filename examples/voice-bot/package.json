@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "demo:wav": "tsx --env-file=.env src/demo-wav.ts"
+    "start": "tsx --env-file=.env src/main.ts"
   },
   "dependencies": {
     "@metatell/bot-realtime": "file:../../packages/realtime",

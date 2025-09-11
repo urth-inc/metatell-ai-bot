@@ -1,20 +1,36 @@
 #!/usr/bin/env node
-
-import { getConfig } from '../config.js'
 import { WavVoiceBot } from './wav-voice-bot.js'
 
 async function main() {
   console.log('🎤 WAV Voice Bot Demo')
   console.log('====================')
 
-  // 設定を取得
-  const config = getConfig()
+  const url = process.argv[2]
+  if (!url) {
+    console.error('使い方: npm start <metatell-room-url>')
+    console.error('例: npm start https://metatell.app/your-room-id')
+    process.exit(1)
+  }
+
+  const urlObj = new URL(url)
+  const serverUrl = `wss://${urlObj.host}`
+  const roomId = urlObj.pathname.split('/')[1]
+
+  if (!roomId) {
+    console.error('ルームIDが見つかりません')
+    process.exit(1)
+  }
 
   // WAVファイルパス（引数から取得、デフォルトは assets/3.wav）
   const wavFilePath = process.argv[3] || './assets/3.wav'
 
   // ボットを作成
-  const bot = new WavVoiceBot(config.serverUrl, config.roomId, config.username, config.token)
+  const bot = new WavVoiceBot(
+    serverUrl,
+    roomId,
+    process.env.METATELL_USERNAME || 'VoiceBot',
+    process.env.METATELL_TOKEN,
+  )
 
   try {
     // 接続
@@ -32,6 +48,8 @@ async function main() {
     // 録音開始
     console.log('🎤 Recording started automatically...')
     bot.startRecording()
+
+    console.log('🚶 Bot will follow you around the room!')
 
     // コマンド入力待機
     const stdin = process.stdin
