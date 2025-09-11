@@ -1,12 +1,30 @@
 // Minimal stub for @livekit/rtc-node to satisfy TypeDoc during package conversion
 declare module '@livekit/rtc-node' {
+  export interface RoomOptions {
+    autoSubscribe?: boolean
+    dynacast?: boolean
+    rtcConfig?: RtcConfiguration
+  }
+
+  export interface RtcConfiguration {
+    iceTransportType?: IceTransportType
+    continualGatheringPolicy?: unknown
+    iceServers?: unknown[]
+  }
+
+  export enum IceTransportType {
+    TRANSPORT_ALL = 0,
+    TRANSPORT_RELAY = 1,
+  }
+
   export class Room {
     name: string
     remoteParticipants: Map<string, unknown>
     localParticipant: unknown
-    connect(url: string, token: string, opts?: unknown): Promise<void>
+    connect(url: string, token: string, opts?: RoomOptions): Promise<void>
     disconnect(): Promise<void>
     on(event: unknown, ...args: unknown[]): void
+    once(event: unknown, ...args: unknown[]): void
   }
 
   export interface Participant {
@@ -43,6 +61,7 @@ declare module '@livekit/rtc-node' {
   export class TrackPublishOptions {}
 
   export const RoomEvent: {
+    Connected: unknown
     ParticipantConnected: unknown
     ParticipantDisconnected: unknown
     DataReceived: unknown
