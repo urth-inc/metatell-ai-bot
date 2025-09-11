@@ -109,9 +109,11 @@ export function attachVoice(
 
   // 自動publish
   if (options.autoStartPublish && handlers.getLocalPcmStream) {
+    logger.debug('Starting auto-publish')
     startAutoPublish(state, handlers.getLocalPcmStream, logger).catch((err) =>
       logger.error('auto-publish start failed', err),
     )
+    logger.debug('Auto-publish initiated')
   }
 
   inner.set(transport, state)
@@ -184,7 +186,9 @@ async function startAutoPublish(
   getLocalPcmStream: () => AsyncIterable<Int16Array>,
   logger: LoggerWrapper,
 ) {
+  logger.debug('Calling startAudioPublisher')
   await state.transport.startAudioPublisher()
+  logger.debug('Audio publisher started')
   state.isPublishing = true
 
   const ac = new AbortController()
