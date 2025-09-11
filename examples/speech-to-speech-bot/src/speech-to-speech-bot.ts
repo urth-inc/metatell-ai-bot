@@ -80,7 +80,8 @@ export class SpeechToSpeechBot {
       handlers: {
         // リモート音声を受信
         onRemotePcm: async (pcm, _meta) => {
-          const frame = new Int16Array(pcm)
+          // pcmはArrayBufferなので、正しく変換
+          const frame = new Int16Array(pcm.buffer || pcm)
 
           // 音声レベルを記録（可視化用）
           const amplitude = Math.max(...Array.from(frame).map(Math.abs))
@@ -156,7 +157,14 @@ export class SpeechToSpeechBot {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
       const inputPath = `${this.recordingsDir}/input_${timestamp}.wav`
       fs.writeFileSync(inputPath, wavBuffer)
+
+      // 音声の統計情報を出力
+      const duration = (this.audioBuffer.length * 20) / 1000 // 秒
+      const samples = this.audioBuffer.reduce((sum, frame) => sum + frame.length, 0)
       console.log(`💾 入力音声を保存: ${inputPath}`)
+      console.log(
+        `   時間: ${duration.toFixed(2)}秒, サンプル数: ${samples}, フレーム数: ${this.audioBuffer.length}`,
+      )
 
       // 2. 音声認識
       console.log('🎤 音声認識中...')
@@ -208,8 +216,45 @@ export class SpeechToSpeechBot {
       offset += frame.length
     }
 
+    // 音声データを正規化してクリッピングを防ぐ
+    const normalizedData = this.normalizeAudio(pcmData)
+
     // ベストプラクティス: 再サンプリングは避け、ネイティブの48kHzを維持
-    return this.createWavBuffer(pcmData, 48000)
+    return this.createWavBuffer(normalizedData, 48000)
+  }
+
+  /**
+   * 音声データを正規化
+   */
+  private normalizeAudio(pcmData: Int16Array): Int16Array {
+    // 最大振幅を見つける
+    let maxAmplitude = 0
+    for (let i = 0; i < pcmData.length; i++) {
+      const absValue = Math.abs(pcmData[i])
+      if (absValue > maxAmplitude) {
+        maxAmplitude = absValue
+      }
+    }
+
+    // 無音の場合はそのまま返す
+    if (maxAmplitude === 0) {
+      return pcmData
+    }
+
+    // 正規化係数を計算（最大値の90%に収める）
+    const targetMax = 32767 * 0.9
+    const normalFactor = targetMax / maxAmplitude
+
+    // クリッピングを防ぐため、係数が1を超えないようにする
+    const factor = Math.min(normalFactor, 1.0)
+
+    // 正規化を適用
+    const normalized = new Int16Array(pcmData.length)
+    for (let i = 0; i < pcmData.length; i++) {
+      normalized[i] = Math.round(pcmData[i] * factor)
+    }
+
+    return normalized
   }
 
   /**
