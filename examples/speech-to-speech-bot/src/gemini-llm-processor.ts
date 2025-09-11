@@ -5,10 +5,9 @@ import { GoogleGenAI } from '@google/genai'
  */
 export class GeminiLLMProcessor {
   private ai: GoogleGenAI
-  private conversationHistory: Array<{
-    role: 'user' | 'assistant'
-    content: string
-  }> = []
+  // biome-ignore lint/suspicious/noExplicitAny: @google/genai doesn't export Chat type yet
+  private chat: any // TODO: Add proper type when @google/genai exports Chat type
+  private isInitialized = false
 
   constructor(apiKey: string) {
     this.ai = new GoogleGenAI({
@@ -17,53 +16,54 @@ export class GeminiLLMProcessor {
   }
 
   /**
+   * チャットセッションを初期化
+   */
+  private initializeChat(): void {
+    this.chat = this.ai.chats.create({
+      model: 'gemini-2.5-flash',
+      history: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text:
+                '以下の指示に従って応答してください:\n' +
+                '- 日本語で応答すること\n' +
+                '- フレンドリーで自然な会話を心がけること\n' +
+                '- 簡潔で分かりやすい応答をすること\n' +
+                '- ユーザーの質問や話題に適切に応じること',
+            },
+          ],
+        },
+        {
+          role: 'model',
+          parts: [
+            {
+              text: 'はい、理解しました。日本語でフレンドリーに、簡潔で分かりやすい応答を心がけます。何かお話ししたいことがあれば、お聞かせください。',
+            },
+          ],
+        },
+      ],
+    })
+    this.isInitialized = true
+  }
+
+  /**
    * テキストに対する応答を生成
    */
   async generateResponse(input: string): Promise<string> {
     try {
-      // 会話履歴に追加
-      this.conversationHistory.push({
-        role: 'user',
-        content: input,
-      })
-
-      // システムプロンプトと会話履歴を含めたプロンプトを作成
-      const systemPrompt = `以下の指示に従って応答してください:
-- 日本語で応答すること
-- フレンドリーで自然な会話を心がけること
-- 簡潔で分かりやすい応答をすること
-- ユーザーの質問や話題に適切に応じること
-
-これまでの会話履歴:
-${this.conversationHistory
-  .slice(-10)
-  .map((msg) => `${msg.role === 'user' ? 'ユーザー' : 'アシスタント'}: ${msg.content}`)
-  .join('\n')}
-
-ユーザーの最新の発言: ${input}
-
-応答:`
-
-      // 応答を生成
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-2.0-flash-exp',
-        contents: systemPrompt,
-      })
-
-      const generatedText = response.text || 'すみません、応答の生成に失敗しました。'
-
-      // 履歴に追加
-      this.conversationHistory.push({
-        role: 'assistant',
-        content: generatedText,
-      })
-
-      // 履歴が長くなりすぎないように制限
-      if (this.conversationHistory.length > 20) {
-        this.conversationHistory = this.conversationHistory.slice(-20)
+      // 初回のみチャットを初期化
+      if (!this.isInitialized) {
+        this.initializeChat()
       }
 
-      return generatedText
+      // 応答を生成
+      const response = await this.chat.sendMessage({
+        message: input,
+      })
+
+      return response.text || 'すみません、応答の生成に失敗しました。'
     } catch (error) {
       console.error('Gemini API エラー:', error)
       return 'すみません、応答の生成に失敗しました。もう一度お試しください。'
@@ -74,6 +74,7 @@ ${this.conversationHistory
    * 会話履歴をリセット
    */
   resetConversation(): void {
-    this.conversationHistory = []
+    this.isInitialized = false
+    this.chat = null
   }
 }
