@@ -12,7 +12,7 @@
   "dependencies": {
     "@google-cloud/speech": "^6.7.0",
     "@google-cloud/text-to-speech": "^5.5.0",
-    "@google/generative-ai": "^0.24.1",
+    "@google/genai": "^1.19.0",
     "@metatell/bot-sdk": "file:../../packages/sdk",
     "dotenv": "^16.3.1"
   },
