@@ -25,6 +25,13 @@ export class GeminiVoiceBot {
   private silenceFrames = 0
   private readonly silenceThreshold = 50 // 50フレーム = 1秒の無音
 
+  // 音声レベル表示用
+  private voiceLevelInterval?: NodeJS.Timeout
+  private lastVoiceLevel = 0
+
+  // 接続監視用
+  private connectionMonitorInterval?: NodeJS.Timeout
+
   constructor(
     serverUrl: string,
     roomId: string,
@@ -57,6 +64,7 @@ export class GeminiVoiceBot {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
         const responsePath = `${this.recordingsDir}/gemini_realtime_${timestamp}.wav`
         fs.writeFileSync(responsePath, wavBuffer)
+        console.log(`💾 音声レスポンスを保存: ${responsePath}`)
 
         // 即座に再生
         await this.playGeminiResponse(wavBuffer)
@@ -64,6 +72,9 @@ export class GeminiVoiceBot {
 
       // ストリーミングモードを開始
       this.geminiClient.streamInit('audio/pcm;rate=48000')
+
+      // 定期的な接続チェック
+      this.startConnectionMonitor()
     } catch (error) {
       console.error('❌ Gemini接続エラー:', error)
       throw error
@@ -82,6 +93,9 @@ export class GeminiVoiceBot {
           // 無音検出（簡易的な振幅チェック）
           const amplitude = Math.max(...frame.map(Math.abs))
           const isSilent = amplitude < 500 // しきい値は調整可能
+
+          // 音声レベルを記録（可視化用）
+          this.lastVoiceLevel = amplitude
 
           if (isSilent) {
             this.silenceFrames++
@@ -112,6 +126,9 @@ export class GeminiVoiceBot {
 
     // アバター制御を開始
     await this.startAvatarControl()
+
+    // 音声レベル表示を開始
+    this.startVoiceLevelMonitor()
   }
 
   /**
@@ -141,15 +158,17 @@ export class GeminiVoiceBot {
    * Geminiレスポンスを再生
    */
   private async playGeminiResponse(wavBuffer: Buffer): Promise<void> {
-    console.log('🎵 Geminiレスポンス再生開始')
+    console.log(`🎵 Geminiレスポンス再生開始 (${wavBuffer.length}バイト)`)
 
     // WAVヘッダーから実際のサンプルレートを読み取る
     const actualSampleRate = wavBuffer.readUInt32LE(24)
-    console.log(`📊 WAV sample rate: ${actualSampleRate}Hz (expected: 48000Hz)`)
+    const dataSize = wavBuffer.readUInt32LE(40)
+    console.log(`📊 WAV sample rate: ${actualSampleRate}Hz, data size: ${dataSize}バイト`)
 
     // WAVヘッダーをスキップしてPCMデータを抽出
     const pcmData = wavBuffer.slice(44)
     let samples = new Int16Array(pcmData.buffer, pcmData.byteOffset, pcmData.length / 2)
+    console.log(`📊 PCMサンプル数: ${samples.length}`)
 
     // サンプルレート変換が必要な場合
     if (actualSampleRate !== 48000) {
@@ -159,6 +178,7 @@ export class GeminiVoiceBot {
 
     // 960サンプル（20ms）ごとに分割してキューに追加
     const frameSize = 960
+    let frameCount = 0
     for (let i = 0; i < samples.length; i += frameSize) {
       const frame = samples.slice(i, Math.min(i + frameSize, samples.length))
 
@@ -170,16 +190,26 @@ export class GeminiVoiceBot {
       } else {
         this.playbackQueue.push(frame)
       }
+      frameCount++
     }
 
-    console.log(`📦 ${this.playbackQueue.length}フレームをキューに追加`)
+    console.log(`📦 ${frameCount}フレームをキューに追加`)
 
-    // 再生完了まで待機
-    while (this.playbackQueue.length > 0 || this.isPlaying) {
-      await new Promise((resolve) => setTimeout(resolve, 100))
-    }
+    // 再生は非同期で行い、待機しない（他の音声がきても処理できるように）
+    // 再生状態の監視のみ行う
+    const startTime = Date.now()
+    const checkInterval = setInterval(() => {
+      if (this.playbackQueue.length === 0 && !this.isPlaying) {
+        clearInterval(checkInterval)
+        const duration = Date.now() - startTime
+        console.log(`✅ Geminiレスポンス再生完了 (${duration}ms)`)
+      }
+    }, 100)
 
-    console.log('✅ Geminiレスポンス再生完了')
+    // タイムアウト設定（30秒）
+    setTimeout(() => {
+      clearInterval(checkInterval)
+    }, 30000)
   }
 
   /**
@@ -297,8 +327,52 @@ export class GeminiVoiceBot {
     }, 200)
   }
 
+  /**
+   * 音声レベルの可視化
+   */
+  private startVoiceLevelMonitor(): void {
+    this.voiceLevelInterval = setInterval(() => {
+      const level = Math.min(10, Math.floor(this.lastVoiceLevel / 3000)) // 0-10のレベルに正規化
+      if (level > 0) {
+        const bar = `🎤 ${'▮'.repeat(level)}${'▯'.repeat(10 - level)}`
+        const db = Math.round(20 * Math.log10(this.lastVoiceLevel / 32768)) // dB値に変換
+        process.stdout.write(`\r${bar} ${db}dB `)
+      } else {
+        process.stdout.write(`\r${' '.repeat(30)}\r`) // クリア
+      }
+
+      // レベルを減衰させる
+      this.lastVoiceLevel = Math.floor(this.lastVoiceLevel * 0.8)
+    }, 100)
+  }
+
+  /**
+   * 接続状態の監視
+   */
+  private startConnectionMonitor(): void {
+    // 30秒ごとに接続状態をチェック
+    this.connectionMonitorInterval = setInterval(() => {
+      if (!this.geminiClient.isConnected()) {
+        console.log('\n⚠️  Gemini接続が切れています。自動再接続を待機中...')
+      }
+    }, 30000)
+  }
+
   async disconnect(): Promise<void> {
     console.log('🔌 切断中...')
+
+    // 音声レベル表示を停止
+    if (this.voiceLevelInterval) {
+      clearInterval(this.voiceLevelInterval)
+      this.voiceLevelInterval = undefined
+      process.stdout.write(`\r${' '.repeat(30)}\r`) // 表示をクリア
+    }
+
+    // 接続監視を停止
+    if (this.connectionMonitorInterval) {
+      clearInterval(this.connectionMonitorInterval)
+      this.connectionMonitorInterval = undefined
+    }
 
     // アバター制御を停止
     if (this.moveInterval) {
