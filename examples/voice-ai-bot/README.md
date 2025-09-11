@@ -50,26 +50,27 @@ npm start <room-url>
 npm start https://metatell-dev.app/scJgijz
 ```
 
-### コマンド操作
+### 使い方
 
-- `g` - Gemini会話を開始（録音開始）
-- `j` - 録音を停止してGeminiに送信
+- **自動音声認識**: 話しかけると自動的にGeminiが応答します
 - `q` - 終了（Ctrl+Cでも可）
 
-音声で質問するとGeminiが音声で応答します。録音データは`recordings/`ディレクトリに保存されます。
+VAD（音声活動検出）により、発話の開始と終了を自動検出します。
+1秒以上の無音で発話区切りと判定し、Geminiが応答を生成します。
 
 ## 🎨 主要コンポーネント
 
 ### GeminiVoiceBot (`gemini-voice-bot.ts`)
 - Google Geminiとのリアルタイム音声対話
 - 音声認識と音声合成を統合
-- 録音 → Gemini送信 → 音声レスポンス再生のフロー
-- WAV形式での録音データ保存
+- 自動VAD（音声活動検出）による発話区切り
+- リアルタイムストリーミング（20ms単位）
 - アバター自動追跡機能
 
 ### GeminiVoiceClient (`gemini-voice-client.ts`)
-- Gemini Live API (gemini-2.5-flash-preview-native-audio-dialog) との通信
-- SSE (Server-Sent Events) によるストリーミング応答
+- Gemini Live API (gemini-2.5-flash-live-preview) との通信
+- リアルタイムストリーミング入力（sendRealtimeInput）
+- 自動音声活動検出（Automatic Activity Detection）
 - WAVフォーマットの音声データ変換
 
 ## 🔧 技術的な詳細
@@ -77,7 +78,7 @@ npm start https://metatell-dev.app/scJgijz
 - **音声フォーマット**: 48kHz, 16bit, モノラル
 - **フレームサイズ**: 960サンプル（20ms）
 - **トランスポート**: LiveKit WebRTC
-- **Geminiモデル**: gemini-2.5-flash-preview-native-audio-dialog
+- **Geminiモデル**: gemini-2.5-flash-live-preview
 
 ## 🛠️ 技術詳細
 

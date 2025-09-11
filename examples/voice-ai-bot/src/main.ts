@@ -42,9 +42,8 @@ async function main() {
     await bot.start()
     console.log('✅ 接続成功！')
 
-    console.log('\n📢 コマンド:')
-    console.log('  g: Gemini会話を開始（録音開始）')
-    console.log('  j: 録音を停止してGeminiに送信')
+    console.log('\n📢 自動音声認識モード')
+    console.log('  話しかけると自動的にGeminiが応答します')
     console.log('  q: 終了（Ctrl+Cでも可）')
     console.log('')
 
@@ -63,22 +62,10 @@ async function main() {
         await bot.disconnect()
         process.exit(0)
       }
-
-      // Gemini会話開始
-      if (key === 'g') {
-        console.log('\n🎙️ Gemini会話開始 - 話してください...')
-        await bot.startGeminiConversation()
-      }
-
-      // Gemini会話終了と送信
-      if (key === 'j') {
-        console.log('\n📤 Geminiに送信中...')
-        await bot.stopGeminiConversation()
-      }
     })
 
     // プロセスを維持
-    await new Promise(() => {})
+    await new Promise<void>(() => {})
   } catch (error) {
     console.error('❌ エラー:', error)
   } finally {
