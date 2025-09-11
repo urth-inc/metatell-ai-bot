@@ -17,6 +17,9 @@ export class GeminiVoiceClient {
   private session: Session | undefined
   private responseQueue: LiveServerMessage[] = []
   private isConnected = false
+  private streamingActive = false
+  private inputMime = 'audio/pcm;rate=48000' // LiveKitからは48kHzで来る前提
+  private onAudioResponseCallback?: (audioBuffer: Buffer) => void
 
   constructor(apiKey: string) {
     this.ai = new GoogleGenAI({ apiKey })
@@ -42,6 +45,12 @@ export class GeminiVoiceClient {
         triggerTokens: '25600',
         slidingWindow: { targetTokens: '12800' },
       },
+      realtimeInputConfig: {
+        automaticActivityDetection: {
+          // 自動VAD設定
+          silenceDurationMs: 700, // 発話終端の無音長
+        },
+      },
     }
 
     this.session = await this.ai.live.connect({
@@ -53,6 +62,8 @@ export class GeminiVoiceClient {
         },
         onmessage: (message: LiveServerMessage) => {
           this.responseQueue.push(message)
+          // リアルタイム音声応答処理
+          this.processRealtimeResponse(message)
         },
         onerror: (e: unknown) => {
           console.error('❌ Gemini接続エラー:', e)
@@ -211,11 +222,76 @@ export class GeminiVoiceClient {
     return buffer
   }
 
+  /**
+   * 音声応答のコールバックを設定
+   */
+  setAudioResponseCallback(callback: (audioBuffer: Buffer) => void): void {
+    this.onAudioResponseCallback = callback
+  }
+
+  /**
+   * リアルタイム応答を処理
+   */
+  private processRealtimeResponse(message: LiveServerMessage): void {
+    if (message.serverContent?.modelTurn?.parts) {
+      const part = message.serverContent.modelTurn.parts[0]
+
+      if (part?.inlineData?.mimeType && part.inlineData.data) {
+        // 音声データをWAVに変換
+        const wavBuffer = this.convertToWav([part.inlineData.data], part.inlineData.mimeType)
+
+        // コールバックで即座に再生
+        if (this.onAudioResponseCallback) {
+          this.onAudioResponseCallback(wavBuffer)
+        }
+      }
+
+      if (part?.text) {
+        console.log('📝 Geminiテキスト応答:', part.text)
+      }
+    }
+  }
+
+  /**
+   * ストリーミング開始
+   */
+  streamInit(mime: string = this.inputMime): void {
+    this.inputMime = mime
+    this.streamingActive = true
+    console.log('🎙️ Geminiストリーミング開始')
+  }
+
+  /**
+   * 20msフレームをそのまま送る
+   */
+  streamFrame(frame: Int16Array, sampleRate = 48000): void {
+    if (!this.session || !this.streamingActive) return
+
+    // PCMデータをbase64エンコード
+    const buf = Buffer.from(frame.buffer, frame.byteOffset, frame.byteLength)
+    const base64 = buf.toString('base64')
+    const mimeType = `audio/pcm;rate=${sampleRate}`
+
+    this.session.sendRealtimeInput({
+      audio: { data: base64, mimeType },
+    })
+  }
+
+  /**
+   * ストリーミング終了（発話区切り）
+   */
+  streamEnd(): void {
+    if (!this.session) return
+    this.session.sendRealtimeInput({ audioStreamEnd: true })
+    console.log('🔚 Geminiストリーミング区切り')
+  }
+
   async disconnect(): Promise<void> {
     if (this.session) {
       this.session.close()
       this.session = undefined
       this.isConnected = false
+      this.streamingActive = false
     }
   }
 }

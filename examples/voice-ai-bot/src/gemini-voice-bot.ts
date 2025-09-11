@@ -10,9 +10,7 @@ export class GeminiVoiceBot {
   private client: MetatellClient
   private geminiClient: GeminiVoiceClient
 
-  // 録音関連
-  private isRecording = false
-  private recordingBuffer: Int16Array[] = []
+  // デバッグ用録音ディレクトリ
   private recordingsDir = './recordings'
 
   // 音声再生関連
@@ -22,6 +20,10 @@ export class GeminiVoiceBot {
   // アバター制御
   private isMoving = false
   private moveInterval?: NodeJS.Timeout
+
+  // 無音検出用
+  private silenceFrames = 0
+  private readonly silenceThreshold = 50 // 50フレーム = 1秒の無音
 
   constructor(
     serverUrl: string,
@@ -48,6 +50,20 @@ export class GeminiVoiceBot {
     try {
       await this.geminiClient.connect()
       console.log('✅ Gemini音声対話準備完了')
+
+      // リアルタイム音声応答のコールバックを設定
+      this.geminiClient.setAudioResponseCallback(async (wavBuffer) => {
+        // デバッグ用: レスポンスを保存
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+        const responsePath = `${this.recordingsDir}/gemini_realtime_${timestamp}.wav`
+        fs.writeFileSync(responsePath, wavBuffer)
+
+        // 即座に再生
+        await this.playGeminiResponse(wavBuffer)
+      })
+
+      // ストリーミングモードを開始
+      this.geminiClient.streamInit('audio/pcm;rate=48000')
     } catch (error) {
       console.error('❌ Gemini接続エラー:', error)
       throw error
@@ -59,12 +75,27 @@ export class GeminiVoiceBot {
       transport: { type: 'livekit' },
       loggerTag: 'GeminiVoiceBot',
       handlers: {
-        // リモート音声を受信
+        // リモート音声を受信（常時ストリーミング）
         onRemotePcm: async (pcm, _meta) => {
-          // 録音中の場合はバッファに追加
-          if (this.isRecording) {
-            this.recordingBuffer.push(new Int16Array(pcm))
+          const frame = new Int16Array(pcm)
+
+          // 無音検出（簡易的な振幅チェック）
+          const amplitude = Math.max(...frame.map(Math.abs))
+          const isSilent = amplitude < 500 // しきい値は調整可能
+
+          if (isSilent) {
+            this.silenceFrames++
+            // 1秒以上の無音でストリーミング区切り
+            if (this.silenceFrames >= this.silenceThreshold) {
+              this.geminiClient.streamEnd()
+              this.silenceFrames = 0
+            }
+          } else {
+            this.silenceFrames = 0
           }
+
+          // 20msフレームをそのままGeminiへストリーミング
+          this.geminiClient.streamFrame(frame, 48000)
         },
 
         // ローカル音声ストリームを提供
@@ -104,114 +135,6 @@ export class GeminiVoiceBot {
 
       await new Promise((resolve) => setTimeout(resolve, 20))
     }
-  }
-
-  /**
-   * Gemini会話を開始
-   */
-  async startGeminiConversation(): Promise<void> {
-    if (this.isRecording) {
-      console.log('既に録音中です')
-      return
-    }
-
-    this.isRecording = true
-    this.recordingBuffer = []
-    console.log('🔴 録音開始')
-  }
-
-  /**
-   * Gemini会話を終了して送信
-   */
-  async stopGeminiConversation(): Promise<void> {
-    if (!this.isRecording) {
-      console.log('録音が開始されていません')
-      return
-    }
-
-    this.isRecording = false
-    console.log('⏸️ 録音停止')
-
-    if (this.recordingBuffer.length === 0) {
-      console.log('録音データがありません')
-      return
-    }
-
-    // WAVファイルに変換
-    const wavBuffer = this.createWavFromRecording()
-
-    // デバッグ用: 録音ファイルを保存
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const inputPath = `${this.recordingsDir}/gemini_input_${timestamp}.wav`
-    fs.writeFileSync(inputPath, wavBuffer)
-    console.log(`💾 録音保存: ${inputPath}`)
-
-    // Geminiに送信
-    console.log('🔄 Geminiに音声送信中...')
-    try {
-      const responseWav = await this.geminiClient.sendAudio(wavBuffer)
-
-      if (responseWav) {
-        console.log('🎵 Gemini音声レスポンス受信')
-
-        // レスポンスを保存
-        const responsePath = `${this.recordingsDir}/gemini_response_${timestamp}.wav`
-        fs.writeFileSync(responsePath, responseWav)
-        console.log(`💾 レスポンス保存: ${responsePath}`)
-
-        // レスポンスを再生
-        await this.playGeminiResponse(responseWav)
-      } else {
-        console.log('❌ Geminiからの音声レスポンスがありません')
-      }
-    } catch (error) {
-      console.error('❌ Gemini処理エラー:', error)
-    } finally {
-      this.recordingBuffer = []
-    }
-  }
-
-  /**
-   * 録音データからWAVファイルを作成
-   */
-  private createWavFromRecording(): Buffer {
-    // すべてのフレームを結合
-    const totalSamples = this.recordingBuffer.reduce((sum, buf) => sum + buf.length, 0)
-    const combinedData = new Int16Array(totalSamples)
-
-    let offset = 0
-    for (const frame of this.recordingBuffer) {
-      combinedData.set(frame, offset)
-      offset += frame.length
-    }
-
-    // WAVヘッダーを作成
-    const sampleRate = 48000
-    const numChannels = 1
-    const bitsPerSample = 16
-    const dataLength = combinedData.byteLength
-
-    const buffer = Buffer.alloc(44 + dataLength)
-
-    // WAVヘッダー
-    buffer.write('RIFF', 0)
-    buffer.writeUInt32LE(36 + dataLength, 4)
-    buffer.write('WAVE', 8)
-    buffer.write('fmt ', 12)
-    buffer.writeUInt32LE(16, 16) // fmt chunk size
-    buffer.writeUInt16LE(1, 20) // PCM format
-    buffer.writeUInt16LE(numChannels, 22)
-    buffer.writeUInt32LE(sampleRate, 24)
-    buffer.writeUInt32LE((sampleRate * numChannels * bitsPerSample) / 8, 28)
-    buffer.writeUInt16LE((numChannels * bitsPerSample) / 8, 32)
-    buffer.writeUInt16LE(bitsPerSample, 34)
-    buffer.write('data', 36)
-    buffer.writeUInt32LE(dataLength, 40)
-
-    // 音声データをコピー
-    Buffer.from(combinedData.buffer).copy(buffer, 44)
-
-    return buffer
   }
 
   /**
