@@ -56,20 +56,29 @@ async function main() {
 
     console.log('🚶 ボットがあなたに近づきます！')
 
-    // コマンド入力待機
-    const stdin = process.stdin
-    stdin.setRawMode(true)
-    stdin.resume()
-    stdin.setEncoding('utf8')
+    // コマンド入力待機（TTYの場合のみ）
+    if (process.stdin.isTTY) {
+      const stdin = process.stdin
+      stdin.setRawMode(true)
+      stdin.resume()
+      stdin.setEncoding('utf8')
 
-    stdin.on('data', async (key: string) => {
-      // Ctrl+C or q
-      if (key === '\u0003' || key === 'q') {
+      stdin.on('data', async (key: string) => {
+        // Ctrl+C or q
+        if (key === '\u0003' || key === 'q') {
+          console.log('\n⏹️ 終了中...')
+          await bot.disconnect()
+          process.exit(0)
+        }
+      })
+    } else {
+      // TTYでない場合はCtrl+Cのシグナルをキャッチ
+      process.on('SIGINT', async () => {
         console.log('\n⏹️ 終了中...')
         await bot.disconnect()
         process.exit(0)
-      }
-    })
+      })
+    }
 
     // プロセスを維持
     await new Promise<void>(() => {})
