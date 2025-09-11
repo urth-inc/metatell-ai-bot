@@ -7,8 +7,10 @@ import {
   type RemoteTrack,
   Room,
   RoomEvent,
+  type RoomOptions,
   TrackKind,
   TrackPublishOptions,
+  TrackSource,
 } from '@livekit/rtc-node'
 import { ErrorCodes, RealtimeError } from './errors.js'
 import type {
@@ -62,15 +64,36 @@ export class LiveKitAdapter implements RealtimeTransport {
     this.activeTopics = new Set(opts.topics || ['control', 'events', 'transcript', 'audio'])
     this.setState('connecting')
 
+    // タイムライン計測用のマーカー
+    const timeline: Record<string, number> = {
+      start: Date.now(),
+    }
+    const mark = (label: string) => {
+      const now = Date.now()
+      timeline[label] = now
+      const elapsed = now - timeline.start
+      this.options?.logger?.('debug', `Timeline: ${label} +${elapsed}ms`)
+    }
+
     try {
       // Create a new room instance
+      mark('room_creation_start')
       this.room = new Room()
+      mark('room_creation_complete')
 
-      // Setup event handlers
+      // Setup event handlers (接続前に設定してSignalConnectedイベントをキャッチ)
       this.setupEventHandlers()
 
+      // 接続の監視
+      this.room.once(RoomEvent.Connected, () => {
+        mark('room_connected')
+        this.options?.logger?.('debug', 'Room connected event fired')
+      })
+
       // Get token from provider
+      mark('token_fetch_start')
       const token = await opts.tokenProvider()
+      mark('token_fetch_complete')
 
       this.options?.logger?.('info', 'Connecting to LiveKit', {
         url: opts.url,
@@ -80,10 +103,37 @@ export class LiveKitAdapter implements RealtimeTransport {
       })
 
       // Connect to the room
-      await this.room.connect(opts.url, token, {
+      const connectUrl = opts.url
+
+      const connectOptions: RoomOptions = {
         autoSubscribe: opts.connect?.autoSubscribe ?? true,
         dynacast: opts.connect?.dynacast ?? true,
-      })
+      }
+
+      try {
+        mark('room_connect_start')
+        const connectStartTime = Date.now()
+        await this.room.connect(connectUrl, token, connectOptions)
+        const connectDuration = Date.now() - connectStartTime
+        mark('room_connect_complete')
+        this.options?.logger?.('info', `Connected successfully in ${connectDuration}ms`)
+
+        // 全体のタイムラインサマリー
+        if (this.options?.logger) {
+          const summary: Record<string, number> = {}
+          let prev = timeline.start
+          for (const [label, time] of Object.entries(timeline)) {
+            if (label !== 'start') {
+              summary[label] = time - prev
+              prev = time
+            }
+          }
+          this.options.logger('debug', 'Connection timeline', summary)
+        }
+      } catch (error) {
+        this.options?.logger?.('error', 'Failed to connect', error)
+        throw error
+      }
 
       this.setState('connected')
       this.options?.logger?.('info', 'Successfully connected to LiveKit room', {
@@ -258,10 +308,10 @@ export class LiveKitAdapter implements RealtimeTransport {
       throw new RealtimeError(ErrorCodes.NOT_CONNECTED, 'Room or local participant not available')
     }
 
-    const publication = await this.room.localParticipant.publishTrack(
-      track,
-      new TrackPublishOptions(),
-    )
+    const options = new TrackPublishOptions()
+    options.source = TrackSource.SOURCE_MICROPHONE
+
+    const publication = await this.room.localParticipant.publishTrack(track, options)
 
     this.audio = { source, track, trackSid: publication.sid }
 
