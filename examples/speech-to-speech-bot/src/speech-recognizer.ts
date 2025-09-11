@@ -33,12 +33,15 @@ export class SpeechRecognizer {
           content: audioBuffer.toString('base64'),
         },
         config: {
-          encoding: speech.protos.google.cloud.speech.v1.RecognitionConfig.AudioEncoding.LINEAR16, // WAVとして処理
-          sampleRateHertz: 48000,
+          encoding: speech.protos.google.cloud.speech.v1.RecognitionConfig.AudioEncoding.LINEAR16,
+          sampleRateHertz: 48000, // ベストプラクティス: 再サンプリングは避ける（ネイティブ48kHz）
           languageCode: 'ja-JP',
-          model: 'latest_long',
+          model: 'default', // 短い音声にはdefaultモデルが適切
           useEnhanced: true,
           enableAutomaticPunctuation: true,
+          // ベストプラクティス: ノイズリダクションは無効
+          audioChannelCount: 1,
+          enableSeparateRecognitionPerChannel: false,
         },
       }
 
