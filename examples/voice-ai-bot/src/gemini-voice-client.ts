@@ -1,7 +1,9 @@
 import {
+  type FunctionDeclaration,
   GoogleGenAI,
+  type LiveConnectConfig,
   type LiveServerMessage,
-  MediaResolution,
+  type LiveServerToolCall,
   Modality,
   type Session,
 } from '@google/genai'
@@ -16,40 +18,105 @@ export class GeminiVoiceClient {
   private ai: GoogleGenAI
   private session: Session | undefined
   private responseQueue: LiveServerMessage[] = []
-  private isConnected = false
+  private connected = false
   private streamingActive = false
   private inputMime = 'audio/pcm;rate=48000' // LiveKitからは48kHzで来る前提
   private onAudioResponseCallback?: (audioBuffer: Buffer) => void
 
+  // ツール定義
+  private tools: FunctionDeclaration[] = []
+
+  // 音声バッファリング用
+  private audioBuffer: string[] = []
+  private audioMimeType: string | undefined
+  private bufferTimeout: NodeJS.Timeout | undefined
+  private readonly BUFFER_DELAY = 50 // 50ms待機してからバッファを処理
+  private isProcessingTurn = false // ターン処理中フラグ
+
+  // 再接続用
+  private reconnectTimeout: NodeJS.Timeout | undefined
+  private reconnectAttempts = 0
+  private readonly MAX_RECONNECT_ATTEMPTS = 5
+  private readonly RECONNECT_DELAY = 3000 // 3秒後に再接続
+
+  // ミュート制御
+  private isMuted = false
+
   constructor(apiKey: string) {
     this.ai = new GoogleGenAI({ apiKey })
+    this.initializeTools()
+  }
+
+  /**
+   * ツールを初期化
+   */
+  private initializeTools(): void {
+    // 現在時刻を取得するツール
+    this.tools.push({
+      name: 'get_current_time',
+      description: '現在の日時を取得します',
+    })
+
+    // ミュート状態を確認するツール
+    this.tools.push({
+      name: 'get_mute_state',
+      description: '現在のミュート状態を取得します',
+    })
+
+    // ミュートを有効にするツール
+    this.tools.push({
+      name: 'enable_mute',
+      description: 'ボットを黙らせます（ミュートを有効にします）',
+    })
+
+    // ミュートを解除するツール
+    this.tools.push({
+      name: 'disable_mute',
+      description: 'ボットに話させます（ミュートを解除します）',
+    })
   }
 
   async connect(): Promise<void> {
-    if (this.isConnected) return
+    if (this.connected) return
 
-    //const model = 'models/gemini-2.5-flash-preview-native-audio-dialog'
-    const model = 'models/gemini-2.5-flash-live-preview'
-    const config = {
-      responseModalities: [Modality.AUDIO],
-      mediaResolution: MediaResolution.MEDIA_RESOLUTION_MEDIUM,
+    const model = 'gemini-live-2.5-flash-preview'
+    //    const model = 'gemini-2.5-flash-preview-native-audio-dialog'
+    const config: LiveConnectConfig = {
       speechConfig: {
         voiceConfig: {
-          languageCode: 'ja-JP',
           prebuiltVoiceConfig: {
-            voiceName: 'Kore',
+            voiceName: 'Zephyr',
           },
         },
+        languageCode: 'ja-JP',
       },
-      contextWindowCompression: {
-        triggerTokens: '25600',
-        slidingWindow: { targetTokens: '12800' },
-      },
-      realtimeInputConfig: {
-        automaticActivityDetection: {
-          // 自動VAD設定
-          silenceDurationMs: 700, // 発話終端の無音長
+      responseModalities: [Modality.AUDIO],
+      tools: [
+        {
+          functionDeclarations: this.tools,
         },
+      ],
+      systemInstruction: {
+        parts: [
+          {
+            text: `あなたは親切な音声アシスタントです。
+
+ミュート管理の重要なルール：
+1. 応答する前に必ずget_mute_state関数を呼び出して現在のミュート状態を確認してください
+2. ミュート中（isMuted: true）の場合は、絶対に音声応答をしないでください
+3. ユーザーから「黙って」「静かにして」「黙れ」「うるさい」などの指示を受けた場合：
+   - まずenable_mute関数を呼び出してください
+   - その後は音声応答を一切しないでください
+4. ユーザーから「話して」「しゃべって」「ミュート解除」「話していいよ」という明示的な指示があった場合のみ：
+   - disable_mute関数を呼び出してください
+   - その後から音声応答を再開してください
+5. ミュート中でも、すべてのツール（関数）呼び出しは通常通り行ってください
+
+通常の会話：
+- 日本語で親切に応答してください
+- ユーザーの質問に的確に答えてください`,
+          },
+        ],
       },
     }
 
@@ -58,7 +125,8 @@ export class GeminiVoiceClient {
       callbacks: {
         onopen: () => {
           console.log('✅ Gemini音声対話接続成功')
-          this.isConnected = true
+          this.connected = true
+          this.reconnectAttempts = 0 // 接続成功時にリセット
         },
         onmessage: (message: LiveServerMessage) => {
           this.responseQueue.push(message)
@@ -68,9 +136,12 @@ export class GeminiVoiceClient {
         onerror: (e: unknown) => {
           console.error('❌ Gemini接続エラー:', e)
         },
-        onclose: (e: CloseEvent) => {
-          console.log('🔌 Gemini接続終了:', e.reason || e.code)
-          this.isConnected = false
+        onclose: (e: unknown) => {
+          console.log('🔌 Gemini接続終了:', e)
+          this.connected = false
+
+          // 自動再接続の試行
+          this.scheduleReconnect()
         },
       },
       config,
@@ -78,7 +149,7 @@ export class GeminiVoiceClient {
   }
 
   async sendAudio(audioData: Buffer, mimeType: string = 'audio/wav'): Promise<Buffer | null> {
-    if (!this.session || !this.isConnected) {
+    if (!this.session || !this.connected) {
       console.error('Geminiに接続されていません')
       return null
     }
@@ -145,6 +216,8 @@ export class GeminiVoiceClient {
       turn.push(message)
 
       if (message.serverContent?.turnComplete) {
+        done = true
+      } else if (message.toolCall) {
         done = true
       }
     }
@@ -230,26 +303,117 @@ export class GeminiVoiceClient {
   }
 
   /**
+   * 接続状態を取得
+   */
+  isConnected(): boolean {
+    return this.connected
+  }
+
+  /**
+   * ミュート状態を取得
+   */
+  isMute(): boolean {
+    return this.isMuted
+  }
+
+  /**
    * リアルタイム応答を処理
    */
   private processRealtimeResponse(message: LiveServerMessage): void {
+    // デバッグ: メッセージ全体を確認
+    if (
+      message.toolCall ||
+      message.serverContent?.toolCall ||
+      message.serverContent?.modelTurn?.toolCall
+    ) {
+      console.log('🔍 ツール関連メッセージ検出:', JSON.stringify(message, null, 2))
+    }
+
+    // ツール呼び出しの処理（音声処理より先に）
+    if (message.toolCall) {
+      console.log('🔧 ツール呼び出し:', message.toolCall.functionCalls)
+      this.handleToolCalls(message.toolCall)
+    }
+
+    // ターン開始を検知
+    if (message.serverContent?.modelTurn && !this.isProcessingTurn) {
+      this.isProcessingTurn = true
+      console.log('🎯 Geminiターン開始')
+    }
+
     if (message.serverContent?.modelTurn?.parts) {
       const part = message.serverContent.modelTurn.parts[0]
 
       if (part?.inlineData?.mimeType && part.inlineData.data) {
-        // 音声データをWAVに変換
-        const wavBuffer = this.convertToWav([part.inlineData.data], part.inlineData.mimeType)
+        // 音声データをバッファに追加
+        this.audioBuffer.push(part.inlineData.data)
+        this.audioMimeType = part.inlineData.mimeType
 
-        // コールバックで即座に再生
-        if (this.onAudioResponseCallback) {
-          this.onAudioResponseCallback(wavBuffer)
+        // 既存のタイマーをクリア
+        if (this.bufferTimeout) {
+          clearTimeout(this.bufferTimeout)
         }
+
+        // 新しいタイマーを設定（一定時間後にバッファを処理）
+        this.bufferTimeout = setTimeout(() => {
+          this.flushAudioBuffer()
+        }, this.BUFFER_DELAY)
       }
 
       if (part?.text) {
         console.log('📝 Geminiテキスト応答:', part.text)
       }
     }
+
+    // ターン完了時はすぐにバッファをフラッシュ
+    if (message.serverContent?.turnComplete) {
+      console.log('✅ Geminiターン完了')
+      this.isProcessingTurn = false
+
+      if (this.bufferTimeout) {
+        clearTimeout(this.bufferTimeout)
+      }
+      // 少し待ってから最終フラッシュ（残りのデータが来る可能性があるため）
+      setTimeout(() => {
+        this.flushAudioBuffer()
+      }, 10)
+    }
+  }
+
+  /**
+   * オーディオバッファをフラッシュして再生
+   */
+  private flushAudioBuffer(): void {
+    if (this.audioBuffer.length === 0 || !this.audioMimeType) {
+      return
+    }
+
+    // ミュート中はバッファをクリアして再生しない
+    if (this.isMuted) {
+      console.log('🔇 ミュート中のため音声を再生しません')
+      this.audioBuffer = []
+      this.audioMimeType = undefined
+      return
+    }
+
+    // バッファ内のすべての音声データを結合してWAVに変換
+    const wavBuffer = this.convertToWav(this.audioBuffer, this.audioMimeType)
+
+    // コールバックで再生
+    if (this.onAudioResponseCallback) {
+      const dataSize = this.audioBuffer.reduce(
+        (sum, data) => sum + Buffer.from(data, 'base64').length,
+        0,
+      )
+      console.log(
+        `🎵 音声バッファをフラッシュ (${this.audioBuffer.length}フラグメント, ${dataSize}バイト)`,
+      )
+      this.onAudioResponseCallback(wavBuffer)
+    }
+
+    // バッファをクリア
+    this.audioBuffer = []
+    this.audioMimeType = undefined
   }
 
   /**
@@ -283,14 +447,174 @@ export class GeminiVoiceClient {
   streamEnd(): void {
     if (!this.session) return
     this.session.sendRealtimeInput({ audioStreamEnd: true })
-    console.log('🔚 Geminiストリーミング区切り')
+  }
+
+  /**
+   * ツール呼び出しを処理
+   */
+  private async handleToolCalls(toolCall: LiveServerToolCall): Promise<void> {
+    if (!this.session) return
+
+    for (const functionCall of toolCall.functionCalls || []) {
+      const { name, args, id } = functionCall
+      console.log(`🛠️ 関数呼び出し: ${name}`, args)
+
+      let result: any
+
+      switch (name) {
+        case 'get_current_time':
+          result = await this.getCurrentTime(args)
+          break
+        case 'get_mute_state':
+          result = await this.getMuteState()
+          break
+        case 'enable_mute':
+          result = await this.enableMute()
+          break
+        case 'disable_mute':
+          result = await this.disableMute()
+          break
+        default:
+          result = { error: `Unknown function: ${name}` }
+      }
+
+      // ツール応答を送信
+      console.log(`📤 ツール応答送信: ${name}`, result)
+      this.session.sendToolResponse({
+        functionResponses: [
+          {
+            name,
+            id,
+            response: result,
+          },
+        ],
+      })
+    }
+  }
+
+  /**
+   * 現在時刻を取得
+   */
+  private async getCurrentTime(_args: any): Promise<any> {
+    try {
+      const now = new Date()
+
+      // 日本時間で日時フォーマット
+      const formatter = new Intl.DateTimeFormat('ja-JP', {
+        timeZone: 'Asia/Tokyo',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        weekday: 'long',
+      })
+
+      const formattedDate = formatter.format(now)
+
+      return {
+        result: formattedDate, // シンプルなレスポンス形式
+      }
+    } catch (error) {
+      return {
+        result: `時刻取得エラー: ${error}`,
+      }
+    }
+  }
+
+  /**
+   * ミュートを有効にする
+   */
+  private async enableMute(): Promise<any> {
+    this.isMuted = true
+    console.log('🔇 ミュートモードが有効になりました')
+    // 音声応答を返さない（ミュートなので）
+    return {
+      result: 'muted',
+    }
+  }
+
+  /**
+   * ミュートを解除する
+   */
+  private async disableMute(): Promise<any> {
+    this.isMuted = false
+    console.log('🔊 ミュートモードが解除されました')
+    return {
+      result: 'ミュート解除しました。また話せます！',
+    }
+  }
+
+  /**
+   * ミュート状態を取得する
+   */
+  private async getMuteState(): Promise<any> {
+    return {
+      result: {
+        isMuted: this.isMuted,
+        status: this.isMuted ? 'ミュート中' : '通常モード',
+      },
+    }
+  }
+
+  /**
+   * 再接続をスケジュール
+   */
+  private scheduleReconnect(): void {
+    // 最大試行回数を超えた場合は諦める
+    if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
+      console.error('❌ Gemini再接続試行回数の上限に達しました')
+      return
+    }
+
+    // すでに再接続がスケジュールされている場合はスキップ
+    if (this.reconnectTimeout) {
+      return
+    }
+
+    this.reconnectAttempts++
+    const delay = this.RECONNECT_DELAY * this.reconnectAttempts // 段階的に遅延を増やす
+
+    console.log(
+      `⏳ ${delay / 1000}秒後にGeminiに再接続を試みます (${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`,
+    )
+
+    this.reconnectTimeout = setTimeout(async () => {
+      this.reconnectTimeout = undefined
+      try {
+        await this.connect()
+        console.log('✅ Gemini再接続成功')
+
+        // 再接続後、ストリーミングモードを再開
+        if (this.streamingActive) {
+          this.streamInit(this.inputMime)
+        }
+      } catch (error) {
+        console.error('❌ Gemini再接続失敗:', error)
+        // 失敗したら再度スケジュール
+        this.scheduleReconnect()
+      }
+    }, delay)
   }
 
   async disconnect(): Promise<void> {
+    // 再接続タイマーをクリア
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout)
+      this.reconnectTimeout = undefined
+    }
+
+    // クリーンアップ：タイマーをクリア
+    if (this.bufferTimeout) {
+      clearTimeout(this.bufferTimeout)
+      this.flushAudioBuffer() // 残っているバッファを処理
+    }
+
     if (this.session) {
       this.session.close()
       this.session = undefined
-      this.isConnected = false
+      this.connected = false
       this.streamingActive = false
     }
   }
