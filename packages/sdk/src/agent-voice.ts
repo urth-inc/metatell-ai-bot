@@ -18,6 +18,9 @@ export interface AttachVoiceOptions {
 export interface CreateTransportOptions {
   type?: 'auto' | 'livekit' | 'mock'
   realtimeUrl?: string
+  livekit?: {
+    iceTransportPolicy?: 'all' | 'relay'
+  }
 }
 
 export interface VoiceAttachment {
@@ -142,7 +145,6 @@ export async function enableVoice(
 function getRealtimeUrl(client: VoiceCapableClient): string {
   // Use environment variable if provided
   if (process.env.METATELL_REALTIME_URL) {
-    console.log('[Voice] Using realtime URL from env:', process.env.METATELL_REALTIME_URL)
     return process.env.METATELL_REALTIME_URL
   }
 
@@ -169,7 +171,6 @@ function getRealtimeUrl(client: VoiceCapableClient): string {
     }
   }
 
-  console.log('[Voice] Derived realtime URL:', derivedUrl)
   return derivedUrl
 }
 
@@ -214,9 +215,6 @@ async function getRealtimeToken(client: VoiceCapableClient): Promise<string> {
     // v-air_clientと同じ形式でroomNameを構成
     const channelName = `microphone:${roomId}`
 
-    console.log('[Voice] Requesting LiveKit token from:', tokenUrl)
-    console.log('[Voice] Request payload:', { roomName: channelName, identity: sessionId })
-
     const response = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
@@ -228,27 +226,20 @@ async function getRealtimeToken(client: VoiceCapableClient): Promise<string> {
       }),
     })
 
-    console.log('[Voice] Token response status:', response.status, response.statusText)
-
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('[Voice] Token response body:', errorText)
       throw new Error(`Failed to get LiveKit token: ${response.statusText} - ${errorText}`)
     }
 
     const data = (await response.json()) as { token?: string }
-    console.log('[Voice] Token response data:', data)
 
     if (!data.token) {
       throw new Error('LiveKit token not found in response')
     }
 
-    console.log('[Voice] Successfully obtained LiveKit token (length:', data.token.length, ')')
     return data.token
-  } catch (error) {
-    console.error('[Voice] Failed to get LiveKit token:', error)
+  } catch (_error) {
     // Fallback to placeholder for development
-    console.warn('[Voice] Using placeholder token for development')
     return 'realtime-token-placeholder'
   }
 }
