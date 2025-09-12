@@ -4,6 +4,7 @@ import { createMetatellClient, enableVoice } from '@metatell/bot-sdk'
 import { GeminiLLMProcessor } from './gemini-llm-processor.js'
 import { SpeechRecognizer } from './speech-recognizer.js'
 import { SpeechSynthesizer } from './speech-synthesizer.js'
+import { VadProcessor } from './vad-processor.js'
 
 /**
  * 音声認識→LLM→音声合成ボット
@@ -13,6 +14,7 @@ export class SpeechToSpeechBot {
   private speechRecognizer: SpeechRecognizer
   private llmProcessor: GeminiLLMProcessor
   private speechSynthesizer: SpeechSynthesizer
+  private vadProcessor: VadProcessor
 
   // デバッグ用録音ディレクトリ
   private recordingsDir = './recordings'
@@ -27,11 +29,11 @@ export class SpeechToSpeechBot {
 
   // 音声処理状態
   private isProcessing = false
+  private isRecording = false
   private audioBuffer: Int16Array[] = []
-  private silenceFrames = 0
-  private readonly silenceThreshold = 75 // 75フレーム = 1.5秒の無音
-  private isSpeaking = false
-  private readonly minSpeechFrames = 10 // 最小発話フレーム数（200ms）
+
+  // VAD用フレームバッファ（10msフレームを20msに結合するため）
+  private vadFrameBuffer: Int16Array[] = []
 
   // 音声レベル表示用
   private voiceLevelInterval?: NodeJS.Timeout
@@ -47,6 +49,7 @@ export class SpeechToSpeechBot {
     this.speechRecognizer = new SpeechRecognizer()
     this.llmProcessor = new GeminiLLMProcessor(geminiApiKey)
     this.speechSynthesizer = new SpeechSynthesizer()
+    this.vadProcessor = new VadProcessor()
   }
 
   async start() {
@@ -83,6 +86,12 @@ export class SpeechToSpeechBot {
           // pcmはArrayBufferなので、正しく変換
           const frame = new Int16Array(pcm.buffer || pcm)
 
+          // デバッグ: フレームサイズを確認
+          if (Math.random() < 0.01) {
+            // 1%の確率でログ出力
+            console.log(`🔍 フレームサイズ: ${frame.length}サンプル`)
+          }
+
           // 音声レベルを記録（可視化用）
           const amplitude = Math.max(...Array.from(frame).map(Math.abs))
           this.lastVoiceLevel = amplitude
@@ -92,31 +101,49 @@ export class SpeechToSpeechBot {
             return
           }
 
-          // 無音検出（閾値を上げて環境ノイズに対応）
-          const isSilent = amplitude < 1000
+          // 10msフレームをバッファリング
+          this.vadFrameBuffer.push(frame)
 
-          if (isSilent) {
-            if (this.isSpeaking && this.audioBuffer.length > this.minSpeechFrames) {
-              // 話していた状態から無音になった
-              this.silenceFrames++
-              // 1.5秒以上の無音で処理開始
-              if (this.silenceFrames >= this.silenceThreshold) {
-                await this.processAudioBuffer()
-                this.isSpeaking = false
-              }
-            } else {
-              // まだ話し始めていない
-              this.silenceFrames = 0
+          // 2フレーム（20ms）が貯まったらVAD処理
+          if (this.vadFrameBuffer.length >= 2) {
+            // 2つの10msフレームを1つの20msフレームに結合
+            const frame20ms = new Int16Array(960)
+            frame20ms.set(this.vadFrameBuffer[0], 0)
+            frame20ms.set(this.vadFrameBuffer[1], 480)
+
+            // バッファをクリア
+            this.vadFrameBuffer = []
+
+            // VADで音声活動を検出
+            const vadResult = this.vadProcessor.processFrame(frame20ms)
+
+            // デバッグ: VADの結果を確認
+            if (vadResult.isSpeech) {
+              console.log(
+                `📊 VAD: 音声検出 (shouldStart: ${vadResult.shouldStartRecording}, shouldStop: ${vadResult.shouldStopRecording})`,
+              )
+            }
+
+            if (vadResult.shouldStartRecording && !this.isRecording) {
+              console.log('🎙️ 録音開始...')
+              this.isRecording = true
+            }
+
+            if (this.isRecording) {
+              // 録音中は元の10msフレームを保存（高精度を維持）
+              this.audioBuffer.push(frame)
+            }
+
+            if (vadResult.shouldStopRecording && this.isRecording) {
+              console.log('🛑 録音終了...')
+              this.isRecording = false
+              await this.processAudioBuffer()
             }
           } else {
-            // 音声検出
-            if (!this.isSpeaking) {
-              console.log('🎙️ 音声検出...')
-              this.isSpeaking = true
+            // 録音中は10msフレームも保存
+            if (this.isRecording) {
+              this.audioBuffer.push(frame)
             }
-            this.silenceFrames = 0
-            // 音声をバッファに追加
-            this.audioBuffer.push(frame)
           }
         },
 
@@ -196,8 +223,7 @@ export class SpeechToSpeechBot {
     } finally {
       // バッファをクリア
       this.audioBuffer = []
-      this.silenceFrames = 0
-      this.isSpeaking = false
+      this.isRecording = false
       this.isProcessing = false
       console.log('✨ 音声処理完了\n')
     }
@@ -216,45 +242,8 @@ export class SpeechToSpeechBot {
       offset += frame.length
     }
 
-    // 音声データを正規化してクリッピングを防ぐ
-    const normalizedData = this.normalizeAudio(pcmData)
-
     // ベストプラクティス: 再サンプリングは避け、ネイティブの48kHzを維持
-    return this.createWavBuffer(normalizedData, 48000)
-  }
-
-  /**
-   * 音声データを正規化
-   */
-  private normalizeAudio(pcmData: Int16Array): Int16Array {
-    // 最大振幅を見つける
-    let maxAmplitude = 0
-    for (let i = 0; i < pcmData.length; i++) {
-      const absValue = Math.abs(pcmData[i])
-      if (absValue > maxAmplitude) {
-        maxAmplitude = absValue
-      }
-    }
-
-    // 無音の場合はそのまま返す
-    if (maxAmplitude === 0) {
-      return pcmData
-    }
-
-    // 正規化係数を計算（最大値の90%に収める）
-    const targetMax = 32767 * 0.9
-    const normalFactor = targetMax / maxAmplitude
-
-    // クリッピングを防ぐため、係数が1を超えないようにする
-    const factor = Math.min(normalFactor, 1.0)
-
-    // 正規化を適用
-    const normalized = new Int16Array(pcmData.length)
-    for (let i = 0; i < pcmData.length; i++) {
-      normalized[i] = Math.round(pcmData[i] * factor)
-    }
-
-    return normalized
+    return this.createWavBuffer(pcmData, 48000)
   }
 
   /**
@@ -463,13 +452,13 @@ export class SpeechToSpeechBot {
   private startVoiceLevelMonitor(): void {
     this.voiceLevelInterval = setInterval(() => {
       const level = Math.min(10, Math.floor(this.lastVoiceLevel / 3000))
-      if (level > 0 || this.isSpeaking) {
+      if (level > 0 || this.isRecording) {
         const bar = `🎤 ${'▮'.repeat(level)}${'▯'.repeat(10 - level)}`
         const db = Math.round(20 * Math.log10(Math.max(1, this.lastVoiceLevel) / 32768))
-        const status = this.isSpeaking ? '🔴 録音中' : '⚪ 待機中'
-        process.stdout.write(`\r${bar} ${db}dB ${status} `)
+        const status = this.isRecording ? '🔴 録音中' : '⚪ 待機中'
+        process.stdout.write(`\r${bar} ${db}dB ${status} [WebRTC VAD] `)
       } else {
-        process.stdout.write(`\r${' '.repeat(40)}\r`)
+        process.stdout.write(`\r${' '.repeat(50)}\r`)
       }
 
       this.lastVoiceLevel = Math.floor(this.lastVoiceLevel * 0.8)
