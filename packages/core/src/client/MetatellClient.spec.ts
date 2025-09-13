@@ -2,6 +2,7 @@
  * Test for MetatellClient implementation
  */
 
+import type { EventEmitter } from 'node:events'
 import { describe, expect, it } from 'vitest'
 import {
   type CreateClientOptions,
@@ -73,9 +74,8 @@ describe('muteVoice', () => {
     client.on('voice-mute-changed', (e) => events.push(e.muted))
 
     const busEvents: boolean[] = []
-    ;(client as any).eventBus.on('voice:mute-changed', (e: { muted: boolean }) =>
-      busEvents.push(e.muted),
-    )
+    const bus = (client as unknown as { eventBus: EventEmitter }).eventBus
+    bus.on('voice:mute-changed', (e: { muted: boolean }) => busEvents.push(e.muted))
 
     await client.muteVoice(true)
     await client.muteVoice(false)
@@ -100,7 +100,7 @@ describe('muteVoice', () => {
     const events: boolean[] = []
     client.on('voice-mute-changed', (e) => events.push(e.muted))
 
-    const bus = (client as any).eventBus
+    const bus = (client as unknown as { eventBus: EventEmitter }).eventBus
     bus.on('voice:mute-changed', () => {
       throw new Error('boom')
     })
