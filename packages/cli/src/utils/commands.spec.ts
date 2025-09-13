@@ -3,7 +3,7 @@
  */
 
 import type { MetatellClient } from '@metatell/bot-sdk'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { CommandParser } from './commands.js'
 
 // Mock console
@@ -52,6 +52,8 @@ describe('CommandParser', () => {
           { id: 'bot1', name: 'TestBot', isBot: true },
         ]),
         getNearbyUsers: vi.fn().mockResolvedValue([{ id: 'user1', name: 'Alice', isBot: false }]),
+        // @ts-expect-error: getUserPosition is not in SDK types yet
+        getUserPosition: vi.fn().mockResolvedValue({ x: 1, y: 2, z: 3 }),
       },
       getStatus: vi.fn().mockReturnValue({
         connected: true,
@@ -159,6 +161,10 @@ describe('CommandParser', () => {
 
       expect(result.success).toBe(true)
       expect(mockClient.room.getUsers).toHaveBeenCalled()
+      expect((mockClient.room as { getUserPosition: Mock }).getUserPosition).toHaveBeenCalledWith(
+        'user1',
+      )
+      expect(mockClient.avatar.lookAt).toHaveBeenCalledWith({ x: 1, y: 2, z: 3 })
       expect(mockConsole.log).toHaveBeenCalledWith('[Looking at] Alice')
     })
 
@@ -166,6 +172,9 @@ describe('CommandParser', () => {
       const result = await parser.execute('/look @alice', mockClient as MetatellClient)
 
       expect(result.success).toBe(true)
+      expect((mockClient.room as { getUserPosition: Mock }).getUserPosition).toHaveBeenCalledWith(
+        'user1',
+      )
       expect(mockConsole.log).toHaveBeenCalledWith('[Looking at] Alice')
     })
 
@@ -174,6 +183,23 @@ describe('CommandParser', () => {
 
       expect(result.success).toBe(false)
       expect(result.message).toBe('User not found: Unknown')
+    })
+
+    it('should handle missing user position', async () => {
+      ;(mockClient.room as { getUserPosition: Mock }).getUserPosition.mockResolvedValueOnce(null)
+      const result = await parser.execute('/look @Alice', mockClient as MetatellClient)
+
+      expect(result.success).toBe(false)
+      expect(result.message).toBe('Could not get position for user: Alice')
+    })
+
+    it('should handle SDK without getUserPosition', async () => {
+      // remove API to simulate older SDK
+      delete (mockClient.room as Record<string, unknown>).getUserPosition
+      const result = await parser.execute('/look @Alice', mockClient as MetatellClient)
+
+      expect(result.success).toBe(false)
+      expect(result.message).toBe('Looking at users is not supported by this SDK version.')
     })
 
     it('should reject empty arguments', async () => {

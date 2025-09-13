@@ -133,9 +133,37 @@ Available commands:
         return { success: false, message: `User not found: ${username}` }
       }
 
-      // TODO: ユーザーの位置を取得して見る機能はSDKに未実装
-      console.log(`[Looking at] ${targetUser.name}`)
-      return { success: true, message: 'Looking at user (position tracking not yet implemented)' }
+      const roomWithPosition = client.room as {
+        getUserPosition?: (id: string) => Promise<{ x: number; y: number; z: number } | null>
+      }
+
+      if (typeof roomWithPosition.getUserPosition !== 'function') {
+        return {
+          success: false,
+          message: 'Looking at users is not supported by this SDK version.',
+        }
+      }
+
+      try {
+        const position = await roomWithPosition.getUserPosition(targetUser.id)
+
+        if (!position) {
+          return {
+            success: false,
+            message: `Could not get position for user: ${targetUser.name ?? targetUser.id}`,
+          }
+        }
+
+        await client.avatar.lookAt(position)
+
+        console.log(`[Looking at] ${targetUser.name}`)
+        return { success: true }
+      } catch (_error) {
+        return {
+          success: false,
+          message: `Failed to look at user: ${targetUser.name ?? targetUser.id}`,
+        }
+      }
     }
 
     // 座標を見る場合
