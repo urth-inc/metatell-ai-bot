@@ -88,8 +88,8 @@ importers:
   packages/core:
     dependencies:
       '@livekit/agents':
-        specifier: 1.0.2
-        version: 1.0.2(@livekit/rtc-node@0.13.18)
+        specifier: 1.0.3
+        version: 1.0.3(@livekit/rtc-node@0.13.18)
       '@types/node':
         specifier: '*'
         version: 22.17.2
@@ -622,8 +622,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.30':
     resolution: {integrity: sha512-GQ7Nw5G2lTu/BtHTKfXhKHok2WGetd4XYcVKGx00SjAk8GMwgJM3zr6zORiPGuOE+/vkc90KtTosSSvaCjKb2Q==}
 
-  '@livekit/agents@1.0.2':
-    resolution: {integrity: sha512-C32L2piFcS1o2ra+MN2LnciyP3rKM9SLCW+5BcxFvGE/nfkXWOaToevKhR9bOoyDIWAkslJl86tH+pDg1rzznA==}
+  '@livekit/agents@1.0.3':
+    resolution: {integrity: sha512-0QCU7vygUSkeWClzoqeax9+OUaEHzMkh3QUKVINZgv3XXKgarwi9M/weuFp6fltiqHenkeWJ4KLUycbbiZ/FiQ==}
     peerDependencies:
       '@livekit/rtc-node': ^0.13.12
 
@@ -2584,7 +2584,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@livekit/agents@1.0.2(@livekit/rtc-node@0.13.18)':
+  '@livekit/agents@1.0.3(@livekit/rtc-node@0.13.18)':
     dependencies:
       '@livekit/mutex': 1.1.1
       '@livekit/protocol': 1.41.0
