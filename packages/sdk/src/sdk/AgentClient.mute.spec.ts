@@ -76,4 +76,3 @@ describe('AgentClient voice mute via event bus', () => {
     expect(events).toEqual([true])
   })
 })
-

@@ -19,14 +19,14 @@ import {
   ConfigurationProvider,
   ConnectionManager,
   CoreServiceFactory,
+  EventBus,
   type IAnimationService,
   type IAvatarController,
   type IConfigurationProvider,
   type IConnectionManager,
+  type IEventBus,
   type IMessageService,
   MessageService,
-  EventBus,
-  type IEventBus,
   UserAvatarManager,
 } from '@metatell/bot-core'
 import { getLogger } from './logging/index.js'
