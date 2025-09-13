@@ -31,29 +31,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node from package.json (engines/volta)
-        uses: actions/setup-node@v5
-        with:
-          node-version-file: package.json
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           run_install: false
 
-      - name: Compute pnpm store path
-        id: pnpm-store
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path)" >> "$GITHUB_OUTPUT"
-
-      - name: Restore pnpm cache
-        uses: actions/cache@v4
+      - name: Setup Node from package.json (engines/volta)
+        uses: actions/setup-node@v5
         with:
-          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
-          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package.json') }}-node${{ hashFiles('package.json') }}
-          restore-keys: |
-            pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}-
-            pnpm-${{ runner.os }}-
+          node-version-file: package.json
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

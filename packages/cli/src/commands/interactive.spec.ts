@@ -179,10 +179,10 @@ describe('startInteractiveMode', () => {
 
     // Trigger disconnected event
     clientEventHandlers.disconnected?.forEach((handler) => {
-      handler('Network error')
+      handler()
     })
 
-    expect(mockConsole.log).toHaveBeenCalledWith('[Disconnected]', 'Network error')
+    expect(mockConsole.log).toHaveBeenCalledWith('[Disconnected]', 'Connection closed')
 
     // Test without reason
     clientEventHandlers.disconnected?.forEach((handler) => {

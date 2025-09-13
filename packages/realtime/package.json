@@ -1,6 +1,6 @@
 {
   "name": "@metatell/bot-realtime",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@types/node": "22.10.6",
-    "typescript": "5.7.2",
+    "typescript": "5.9.2",
     "vitest": "3.2.4"
   },
   "license": "MIT",

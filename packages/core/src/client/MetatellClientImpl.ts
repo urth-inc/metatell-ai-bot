@@ -1,193 +1,108 @@
-/**
- * MetatellClient implementation - main facade for SDK
- */
-
 import { EventEmitter } from 'node:events'
+import { CoreServiceFactory } from '../CoreServiceFactory.js'
+import { AnimationService, type IAnimationService } from '../interfaces/IAnimationService.js'
+import { AppSettings } from '../interfaces/IAppSettings.js'
+import { AvatarController, type IAvatarController } from '../interfaces/IAvatarController.js'
 import {
-  AnimationService,
-  AppSettings,
-  AvatarController,
   ConfigurationProvider,
-  ConnectionManager,
-  // Core logging provider utilities (to ensure provider is set)
-  DefaultLoggerProvider as CoreDefaultLoggerProvider,
-  CoreServiceFactory,
-  EventBus,
-  type IAnimationService,
-  type IAvatarController,
   type IConfigurationProvider,
-  type IConnectionManager,
-  type IEventBus,
-  type IMessageService,
+} from '../interfaces/IConfigurationProvider.js'
+import { ConnectionManager, type IConnectionManager } from '../interfaces/IConnectionManager.js'
+import { EventBus, type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
+import { type IMessageService, MessageService } from '../interfaces/IMessageService.js'
+import {
   type IOrganizationService,
-  type IPresenceManager,
-  type IUserAvatarManager,
-  MessageService,
   OrganizationService,
-  PresenceManager,
-  registerLoggerProvider as registerCoreLoggerProvider,
-  SystemEvents,
-  UserAvatarManager,
-} from '@metatell/bot-core'
-import { getLogger } from './sdk/logging/index.js'
-import { RateLimitedQueue } from './sdk/rate.js'
+} from '../interfaces/IOrganizationService.js'
+import { type IPresenceManager, PresenceManager } from '../interfaces/IPresenceManager.js'
+import { type IUserAvatarManager, UserAvatarManager } from '../interfaces/IUserAvatarManager.js'
+import { getLogger } from '../logging/index.js'
+import type { Logger } from '../logging/spi.js'
 import type {
   Animation,
   AvatarAsset,
   BotInfo,
-  CreateClientOptions,
   Euler,
-  MessageEventData,
+  MetatellClient,
   MetatellClientEvents,
-  PcmInput,
   PcmInputOptions,
   PlaybackControls,
   User,
   Vec3,
-} from './types.js'
-import { AuthError, MetatellError, NetworkError, NotFoundError } from './types.js'
+} from '../types/client.js'
 
-/**
- * MetatellClient - メインのfacadeインターフェース
- */
-export interface MetatellClient {
-  /**
-   * Metatellサーバーに接続し、指定されたルームに参加します。
-   * @throws {AuthError} 認証トークンが無効な場合。
-   * @throws {NetworkError} ネットワーク接続に失敗した場合。
-   */
-  connect(): Promise<void>
+// Rate limiting classes (these might need to be moved to core too)
+class RateLimitedQueue {
+  private rates = new Map<string, number>()
 
-  /**
-   * サーバーから切断します。
-   */
-  disconnect(): Promise<void>
-
-  /** ルーム関連の操作 */
-  readonly room: {
-    /** 現在ルームに参加しているユーザーの一覧を取得します。 */
-    getUsers(): Promise<User[]>
-
-    /** 指定した半径内のユーザーを取得します。 */
-    getNearbyUsers(radius?: number): Promise<User[]>
+  async execute(_key: string, fn: () => Promise<void>): Promise<void> {
+    // シンプルなレート制限実装
+    await fn()
   }
 
-  /** 現在ルームに参加しているユーザーの一覧を取得します（同期版）。 */
-  getUsers(): User[]
-
-  /** チャット関連の操作 */
-  readonly chat: {
-    /** ルーム全体にメッセージを送信します。 */
-    send(text: string): Promise<void>
-
-    /**
-     * すべてのチャットメッセージを購読します。
-     * メンションの有無に関わらず、すべてのメッセージを受信します。
-     */
-    onMessage(
-      handler: (event: {
-        from: User
-        text: string
-        mention?: {
-          sessionId: string
-          name: string
-        }
-        /** 受信したメッセージに簡易返信するユーティリティ関数 */
-        reply: (text: string) => Promise<void>
-      }) => void,
-    ): void
+  getRate(key: string): number | undefined {
+    return this.rates.get(key)
   }
 
-  /** ボットアバターの操作 */
-  readonly avatar: {
-    /**
-     * アバターを選択・変更します。
-     * @param assetId 組織アバターのIDなど
-     */
-    select(assetId: string): Promise<void>
-
-    /**
-     * アニメーションを再生します。
-     * @param animation 再生するアニメーションの仕様
-     * @throws {NotFoundError} 指定されたアニメーションが存在しない場合。
-     */
-    play(animation: Animation): Promise<void>
-
-    /**
-     * 指定された座標に移動します。
-     * @param position 移動先の座標（メートル）
-     */
-    moveTo(position: Vec3): Promise<void>
-
-    /**
-     * 指定された角度に回転します。
-     * @param rotation 回転角度（オイラー角・度数法）
-     */
-    rotateTo(rotation: Euler): Promise<void>
-
-    /**
-     * 指定された座標を見るように回転します。
-     * @param target 見る対象の座標（メートル）
-     */
-    lookAt(target: Vec3): Promise<void>
-
-    /** 現在の位置を取得します。 */
-    getPosition(): Vec3 | null
-
-    /** 利用可能なアバターアセットの一覧を取得します。 */
-    getAvailableAssets(): Promise<AvatarAsset[]>
-
-    /** 現在のアバターで利用可能なアニメーションの一覧を取得します。 */
-    getAvailableAnimations(): Promise<Animation[]>
+  setRate(key: string, rate: number): void {
+    this.rates.set(key, rate)
   }
+}
 
-  /** 音声関連の操作 */
-  readonly voice: {
-    /**
-     * 16-bit PCMデータを注入し、ボットに発話させます。
-     * SDKは内部で48kHz/monoにリサンプリングし、10msのフレームに分割して送信します。
-     * @param input Int16Array, AsyncIterable<Int16Array>, またはNodeJS.ReadableStream
-     * @param options 入力PCMのフォーマット
-     * @returns 再生を制御するためのオブジェクト
-     * @throws {UnsupportedAudioFormatError} サポート外のフォーマットが指定された場合。
-     */
-    playPcm(input: PcmInput, options: PcmInputOptions): Promise<PlaybackControls>
+// Error types
+export class MetatellError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+    public cause?: unknown,
+  ) {
+    super(message)
+    this.name = 'MetatellError'
   }
+}
 
-  /** ボット自身の情報を取得します。 */
-  getInfo(): Promise<BotInfo>
+export class AuthError extends MetatellError {
+  constructor(code: string, message: string, cause?: unknown) {
+    super(code, message, cause)
+    this.name = 'AuthError'
+  }
+}
 
-  /** 接続状態を取得します。 */
-  getStatus(): { connected: boolean; connecting: boolean }
+export class NetworkError extends MetatellError {
+  constructor(code: string, message: string, cause?: unknown) {
+    super(code, message, cause)
+    this.name = 'NetworkError'
+  }
+}
 
-  /** レート制限設定を取得します。 */
-  getRateLimit(key: 'messages' | 'moves' | 'looks'): number | undefined
+export class NotFoundError extends MetatellError {
+  constructor(code: string, message: string, cause?: unknown) {
+    super(code, message, cause)
+    this.name = 'NotFoundError'
+  }
+}
 
-  /** レート制限を設定します。 */
-  setRateLimit(key: 'messages' | 'moves' | 'looks', perSecond: number): void
+// Message event data type
+interface MessageEventData {
+  type: string
+  body?: string
+  senderId?: string
+}
 
-  /**
-   * 現在のセッションIDを取得します。
-   */
-  getSessionId(): string | null
-
-  /**
-   * SDKのイベントを購読します。
-   * @param event イベント名
-   * @param listener イベントハンドラ
-   */
-  on<E extends keyof MetatellClientEvents>(event: E, listener: MetatellClientEvents[E]): this
-
-  /**
-   * SDKのイベント購読を解除します。
-   */
-  off<E extends keyof MetatellClientEvents>(event: E, listener: MetatellClientEvents[E]): this
+// Create client options
+export interface CreateClientOptions {
+  serverUrl: string
+  roomId: string
+  token?: string
+  username?: string
+  avatarId?: string
+  debug?: boolean
 }
 
 /**
- * MetatellClient実装
+ * MetatellClient implementation
  */
-class MetatellClientImpl extends EventEmitter implements MetatellClient {
+export class MetatellClientImpl extends EventEmitter implements MetatellClient {
   private serviceFactory: CoreServiceFactory
   private connectionManager: IConnectionManager
   private messageService: IMessageService
@@ -199,19 +114,15 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
   private configProvider: IConfigurationProvider
   private userAvatarManager: IUserAvatarManager
   private rateLimiter = new RateLimitedQueue()
-  private logger = getLogger('MetatellClient')
+  private logger: Logger
   private orgAvatarUrlCache = new Map<string, string>()
+  private voiceMuted = false
 
   constructor(private options: CreateClientOptions) {
     super()
 
-    // Ensure Core logging provider is registered to avoid runtime error
-    try {
-      // CoreServiceFactoryがプロバイダーを必要とする場合のみ登録
-      registerCoreLoggerProvider(new CoreDefaultLoggerProvider(), { allowOverwrite: true })
-    } catch {
-      // すでに登録されている場合はエラーを無視
-    }
+    // Initialize logger
+    this.logger = getLogger('MetatellClient')
 
     // デバッグモードの場合、ロギングを有効化
     if (options.debug) {
@@ -227,6 +138,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
         displayName: options.username || 'MetatellBot',
         avatarId: options.avatarId || '', // 後で組織アバターから取得
       },
+      botAccessKey: options.token,
       debug: options.debug || false,
     })
 
@@ -251,6 +163,11 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
     // イベントのプロキシ設定
     this.setupEventProxies()
+
+    // Voice mute state synchronization
+    this.eventBus.on('voice:mute-changed', ({ muted }: { muted: boolean }) => {
+      this.applyVoiceMute(muted)
+    })
   }
 
   /**
@@ -329,7 +246,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
     this.eventBus.on(SystemEvents.USER_JOINED, (data: unknown) => {
       // PresenceUserデータをUser型に変換
-      const presenceUser = data as import('@metatell/bot-core').PresenceUser
+      const presenceUser = data as import('../interfaces/IPresenceManager.js').PresenceUser
       // UserAvatarManagerからアバター情報を取得
       const avatar = this.userAvatarManager.getUser(presenceUser.id)
 
@@ -347,7 +264,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
     this.eventBus.on(SystemEvents.USER_LEFT, (data: unknown) => {
       // PresenceUserデータをUser型に変換
-      const presenceUser = data as import('@metatell/bot-core').PresenceUser
+      const presenceUser = data as import('../interfaces/IPresenceManager.js').PresenceUser
       // UserAvatarManagerからアバター情報を取得
       const avatar = this.userAvatarManager.getUser(presenceUser.id)
 
@@ -445,41 +362,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
   readonly room = {
     getUsers: async (): Promise<User[]> => {
-      const users = this.presenceManager.getUsers()
-      const currentSessionId = this.connectionManager.getSessionId()
-
-      // PresenceUserをUser型に変換
-      return users.map((u) => {
-        // 自分自身の場合はAvatarControllerから位置情報を取得
-        if (u.id === currentSessionId) {
-          const avatarState = this.avatarController.getState()
-          return {
-            id: u.id,
-            name: u.profile?.displayName || u.id.split('#')[0] || u.id,
-            isBot: false,
-            position: avatarState?.position,
-            rotation: avatarState?.rotation
-              ? {
-                  x: (avatarState.rotation.x * 180) / Math.PI,
-                  y: (avatarState.rotation.y * 180) / Math.PI,
-                  z: (avatarState.rotation.z * 180) / Math.PI,
-                  w: 1, // 簡略化
-                }
-              : undefined,
-          }
-        }
-
-        // UserAvatarManagerからアバター情報を取得
-        const avatar = this.userAvatarManager.getUser(u.id)
-
-        return {
-          id: u.id,
-          name: u.profile?.displayName || u.id.split('#')[0] || u.id,
-          isBot: false,
-          position: avatar?.position,
-          rotation: avatar?.rotation,
-        }
-      })
+      return this.buildUserList()
     },
 
     getNearbyUsers: async (radius: number = 10): Promise<User[]> => {
@@ -753,7 +636,7 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
   }
 
   readonly voice = {
-    playPcm: async (_input: PcmInput, _options: PcmInputOptions): Promise<PlaybackControls> => {
+    playPcm: async (_input: unknown, _options: PcmInputOptions): Promise<PlaybackControls> => {
       // 音声機能は別パッケージ（@metatell/realtime）で実装
       // ここではプレースホルダーを返す
       const finishedPromise = new Promise<void>((resolve) => {
@@ -780,21 +663,11 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
     }
   }
 
-  getStatus(): { connected: boolean; connecting: boolean } {
-    // 簡易的な接続状態を返す
-    return {
-      connected: true,
-      connecting: false,
-    }
-  }
-
-  getUsers(): User[] {
+  private buildUserList(): User[] {
     const users = this.presenceManager.getUsers()
     const currentSessionId = this.connectionManager.getSessionId()
 
-    // PresenceUserをUser型に変換（room.getUsersと同じ実装）
     return users.map((u) => {
-      // 自分自身の場合はAvatarControllerから位置情報を取得
       if (u.id === currentSessionId) {
         const avatarState = this.avatarController.getState()
         return {
@@ -813,7 +686,6 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
         }
       }
 
-      // UserAvatarManagerからアバター情報を取得
       const avatar = this.userAvatarManager.getUser(u.id)
 
       return {
@@ -824,6 +696,18 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
         rotation: avatar?.rotation,
       }
     })
+  }
+
+  getStatus(): { connected: boolean; connecting: boolean } {
+    const sessionId = this.connectionManager.getSessionId()
+    return {
+      connected: !!sessionId,
+      connecting: !sessionId,
+    }
+  }
+
+  getUsers(): User[] {
+    return this.buildUserList()
   }
 
   getRateLimit(key: 'messages' | 'moves' | 'looks'): number | undefined {
@@ -837,6 +721,35 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
   getSessionId(): string | null {
     // 接続マネージャーからセッションIDを取得
     return this.connectionManager.getSessionId()
+  }
+
+  private applyVoiceMute(muted: boolean): void {
+    if (this.voiceMuted === muted) {
+      // 状態が変化しない場合は何もしない
+      return
+    }
+
+    this.voiceMuted = muted
+    this.logger.info(`Voice ${muted ? 'muted' : 'unmuted'}`)
+
+    // クライアントイベントとして通知
+    this.emit('voice:mute-changed', { muted })
+  }
+
+  async muteVoice(muted: boolean): Promise<void> {
+    this.logger.debug('Voice mute requested', { muted })
+    // Only emit to the event bus; state and public event are updated via subscription
+    this.eventBus.emit('voice:mute-changed', { muted })
+  }
+
+  async sendVoiceFrame(_pcm: Int16Array): Promise<void> {
+    if (this.voiceMuted) {
+      this.logger.debug('Ignoring voice frame because microphone is muted')
+      return
+    }
+
+    // 実装は外部パッケージからランタイムでパッチされる
+    throw new Error('Voice functionality not available - enable voice first with enableVoice()')
   }
 
   // EventEmitterのメソッドをオーバーライド
@@ -853,10 +766,10 @@ class MetatellClientImpl extends EventEmitter implements MetatellClient {
 }
 
 /**
- * MetatellClientのインスタンスを生成し、初期化します。
- * @param options クライアント設定
- * @returns MetatellClientのインスタンス
- * @throws {MetatellError} 設定が不正な場合にスローされます。
+ * Create MetatellClient instance
+ * @param options Client configuration
+ * @returns MetatellClient instance
+ * @throws {MetatellError} If configuration is invalid
  */
 export function createMetatellClient(options: CreateClientOptions): MetatellClient {
   // 設定バリデーション

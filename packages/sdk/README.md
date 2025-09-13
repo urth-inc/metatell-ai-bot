@@ -133,6 +133,26 @@ client.on('user-leave', (user) => {})
 
 注記: 現状 `error` イベントの発火は限定的で、主に例外としてスローされます。
 
+#### 音声イベント
+
+```typescript
+client.on('voice:connected', () => {})
+client.on('voice:disconnected', () => {})
+client.on('voice:error', (err) => {})
+client.on('voice:frame-received', ({ participantId, pcmData }) => {})
+
+// ミュート状態の変化
+client.on('voice:mute-changed', ({ muted }) => {
+  console.log('microphone muted:', muted)
+})
+
+// ミュート要求
+await client.muteVoice(true)  // -> EventBus に 'voice:mute-changed' を emit
+await client.muteVoice(false) // -> 同上
+```
+
+補足: `muteVoice(muted)` は内部状態を直接変更せず、EventBus に `'voice:mute-changed'` を発行します。クライアントはこのイベントを購読して `isVoiceMuted()` を同期します。
+
 ## エラーハンドリング
 
 ```typescript
@@ -165,4 +185,3 @@ MIT
 - [@metatell/bot-core](../core/README.md) — コアサービス/インフラ
 - [@metatell/bot-cli](../cli/README.md) — 開発用 CLI
 - [@metatell/bot-realtime](../realtime/README.md) — リアルタイム通信
-
