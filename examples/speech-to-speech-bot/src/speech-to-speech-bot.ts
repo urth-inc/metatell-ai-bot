@@ -39,15 +39,21 @@ export class SpeechToSpeechBot {
   private voiceLevelInterval?: NodeJS.Timeout
   private lastVoiceLevel = 0
 
+  // ボット情報
+  private botInfo: { sessionId?: string; name: string } | null = null
+
   constructor(
     serverUrl: string,
     roomId: string,
     username: string = 'SpeechToSpeechBot',
     geminiApiKey: string,
+    difyApiUrl?: string,
+    difyApiKey?: string,
+    difyAppId?: string,
   ) {
     this.client = createMetatellClient({ serverUrl, roomId, username })
     this.speechRecognizer = new SpeechRecognizer()
-    this.llmProcessor = new GeminiLLMProcessor(geminiApiKey)
+    this.llmProcessor = new GeminiLLMProcessor(geminiApiKey, difyApiUrl, difyApiKey, difyAppId)
     this.speechSynthesizer = new SpeechSynthesizer()
     this.vadProcessor = new VadProcessor()
   }
@@ -57,6 +63,10 @@ export class SpeechToSpeechBot {
 
     // クライアントを接続
     await this.client.connect()
+
+    // ボット情報を取得
+    this.botInfo = await this.client.getInfo()
+    console.log(`🤖 ボット名: ${this.botInfo.name}, セッションID: ${this.botInfo.sessionId}`)
 
     // 録音ディレクトリを作成
     if (!fs.existsSync(this.recordingsDir)) {
@@ -163,6 +173,9 @@ export class SpeechToSpeechBot {
 
     // 音声レベル表示を開始
     this.startVoiceLevelMonitor()
+
+    // チャットメッセージハンドラーを設定
+    this.setupChatHandlers()
   }
 
   /**
@@ -463,6 +476,106 @@ export class SpeechToSpeechBot {
 
       this.lastVoiceLevel = Math.floor(this.lastVoiceLevel * 0.8)
     }, 100)
+  }
+
+  /**
+   * チャットメッセージハンドラーを設定
+   */
+  private setupChatHandlers() {
+    this.client.chat.onMessage(async ({ from, text, mention, reply }) => {
+      // デバッグ: メッセージの詳細を表示
+      console.log('📨 メッセージ受信:', {
+        from: from.name,
+        text: text,
+        mention: mention,
+        botSessionId: this.botInfo?.sessionId,
+      })
+
+      if (!this.botInfo) {
+        console.log('❌ ボット情報が未初期化')
+        return
+      }
+
+      // メンションの検出（mentionオブジェクトがない場合の対策）
+      const isMentioned =
+        mention?.sessionId === this.botInfo.sessionId ||
+        text.includes(`[@${this.botInfo.name}]`) ||
+        text.includes(`(${this.botInfo.sessionId})`)
+
+      if (isMentioned) {
+        // ボット自身へのメンション
+        console.log(`💬 ${from.name} mentioned me: ${text}`)
+
+        try {
+          // 処理中フラグをセット（音声処理と競合しないように）
+          this.isProcessing = true
+
+          // LLM処理
+          console.log('🤔 LLM応答生成中...')
+          const response = await this.llmProcessor.generateResponse(text)
+          console.log(`💭 応答: "${response}"`)
+
+          // チャットで返信
+          await reply(response)
+
+          // 音声合成して再生（オプション）
+          console.log('🔊 音声合成中...')
+          const audioData = await this.speechSynthesizer.synthesize(response)
+
+          // デバッグ用に保存
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+          const outputPath = `${this.recordingsDir}/mention_output_${timestamp}.wav`
+          fs.writeFileSync(outputPath, audioData)
+          console.log(`💾 出力音声を保存: ${outputPath}`)
+
+          // 音声を再生
+          await this.playAudioResponse(audioData)
+        } catch (error) {
+          console.error('❌ メンション処理エラー:', error)
+          await reply('すみません、処理中にエラーが発生しました。')
+        } finally {
+          this.isProcessing = false
+        }
+      } else if (mention) {
+        // 他のユーザーへのメンション
+        console.log(`📢 ${from.name} mentioned @${mention.name}: ${text}`)
+      } else {
+        // 通常のメッセージ（ログのみ）
+        console.log(`💭 ${from.name}: ${text}`)
+      }
+    })
+  }
+
+  /**
+   * チャット入力を処理
+   */
+  async processChatInput(text: string): Promise<string> {
+    try {
+      console.log(`📝 チャット入力: "${text}"`)
+
+      // LLM処理
+      console.log('🤔 LLM応答生成中...')
+      const response = await this.llmProcessor.generateResponse(text)
+      console.log(`💭 応答: "${response}"`)
+
+      // 音声合成
+      console.log('🔊 音声合成中...')
+      const audioData = await this.speechSynthesizer.synthesize(response)
+
+      // デバッグ用に保存
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const outputPath = `${this.recordingsDir}/chat_output_${timestamp}.wav`
+      fs.writeFileSync(outputPath, audioData)
+      console.log(`💾 出力音声を保存: ${outputPath}`)
+
+      // 音声を再生
+      await this.playAudioResponse(audioData)
+
+      return response
+    } catch (error) {
+      console.error('❌ チャット処理エラー:', error)
+      return 'すみません、処理中にエラーが発生しました。'
+    }
   }
 
   async disconnect(): Promise<void> {

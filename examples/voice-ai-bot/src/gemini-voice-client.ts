@@ -459,7 +459,7 @@ export class GeminiVoiceClient {
       const { name, args, id } = functionCall
       console.log(`🛠️ 関数呼び出し: ${name}`, args)
 
-      let result: any
+      let result: unknown
 
       switch (name) {
         case 'get_current_time':
@@ -495,7 +495,7 @@ export class GeminiVoiceClient {
   /**
    * 現在時刻を取得
    */
-  private async getCurrentTime(_args: any): Promise<any> {
+  private async getCurrentTime(_args: unknown): Promise<{ result: string }> {
     try {
       const now = new Date()
 
@@ -526,7 +526,7 @@ export class GeminiVoiceClient {
   /**
    * ミュートを有効にする
    */
-  private async enableMute(): Promise<any> {
+  private async enableMute(): Promise<{ result: string }> {
     this.isMuted = true
     console.log('🔇 ミュートモードが有効になりました')
     // 音声応答を返さない（ミュートなので）
@@ -538,7 +538,7 @@ export class GeminiVoiceClient {
   /**
    * ミュートを解除する
    */
-  private async disableMute(): Promise<any> {
+  private async disableMute(): Promise<{ result: string }> {
     this.isMuted = false
     console.log('🔊 ミュートモードが解除されました')
     return {
@@ -549,7 +549,7 @@ export class GeminiVoiceClient {
   /**
    * ミュート状態を取得する
    */
-  private async getMuteState(): Promise<any> {
+  private async getMuteState(): Promise<{ result: { isMuted: boolean; status: string } }> {
     return {
       result: {
         isMuted: this.isMuted,
