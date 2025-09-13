@@ -2,11 +2,7 @@ import { EventEmitter } from 'node:events'
 import { CoreServiceFactory } from '../CoreServiceFactory.js'
 import { AnimationService, type IAnimationService } from '../interfaces/IAnimationService.js'
 import { AppSettings } from '../interfaces/IAppSettings.js'
-import {
-  AvatarController,
-  type IAvatarController,
-  type Rotation,
-} from '../interfaces/IAvatarController.js'
+import { AvatarController, type IAvatarController } from '../interfaces/IAvatarController.js'
 import {
   ConfigurationProvider,
   type IConfigurationProvider,
@@ -196,20 +192,6 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     return { text: body }
   }
 
-  /**
-   * Normalize avatar rotation to a complete quaternion.
-   * Computes missing w component and ensures unit length.
-   */
-  private toQuaternion(rotation: Rotation): { x: number; y: number; z: number; w: number } {
-    const { x, y, z } = rotation
-    const w = rotation.w ?? Math.sqrt(Math.max(0, 1 - x * x - y * y - z * z))
-    const length = Math.sqrt(x * x + y * y + z * z + w * w)
-    if (length === 0) {
-      return { x: 0, y: 0, z: 0, w: 1 }
-    }
-    return { x: x / length, y: y / length, z: z / length, w: w / length }
-  }
-
   private setupEventProxies(): void {
     // Coreのイベントをクライアントイベントにマッピング
     this.eventBus.on(SystemEvents.CONNECTION_ESTABLISHED, () => {
@@ -387,7 +369,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
             name: u.profile?.displayName || u.id.split('#')[0] || u.id,
             isBot: false,
             position: avatarState?.position,
-            rotation: avatarState?.rotation ? this.toQuaternion(avatarState.rotation) : undefined,
+            rotation: avatarState?.rotation,
           }
         }
 
@@ -399,7 +381,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
           name: u.profile?.displayName || u.id.split('#')[0] || u.id,
           isBot: false,
           position: avatar?.position,
-          rotation: avatar?.rotation ? this.toQuaternion(avatar.rotation) : undefined,
+          rotation: avatar?.rotation,
         }
       })
     },
@@ -421,7 +403,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         name: avatar.nickname || avatar.id.split('#')[0] || avatar.id,
         isBot: false,
         position: avatar.position,
-        rotation: avatar.rotation ? this.toQuaternion(avatar.rotation) : undefined,
+        rotation: avatar.rotation,
       }))
     },
   }
@@ -724,7 +706,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
           name: u.profile?.displayName || u.id.split('#')[0] || u.id,
           isBot: false,
           position: avatarState?.position,
-          rotation: avatarState?.rotation ? this.toQuaternion(avatarState.rotation) : undefined,
+          rotation: avatarState?.rotation,
         }
       }
 
@@ -736,7 +718,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         name: u.profile?.displayName || u.id.split('#')[0] || u.id,
         isBot: false,
         position: avatar?.position,
-        rotation: avatar?.rotation ? this.toQuaternion(avatar.rotation) : undefined,
+        rotation: avatar?.rotation,
       }
     })
   }

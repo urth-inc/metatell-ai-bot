@@ -247,9 +247,9 @@ export class UserAvatarManager implements IUserAvatarManager {
         z: number
       }
       const { x, y, z } = velocityRotation
-      // クォータニオンの w を計算（正規化されていると仮定）
+      // クォータニオンの w を計算して正規化
       const w = Math.sqrt(Math.max(0, 1 - x * x - y * y - z * z))
-      rotation = { x, y, z, w }
+      rotation = this.normalizeQuaternion({ x, y, z, w })
     }
 
     // アバターID を取得
@@ -264,7 +264,7 @@ export class UserAvatarManager implements IUserAvatarManager {
       id: networkId,
       nickname,
       position: { x: position.x, y: position.y, z: position.z },
-      rotation: rotation || { x: 0, y: 0, z: 0, w: 1 },
+      rotation: rotation ? this.normalizeQuaternion(rotation) : { x: 0, y: 0, z: 0, w: 1 },
       avatarId,
       lastUpdated: Date.now(),
     }
@@ -411,11 +411,25 @@ export class UserAvatarManager implements IUserAvatarManager {
     const cz = Math.cos(zRad / 2)
     const sz = Math.sin(zRad / 2)
 
-    return {
+    return this.normalizeQuaternion({
       x: sx * cy * cz - cx * sy * sz,
       y: cx * sy * cz + sx * cy * sz,
       z: cx * cy * sz - sx * sy * cz,
       w: cx * cy * cz + sx * sy * sz,
+    })
+  }
+
+  private normalizeQuaternion(rotation: { x: number; y: number; z: number; w: number }) {
+    const { x, y, z, w } = rotation
+    const length = Math.hypot(x, y, z, w)
+    if (length === 0) {
+      return { x: 0, y: 0, z: 0, w: 1 }
+    }
+    return {
+      x: x / length,
+      y: y / length,
+      z: z / length,
+      w: w / length,
     }
   }
 
