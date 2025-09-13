@@ -684,21 +684,11 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     }
   }
 
-  getStatus(): { connected: boolean; connecting: boolean } {
-    // 簡易的な接続状態を返す
-    return {
-      connected: true,
-      connecting: false,
-    }
-  }
-
-  getUsers(): User[] {
+  private buildUserList(): User[] {
     const users = this.presenceManager.getUsers()
     const currentSessionId = this.connectionManager.getSessionId()
 
-    // PresenceUserをUser型に変換（room.getUsersと同じ実装）
     return users.map((u) => {
-      // 自分自身の場合はAvatarControllerから位置情報を取得
       if (u.id === currentSessionId) {
         const avatarState = this.avatarController.getState()
         return {
@@ -710,7 +700,6 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         }
       }
 
-      // UserAvatarManagerからアバター情報を取得
       const avatar = this.userAvatarManager.getUser(u.id)
 
       return {
@@ -721,6 +710,18 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         rotation: avatar?.rotation,
       }
     })
+  }
+
+  getStatus(): { connected: boolean; connecting: boolean } {
+    const sessionId = this.connectionManager.getSessionId()
+    return {
+      connected: !!sessionId,
+      connecting: !sessionId,
+    }
+  }
+
+  getUsers(): User[] {
+    return this.buildUserList()
   }
 
   getRateLimit(key: 'messages' | 'moves' | 'looks'): number | undefined {
