@@ -180,10 +180,11 @@ export class AvatarController implements IAvatarController {
       throw new Error('Avatar not spawned')
     }
 
-    this.state.rotation = rotation
+    const normalized = this.normalizeQuaternion(rotation)
+    this.state.rotation = normalized
 
     // クォータニオンをオイラー角（度数）に変換
-    const euler = this.quaternionToEuler(rotation)
+    const euler = this.quaternionToEuler(normalized)
 
     const nafMessage = new NafMessageBuilder()
       .withDataType('um')
@@ -200,13 +201,10 @@ export class AvatarController implements IAvatarController {
 
   private quaternionToEuler(rotation: Rotation): { x: number; y: number; z: number } {
     // クォータニオンからオイラー角への変換（ZYX順、度数）
-    const { x, y, z, w } = rotation
-
-    // wがundefinedの場合は正規化されたクォータニオンから計算
-    const normalizedW = w ?? Math.sqrt(Math.max(0, 1 - x * x - y * y - z * z))
+    const { x, y, z, w } = this.normalizeQuaternion(rotation)
 
     // Y軸回転のみの場合の簡略化された変換
-    const yaw = Math.atan2(2 * (normalizedW * y + x * z), 1 - 2 * (y * y + z * z))
+    const yaw = Math.atan2(2 * (w * y + x * z), 1 - 2 * (y * y + z * z))
 
     return {
       x: 0, // X軸回転（ピッチ）
@@ -215,12 +213,32 @@ export class AvatarController implements IAvatarController {
     }
   }
 
+  private normalizeQuaternion(rotation: Rotation): Rotation {
+    const { x, y, z, w } = rotation
+    const length = Math.hypot(x, y, z, w)
+    if (length === 0) {
+      return { x: 0, y: 0, z: 0, w: 1 }
+    }
+    return {
+      x: x / length,
+      y: y / length,
+      z: z / length,
+      w: w / length,
+    }
+  }
+
   async updateState(state: Partial<AvatarState>): Promise<void> {
     if (!this.state || !this.sessionId) {
       throw new Error('Avatar not spawned')
     }
 
-    this.state = { ...this.state, ...state }
+    const normalizedRotation = state.rotation ? this.normalizeQuaternion(state.rotation) : undefined
+
+    this.state = {
+      ...this.state,
+      ...state,
+      ...(normalizedRotation ? { rotation: normalizedRotation } : {}),
+    }
 
     // Use builder pattern for consistent NAF message construction
     let builder = new NafMessageBuilder()
@@ -232,8 +250,8 @@ export class AvatarController implements IAvatarController {
     // 常に現在の位置情報を含める（更新されていない場合でも）
     builder = builder.withPosition(state.position || this.state.position)
 
-    if (state.rotation) {
-      const euler = this.quaternionToEuler(state.rotation)
+    if (normalizedRotation) {
+      const euler = this.quaternionToEuler(normalizedRotation)
       builder = builder.withBodyRotation(euler)
     }
 

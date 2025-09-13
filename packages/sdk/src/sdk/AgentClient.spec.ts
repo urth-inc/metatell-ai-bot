@@ -92,7 +92,11 @@ describe('AgentClient', () => {
       rotate: vi.fn().mockResolvedValue(undefined),
       playAnimation: vi.fn().mockResolvedValue({ success: true, duration: 1000 }),
       stopAnimation: vi.fn().mockResolvedValue(undefined),
-      getState: vi.fn().mockReturnValue({ networkId: 'bot-123', position: { x: 0, y: 0, z: 0 } }),
+      getState: vi.fn().mockReturnValue({
+        networkId: 'bot-123',
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0, w: 1 },
+      }),
       resyncAvatar: vi.fn().mockResolvedValue(undefined),
       updateState: vi.fn().mockResolvedValue(undefined),
       destroy: vi.fn().mockResolvedValue(undefined),

@@ -191,6 +191,31 @@ describe('UserAvatarManager', () => {
       expect(user?.rotation?.w).toBeCloseTo(Math.SQRT1_2, 2)
     })
 
+    it('normalizes quaternion when components exceed unit length', () => {
+      const nafHandler = findMockCall(
+        mockMessageService.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'naf',
+      )?.[1] as (data: unknown) => void
+
+      // rotation components where x^2 + y^2 + z^2 > 1
+      nafHandler({
+        dataType: 'u',
+        data: {
+          networkId: 'user-999',
+          components: {
+            '1': { x: 0.8, y: 0.8, z: 0 },
+          },
+        },
+      })
+
+      const user = userAvatarManager.getUser('user-999')
+      expect(user?.rotation).toBeTruthy()
+      if (!user || !user.rotation) return
+      const { rotation: r } = user
+      const length = Math.hypot(r.x, r.y, r.z, r.w)
+      expect(length).toBeCloseTo(1)
+    })
+
     it('should handle missing user profile gracefully', () => {
       const nafHandler = findMockCall(
         mockMessageService.on as ReturnType<typeof vi.fn>,

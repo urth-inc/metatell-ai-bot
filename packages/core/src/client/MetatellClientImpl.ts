@@ -2,7 +2,11 @@ import { EventEmitter } from 'node:events'
 import { CoreServiceFactory } from '../CoreServiceFactory.js'
 import { AnimationService, type IAnimationService } from '../interfaces/IAnimationService.js'
 import { AppSettings } from '../interfaces/IAppSettings.js'
-import { AvatarController, type IAvatarController } from '../interfaces/IAvatarController.js'
+import {
+  AvatarController,
+  type IAvatarController,
+  type Rotation,
+} from '../interfaces/IAvatarController.js'
 import {
   ConfigurationProvider,
   type IConfigurationProvider,
@@ -30,6 +34,7 @@ import type {
   User,
   Vec3,
 } from '../types/client.js'
+import { normalizeQuaternion } from '../utils/nafParser.js'
 
 // Rate limiting classes (these might need to be moved to core too)
 class RateLimitedQueue {
@@ -80,6 +85,18 @@ export class NotFoundError extends MetatellError {
     super(code, message, cause)
     this.name = 'NotFoundError'
   }
+}
+
+// Normalize rotation and compute missing w component
+function toQuaternion(rotation: { x: number; y: number; z: number; w?: number }): Rotation {
+  const { x, y, z } = rotation
+  const w =
+    rotation.w ??
+    (() => {
+      const lengthSq = x * x + y * y + z * z
+      return lengthSq >= 1 ? 0 : Math.sqrt(1 - lengthSq)
+    })()
+  return normalizeQuaternion({ x, y, z, w })
 }
 
 // Message event data type
@@ -369,14 +386,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
             name: u.profile?.displayName || u.id.split('#')[0] || u.id,
             isBot: false,
             position: avatarState?.position,
-            rotation: avatarState?.rotation
-              ? {
-                  x: (avatarState.rotation.x * 180) / Math.PI,
-                  y: (avatarState.rotation.y * 180) / Math.PI,
-                  z: (avatarState.rotation.z * 180) / Math.PI,
-                  w: 1, // 簡略化
-                }
-              : undefined,
+            rotation: avatarState?.rotation ? toQuaternion(avatarState.rotation) : undefined,
           }
         }
 
@@ -388,7 +398,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
           name: u.profile?.displayName || u.id.split('#')[0] || u.id,
           isBot: false,
           position: avatar?.position,
-          rotation: avatar?.rotation,
+          rotation: avatar?.rotation ? toQuaternion(avatar.rotation) : undefined,
         }
       })
     },
@@ -410,7 +420,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         name: avatar.nickname || avatar.id.split('#')[0] || avatar.id,
         isBot: false,
         position: avatar.position,
-        rotation: avatar.rotation,
+        rotation: avatar.rotation ? toQuaternion(avatar.rotation) : undefined,
       }))
     },
   }
@@ -713,14 +723,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
           name: u.profile?.displayName || u.id.split('#')[0] || u.id,
           isBot: false,
           position: avatarState?.position,
-          rotation: avatarState?.rotation
-            ? {
-                x: (avatarState.rotation.x * 180) / Math.PI,
-                y: (avatarState.rotation.y * 180) / Math.PI,
-                z: (avatarState.rotation.z * 180) / Math.PI,
-                w: 1, // 簡略化
-              }
-            : undefined,
+          rotation: avatarState?.rotation ? toQuaternion(avatarState.rotation) : undefined,
         }
       }
 
@@ -732,7 +735,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         name: u.profile?.displayName || u.id.split('#')[0] || u.id,
         isBot: false,
         position: avatar?.position,
-        rotation: avatar?.rotation,
+        rotation: avatar?.rotation ? toQuaternion(avatar.rotation) : undefined,
       }
     })
   }
