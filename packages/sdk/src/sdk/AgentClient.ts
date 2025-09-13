@@ -64,7 +64,7 @@ export interface AgentClientEvents {
   'avatar:moved': (state: { position: { x: number; y: number; z: number } }) => void
 
   // Voice events
-  // Normalized colon-style names
+  // Voice events
   'voice:frame-received': (data: { participantId: string; pcmData: Int16Array }) => void
   'voice:connected': () => void
   'voice:disconnected': () => void

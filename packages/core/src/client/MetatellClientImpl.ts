@@ -766,7 +766,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     this.logger.info(`Voice ${muted ? 'muted' : 'unmuted'}`)
 
     // クライアントイベントとして通知
-    this.emit('voice-mute-changed', { muted })
+    this.emit('voice:mute-changed', { muted })
   }
 
   async muteVoice(muted: boolean): Promise<void> {

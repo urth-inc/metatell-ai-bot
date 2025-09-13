@@ -71,7 +71,7 @@ describe('muteVoice', () => {
   it('should emit events on mute and unmute', async () => {
     const client = createMetatellClient(options)
     const events: boolean[] = []
-    client.on('voice-mute-changed', (e) => events.push(e.muted))
+    client.on('voice:mute-changed', (e) => events.push(e.muted))
 
     const busEvents: boolean[] = []
     const bus = (client as unknown as { eventBus: EventEmitter }).eventBus
@@ -87,7 +87,7 @@ describe('muteVoice', () => {
   it('should not emit event when state is unchanged', async () => {
     const client = createMetatellClient(options)
     const events: boolean[] = []
-    client.on('voice-mute-changed', (e) => events.push(e.muted))
+    client.on('voice:mute-changed', (e) => events.push(e.muted))
 
     await client.muteVoice(true)
     await client.muteVoice(true)
@@ -98,7 +98,7 @@ describe('muteVoice', () => {
   it('should update state even if event bus listener throws', async () => {
     const client = createMetatellClient(options)
     const events: boolean[] = []
-    client.on('voice-mute-changed', (e) => events.push(e.muted))
+    client.on('voice:mute-changed', (e) => events.push(e.muted))
 
     const bus = (client as unknown as { eventBus: EventEmitter }).eventBus
     bus.on('voice:mute-changed', () => {
