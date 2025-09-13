@@ -63,3 +63,35 @@ describe('MetatellClientImpl basic interface', () => {
     expect(prototype.off).toBeDefined()
   })
 })
+
+describe('muteVoice', () => {
+  const options = { serverUrl: 'wss://test.metatell.app', roomId: 'test-room' }
+
+  it('should emit events on mute and unmute', async () => {
+    const client = createMetatellClient(options)
+    const events: boolean[] = []
+    client.on('voice-mute-changed', (e) => events.push(e.muted))
+
+    const busEvents: boolean[] = []
+    ;(client as any).eventBus.on('voice:mute-changed', (e: { muted: boolean }) =>
+      busEvents.push(e.muted),
+    )
+
+    await client.muteVoice(true)
+    await client.muteVoice(false)
+
+    expect(events).toEqual([true, false])
+    expect(busEvents).toEqual([true, false])
+  })
+
+  it('should not emit event when state is unchanged', async () => {
+    const client = createMetatellClient(options)
+    const events: boolean[] = []
+    client.on('voice-mute-changed', (e) => events.push(e.muted))
+
+    await client.muteVoice(true)
+    await client.muteVoice(true)
+
+    expect(events).toEqual([true])
+  })
+})

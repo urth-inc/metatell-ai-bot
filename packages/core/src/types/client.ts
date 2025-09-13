@@ -109,6 +109,7 @@ export interface MetatellClientEvents {
     }
   }) => void
   message: (data: unknown) => void
+  'voice-mute-changed': (event: { muted: boolean }) => void
 }
 
 /**
