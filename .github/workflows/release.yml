@@ -42,20 +42,6 @@ jobs:
           node-version-file: package.json
           cache: 'pnpm'
 
-      - name: Compute pnpm store path
-        id: pnpm-store
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path)" >> "$GITHUB_OUTPUT"
-
-      - name: Restore pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
-          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml', '**/package.json') }}-node${{ hashFiles('package.json') }}
-          restore-keys: |
-            pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}-
-            pnpm-${{ runner.os }}-
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
