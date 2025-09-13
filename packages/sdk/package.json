@@ -1,6 +1,6 @@
 {
   "name": "@metatell/bot-sdk",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -25,7 +25,22 @@
   },
   "peerDependencies": {
     "@types/node": "*",
-    "@types/ws": "*"
+    "@types/ws": "*",
+    "@metatell/bot-realtime": "*"
+  },
+  "peerDependenciesMeta": {
+    "@types/node": {
+      "optional": false
+    },
+    "@types/ws": {
+      "optional": false
+    },
+    "@metatell/bot-realtime": {
+      "optional": true
+    }
+  },
+  "optionalDependencies": {
+    "@metatell/bot-realtime": "workspace:*"
   },
   "license": "MIT",
   "devDependencies": {

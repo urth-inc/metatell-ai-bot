@@ -31,3 +31,19 @@ metatell.config.cjs
 
 # TypeDoc generated documentation
 docs-generated/
+
+# Development workflow directories
+.spec-workflow/
+.tmp/
+
+# Claude commands
+.claude/
+audio-recordings/
+
+# Voice bot recordings
+examples/voice-bot/recordings/
+examples/voice-ai-bot/recordings/
+examples/speech-to-speech-bot/recordings/
+
+# Google Cloud credentials
+**/google-service-account.json
