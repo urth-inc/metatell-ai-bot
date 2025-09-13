@@ -270,9 +270,11 @@ Available commands:
         loop: true,
       })
       console.log('[Stopped animation]')
-      return { success: true }
-    } catch {
       return { success: true, message: 'Animation stopped' }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      console.error('[Failed to stop animation]', message)
+      return { success: false, message: `Failed to stop animation: ${message}` }
     }
   }
 

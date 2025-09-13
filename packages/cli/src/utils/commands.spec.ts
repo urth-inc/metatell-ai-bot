@@ -389,6 +389,7 @@ describe('CommandParser', () => {
       const result = await parser.execute('/stop', mockClient as MetatellClient)
 
       expect(result.success).toBe(true)
+      expect(result.message).toBe('Animation stopped')
       expect(mockClient.avatar.play).toHaveBeenCalledWith({
         name: 'idle',
         id: 'idle',
@@ -397,13 +398,14 @@ describe('CommandParser', () => {
       expect(mockConsole.log).toHaveBeenCalledWith('[Stopped animation]')
     })
 
-    it('should handle stop errors gracefully', async () => {
+    it('should return failure when stop animation throws error', async () => {
       mockClient.avatar.play = vi.fn().mockRejectedValue(new Error('Failed'))
 
       const result = await parser.execute('/stop', mockClient as MetatellClient)
 
-      expect(result.success).toBe(true)
-      expect(result.message).toBe('Animation stopped')
+      expect(result.success).toBe(false)
+      expect(result.message).toBe('Failed to stop animation: Failed')
+      expect(mockConsole.error).toHaveBeenCalledWith('[Failed to stop animation]', 'Failed')
     })
   })
 
