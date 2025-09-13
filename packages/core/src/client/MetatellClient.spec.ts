@@ -63,3 +63,38 @@ describe('MetatellClientImpl basic interface', () => {
     expect(prototype.off).toBeDefined()
   })
 })
+
+describe('MetatellClientImpl getUsers', () => {
+  it('returns rotation as quaternion without degree conversion', () => {
+    const mockRotation = { x: 0.1, y: 0.2, z: 0.3 }
+    const expectedW = Math.sqrt(
+      Math.max(0, 1 - mockRotation.x ** 2 - mockRotation.y ** 2 - mockRotation.z ** 2),
+    )
+
+    const mockClient = {
+      presenceManager: {
+        getUsers: () => [{ id: 'session-1', profile: { displayName: 'me' } }],
+      },
+      connectionManager: { getSessionId: () => 'session-1' },
+      avatarController: {
+        getState: () => ({
+          networkId: 'session-1',
+          position: { x: 0, y: 0, z: 0 },
+          rotation: mockRotation,
+          avatarId: 'avatar-1',
+        }),
+      },
+      userAvatarManager: { getUser: () => undefined },
+    } as unknown as MetatellClientImpl
+
+    const users = MetatellClientImpl.prototype.getUsers.call(mockClient)
+
+    expect(users).toHaveLength(1)
+    expect(users[0].rotation).toMatchObject({
+      x: mockRotation.x,
+      y: mockRotation.y,
+      z: mockRotation.z,
+    })
+    expect(users[0].rotation?.w).toBeCloseTo(expectedW)
+  })
+})

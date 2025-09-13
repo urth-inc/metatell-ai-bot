@@ -371,10 +371,20 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
             position: avatarState?.position,
             rotation: avatarState?.rotation
               ? {
-                  x: (avatarState.rotation.x * 180) / Math.PI,
-                  y: (avatarState.rotation.y * 180) / Math.PI,
-                  z: (avatarState.rotation.z * 180) / Math.PI,
-                  w: 1, // 簡略化
+                  x: avatarState.rotation.x,
+                  y: avatarState.rotation.y,
+                  z: avatarState.rotation.z,
+                  w:
+                    avatarState.rotation.w ??
+                    Math.sqrt(
+                      Math.max(
+                        0,
+                        1 -
+                          avatarState.rotation.x ** 2 -
+                          avatarState.rotation.y ** 2 -
+                          avatarState.rotation.z ** 2,
+                      ),
+                    ),
                 }
               : undefined,
           }
@@ -715,10 +725,20 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
           position: avatarState?.position,
           rotation: avatarState?.rotation
             ? {
-                x: (avatarState.rotation.x * 180) / Math.PI,
-                y: (avatarState.rotation.y * 180) / Math.PI,
-                z: (avatarState.rotation.z * 180) / Math.PI,
-                w: 1, // 簡略化
+                x: avatarState.rotation.x,
+                y: avatarState.rotation.y,
+                z: avatarState.rotation.z,
+                w:
+                  avatarState.rotation.w ??
+                  Math.sqrt(
+                    Math.max(
+                      0,
+                      1 -
+                        avatarState.rotation.x ** 2 -
+                        avatarState.rotation.y ** 2 -
+                        avatarState.rotation.z ** 2,
+                    ),
+                  ),
               }
             : undefined,
         }
