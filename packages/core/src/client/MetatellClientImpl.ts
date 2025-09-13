@@ -693,10 +693,10 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
   }
 
   getStatus(): { connected: boolean; connecting: boolean } {
-    // 簡易的な接続状態を返す
+    const sessionId = this.connectionManager.getSessionId()
     return {
-      connected: true,
-      connecting: false,
+      connected: !!sessionId,
+      connecting: !sessionId,
     }
   }
 
