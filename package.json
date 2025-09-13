@@ -22,7 +22,7 @@
     "@changesets/cli": "2.29.7",
     "@testing-library/jest-dom": "6.8.0",
     "@testing-library/react": "16.3.0",
-    "@types/node": "22.17.2",
+    "@types/node": "22.18.3",
     "@types/phoenix": "1.6.6",
     "@types/react": "19.1.13",
     "@types/ws": "8.18.1",
@@ -41,7 +41,7 @@
     "url": "https://github.com/urth-inc/metatell-ai-bot"
   },
   "volta": {
-    "node": "22.18.0"
+    "node": "22.19.0"
   },
   "packageManager": "pnpm@10.15.1"
 }
