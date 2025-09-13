@@ -65,11 +65,13 @@ describe('MetatellClientImpl basic interface', () => {
 })
 
 describe('MetatellClientImpl getUsers', () => {
-  it('returns rotation as quaternion without degree conversion', () => {
-    const mockRotation = { x: 0.1, y: 0.2, z: 0.3 }
-    const expectedW = Math.sqrt(
-      Math.max(0, 1 - mockRotation.x ** 2 - mockRotation.y ** 2 - mockRotation.z ** 2),
-    )
+  it('returns quaternion rotation from avatar state without modification', () => {
+    const mockRotation = {
+      x: 0.1,
+      y: 0.2,
+      z: 0.3,
+      w: Math.sqrt(1 - 0.1 ** 2 - 0.2 ** 2 - 0.3 ** 2),
+    }
 
     const mockClient = {
       presenceManager: {
@@ -85,46 +87,11 @@ describe('MetatellClientImpl getUsers', () => {
         }),
       },
       userAvatarManager: { getUser: () => undefined },
-      // biome-ignore lint/suspicious/noExplicitAny: accessing private method for testing
-      toQuaternion: (MetatellClientImpl.prototype as any).toQuaternion,
     } as unknown as MetatellClientImpl
 
     const users = MetatellClientImpl.prototype.getUsers.call(mockClient)
 
     expect(users).toHaveLength(1)
-    expect(users[0].rotation).toMatchObject({
-      x: mockRotation.x,
-      y: mockRotation.y,
-      z: mockRotation.z,
-    })
-    expect(users[0].rotation?.w).toBeCloseTo(expectedW)
-  })
-
-  it('normalizes quaternion when components exceed unit length', () => {
-    const mockRotation = { x: 0.7, y: 0.7, z: 0.7 }
-
-    const mockClient = {
-      presenceManager: {
-        getUsers: () => [{ id: 'session-1', profile: { displayName: 'me' } }],
-      },
-      connectionManager: { getSessionId: () => 'session-1' },
-      avatarController: {
-        getState: () => ({
-          networkId: 'session-1',
-          position: { x: 0, y: 0, z: 0 },
-          rotation: mockRotation,
-          avatarId: 'avatar-1',
-        }),
-      },
-      userAvatarManager: { getUser: () => undefined },
-      // biome-ignore lint/suspicious/noExplicitAny: accessing private method for testing
-      toQuaternion: (MetatellClientImpl.prototype as any).toQuaternion,
-    } as unknown as MetatellClientImpl
-
-    const users = MetatellClientImpl.prototype.getUsers.call(mockClient)
-    const rotation = users[0].rotation as { x: number; y: number; z: number; w: number }
-    const length = Math.hypot(rotation.x, rotation.y, rotation.z, rotation.w)
-    expect(length).toBeCloseTo(1)
-    expect(rotation.w).toBe(0)
+    expect(users[0].rotation).toEqual(mockRotation)
   })
 })

@@ -264,7 +264,15 @@ describe('AvatarController', () => {
       await avatarController.rotate(newRotation)
 
       const state = avatarController.getState()
-      expect(state?.rotation).toEqual(newRotation)
+      expect(state).not.toBeNull()
+      if (!state) return
+      const length = Math.hypot(newRotation.x, newRotation.y, newRotation.z, newRotation.w)
+      expect(state.rotation).toEqual({
+        x: newRotation.x / length,
+        y: newRotation.y / length,
+        z: newRotation.z / length,
+        w: newRotation.w / length,
+      })
     })
 
     it('should throw error when avatar not spawned', async () => {
@@ -341,7 +349,16 @@ describe('AvatarController', () => {
       )
 
       const state = avatarController.getState()
-      expect(state?.rotation).toEqual(updates.rotation)
+      expect(state).not.toBeNull()
+      if (!state) return
+      const { rotation } = updates
+      const length = Math.hypot(rotation.x, rotation.y, rotation.z, rotation.w)
+      expect(state.rotation).toEqual({
+        x: rotation.x / length,
+        y: rotation.y / length,
+        z: rotation.z / length,
+        w: rotation.w / length,
+      })
     })
 
     it('should update avatar source', async () => {

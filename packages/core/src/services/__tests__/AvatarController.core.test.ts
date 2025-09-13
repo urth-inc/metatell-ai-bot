@@ -272,6 +272,22 @@ describe('AvatarController - Core Functionality', () => {
       expect(state?.rotation).toEqual(testRotation)
     })
 
+    it('normalizes rotation before storing', async () => {
+      const unnormalized = { x: 0.6, y: 0.8, z: 0, w: 0 }
+      await avatarController.rotate(unnormalized)
+
+      const state = avatarController.getState()
+      expect(state).not.toBeNull()
+      if (!state) return
+      const length = Math.hypot(
+        state.rotation.x,
+        state.rotation.y,
+        state.rotation.z,
+        state.rotation.w,
+      )
+      expect(length).toBeCloseTo(1)
+    })
+
     it('should emit AVATAR_UPDATED event', async () => {
       await avatarController.rotate(testRotation)
 
