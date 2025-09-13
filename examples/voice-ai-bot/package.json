@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@google/genai": "^1.19.0",
-    "@metatell/bot-realtime": "file:../../packages/realtime",
-    "@metatell/bot-sdk": "file:../../packages/sdk",
+    "@metatell/bot-realtime": "^0.0.10",
+    "@metatell/bot-sdk": "^0.0.10",
     "mime": "^4.0.7"
   },
   "devDependencies": {
