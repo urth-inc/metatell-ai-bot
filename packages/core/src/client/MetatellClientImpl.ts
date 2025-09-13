@@ -770,6 +770,11 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
   }
 
   async muteVoice(muted: boolean): Promise<void> {
+    if (this.voiceMuted === muted) {
+      // Skip emitting if state is unchanged
+      return
+    }
+
     this.logger.debug('Voice mute requested', { muted })
 
     try {
