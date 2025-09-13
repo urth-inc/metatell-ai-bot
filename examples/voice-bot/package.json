@@ -9,8 +9,8 @@
     "start": "tsx --env-file=.env src/main.ts"
   },
   "dependencies": {
-    "@metatell/bot-realtime": "file:../../packages/realtime",
-    "@metatell/bot-sdk": "file:../../packages/sdk"
+    "@metatell/bot-realtime": "^0.0.10",
+    "@metatell/bot-sdk": "^0.0.10"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

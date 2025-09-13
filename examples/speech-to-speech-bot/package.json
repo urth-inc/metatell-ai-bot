@@ -13,7 +13,7 @@
     "@google-cloud/speech": "^6.7.0",
     "@google-cloud/text-to-speech": "^5.5.0",
     "@google/genai": "^1.19.0",
-    "@metatell/bot-sdk": "file:../../packages/sdk",
+    "@metatell/bot-sdk": "^0.0.10",
     "dotenv": "^16.3.1",
     "webrtcvad": "^1.0.1"
   },
