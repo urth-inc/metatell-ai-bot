@@ -133,12 +133,19 @@ Available commands:
         return { success: false, message: `User not found: ${username}` }
       }
 
+      const roomWithPosition = client.room as {
+        getUserPosition?: (id: string) => Promise<{ x: number; y: number; z: number } | null>
+      }
+
+      if (typeof roomWithPosition.getUserPosition !== 'function') {
+        return {
+          success: false,
+          message: 'Looking at users is not supported by this SDK version.',
+        }
+      }
+
       try {
-        const position = await (
-          client.room as unknown as {
-            getUserPosition: (id: string) => Promise<{ x: number; y: number; z: number } | null>
-          }
-        ).getUserPosition(targetUser.id)
+        const position = await roomWithPosition.getUserPosition(targetUser.id)
 
         if (!position) {
           return {
