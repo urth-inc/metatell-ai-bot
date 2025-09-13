@@ -63,3 +63,61 @@ describe('MetatellClientImpl basic interface', () => {
     expect(prototype.off).toBeDefined()
   })
 })
+
+describe('MetatellClientImpl getUsers', () => {
+  it('returns quaternion rotation from avatar state without modification', () => {
+    const mockRotation = {
+      x: 0.1,
+      y: 0.2,
+      z: 0.3,
+      w: Math.sqrt(1 - 0.1 ** 2 - 0.2 ** 2 - 0.3 ** 2),
+    }
+
+    const mockClient = {
+      presenceManager: {
+        getUsers: () => [{ id: 'session-1', profile: { displayName: 'me' } }],
+      },
+      connectionManager: { getSessionId: () => 'session-1' },
+      avatarController: {
+        getState: () => ({
+          networkId: 'session-1',
+          position: { x: 0, y: 0, z: 0 },
+          rotation: mockRotation,
+          avatarId: 'avatar-1',
+        }),
+      },
+      userAvatarManager: { getUser: () => undefined },
+    } as unknown as MetatellClientImpl
+
+    const users = MetatellClientImpl.prototype.getUsers.call(mockClient)
+
+    expect(users).toHaveLength(1)
+    expect(users[0].rotation).toEqual(mockRotation)
+  })
+
+  it('computes missing w component from avatar state rotation', () => {
+    const partialRotation = { x: 0.1, y: 0.2, z: 0.3 }
+    const expectedW = Math.sqrt(1 - 0.1 ** 2 - 0.2 ** 2 - 0.3 ** 2)
+
+    const mockClient = {
+      presenceManager: {
+        getUsers: () => [{ id: 'session-1', profile: { displayName: 'me' } }],
+      },
+      connectionManager: { getSessionId: () => 'session-1' },
+      avatarController: {
+        getState: () => ({
+          networkId: 'session-1',
+          position: { x: 0, y: 0, z: 0 },
+          rotation: partialRotation,
+          avatarId: 'avatar-1',
+        }),
+      },
+      userAvatarManager: { getUser: () => undefined },
+    } as unknown as MetatellClientImpl
+
+    const users = MetatellClientImpl.prototype.getUsers.call(mockClient)
+
+    expect(users).toHaveLength(1)
+    expect(users[0].rotation).toEqual({ ...partialRotation, w: expectedW })
+  })
+})
