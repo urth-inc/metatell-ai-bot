@@ -2,6 +2,7 @@
  * Test for MetatellClient implementation
  */
 
+import type { EventEmitter } from 'node:events'
 import { describe, expect, it } from 'vitest'
 import {
   type CreateClientOptions,
@@ -61,5 +62,51 @@ describe('MetatellClientImpl basic interface', () => {
     expect(prototype.disconnect).toBeDefined()
     expect(prototype.on).toBeDefined()
     expect(prototype.off).toBeDefined()
+  })
+})
+
+describe('muteVoice', () => {
+  const options = { serverUrl: 'wss://test.metatell.app', roomId: 'test-room' }
+
+  it('should emit events on mute and unmute', async () => {
+    const client = createMetatellClient(options)
+    const events: boolean[] = []
+    client.on('voice:mute-changed', (e) => events.push(e.muted))
+
+    const busEvents: boolean[] = []
+    const bus = (client as unknown as { eventBus: EventEmitter }).eventBus
+    bus.on('voice:mute-changed', (e: { muted: boolean }) => busEvents.push(e.muted))
+
+    await client.muteVoice(true)
+    await client.muteVoice(false)
+
+    expect(events).toEqual([true, false])
+    expect(busEvents).toEqual([true, false])
+  })
+
+  it('should not emit event when state is unchanged', async () => {
+    const client = createMetatellClient(options)
+    const events: boolean[] = []
+    client.on('voice:mute-changed', (e) => events.push(e.muted))
+
+    await client.muteVoice(true)
+    await client.muteVoice(true)
+
+    expect(events).toEqual([true])
+  })
+
+  it('should update state even if event bus listener throws', async () => {
+    const client = createMetatellClient(options)
+    const events: boolean[] = []
+    client.on('voice:mute-changed', (e) => events.push(e.muted))
+
+    const bus = (client as unknown as { eventBus: EventEmitter }).eventBus
+    bus.on('voice:mute-changed', () => {
+      throw new Error('boom')
+    })
+
+    await client.muteVoice(true)
+
+    expect(events).toEqual([true])
   })
 })

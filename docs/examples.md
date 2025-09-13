@@ -75,3 +75,18 @@ const voice = await enableVoice(client, {
 ```
 
 詳細な実装は `examples/voice-bot/` を参照してください。より詳しい型安全な NAF 例は `packages/sdk/examples/typed-naf-usage.ts` を参照してください。
+
+## 4) ミュート制御（EventBus 集約）
+
+```ts
+// ミュート要求（EventBus に 'voice:mute-changed' を発行）
+await client.muteVoice(true)
+
+// 状態の監視
+client.on('voice:mute-changed', ({ muted }) => {
+  console.log('muted:', muted)
+})
+
+// 解除
+await client.muteVoice(false)
+```

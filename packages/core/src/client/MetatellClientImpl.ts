@@ -116,6 +116,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
   private rateLimiter = new RateLimitedQueue()
   private logger: Logger
   private orgAvatarUrlCache = new Map<string, string>()
+  private voiceMuted = false
 
   constructor(private options: CreateClientOptions) {
     super()
@@ -162,6 +163,11 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
     // イベントのプロキシ設定
     this.setupEventProxies()
+
+    // Voice mute state synchronization
+    this.eventBus.on('voice:mute-changed', ({ muted }: { muted: boolean }) => {
+      this.applyVoiceMute(muted)
+    })
   }
 
   /**
@@ -717,14 +723,31 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     return this.connectionManager.getSessionId()
   }
 
+  private applyVoiceMute(muted: boolean): void {
+    if (this.voiceMuted === muted) {
+      // 状態が変化しない場合は何もしない
+      return
+    }
+
+    this.voiceMuted = muted
+    this.logger.info(`Voice ${muted ? 'muted' : 'unmuted'}`)
+
+    // クライアントイベントとして通知
+    this.emit('voice:mute-changed', { muted })
+  }
+
   async muteVoice(muted: boolean): Promise<void> {
-    // 音声ミュート機能は現在未実装
-    // 将来的には、音声ストリームの送信を停止/再開する
     this.logger.debug('Voice mute requested', { muted })
-    // TODO: Implement actual muting logic when voice attachment is active
+    // Only emit to the event bus; state and public event are updated via subscription
+    this.eventBus.emit('voice:mute-changed', { muted })
   }
 
   async sendVoiceFrame(_pcm: Int16Array): Promise<void> {
+    if (this.voiceMuted) {
+      this.logger.debug('Ignoring voice frame because microphone is muted')
+      return
+    }
+
     // 実装は外部パッケージからランタイムでパッチされる
     throw new Error('Voice functionality not available - enable voice first with enableVoice()')
   }

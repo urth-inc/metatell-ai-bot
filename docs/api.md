@@ -55,6 +55,8 @@ SDK は 2 層の API を提供します。
 - `connected()` / `disconnected(reason?)`
 - `chat-message({ from, text, mention? })`
 - `user-join(User)` / `user-leave(User)`
+- 音声:
+  - `'voice:mute-changed'` — ミュート状態の変化 `{ muted: boolean }`
 
 注記: `error(MetatellError)` は型として存在しますが、現状 SDK 内からの発火は限定的です（多くは例外としてスロー）。
 
@@ -89,6 +91,14 @@ const client = createAgentClient({ /* BotConfiguration */ })
 - `user:joined`, `user:left`, `user:updated`
 - `message:received`, `message:sent`
 - `avatar:spawned`, `avatar:moved`, `avatar:updated`
+- 音声:
+  - `'voice:connected'`, `'voice:disconnected'`, `'voice:error'`
+  - `'voice:frame-received'` — 受信音声 `{ participantId, pcmData: Int16Array }`
+  - `'voice:mute-changed'` — ミュート状態の変化 `{ muted: boolean }`
+
+#### ミュート状態の取り扱い（EventBus 集約）
+
+`muteVoice(muted: boolean)` は EventBus に `'voice:mute-changed'` を発行するだけです。クライアントはこのイベントを購読して内部の `voiceMuted` を更新し、必要な公開イベントを再発行します。これにより外部の音声モジュール（`@metatell/bot-realtime` など）と状態が確実に同期され、二重更新や競合を防ぎます。
 
 ---
 
@@ -102,4 +112,3 @@ const client = createAgentClient({ /* BotConfiguration */ })
 ## NAF（同期メッセージ）
 
 `@metatell/bot-core` の型を再エクスポートしており、`NAF.md` に概要を記載しています。型安全なビルダー/型ガードを活用すると、3D 同期メッセージの扱いが楽になります。
-
