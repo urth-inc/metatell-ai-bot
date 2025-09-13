@@ -94,4 +94,19 @@ describe('muteVoice', () => {
 
     expect(events).toEqual([true])
   })
+
+  it('should update state even if event bus listener throws', async () => {
+    const client = createMetatellClient(options)
+    const events: boolean[] = []
+    client.on('voice-mute-changed', (e) => events.push(e.muted))
+
+    const bus = (client as any).eventBus
+    bus.on('voice:mute-changed', () => {
+      throw new Error('boom')
+    })
+
+    await client.muteVoice(true)
+
+    expect(events).toEqual([true])
+  })
 })

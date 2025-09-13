@@ -163,6 +163,11 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
     // イベントのプロキシ設定
     this.setupEventProxies()
+
+    // Voice mute state synchronization
+    this.eventBus.on('voice:mute-changed', ({ muted }: { muted: boolean }) => {
+      this.applyVoiceMute(muted)
+    })
   }
 
   /**
@@ -751,23 +756,30 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     return this.connectionManager.getSessionId()
   }
 
-  async muteVoice(muted: boolean): Promise<void> {
-    this.logger.debug('Voice mute requested', { muted })
-
+  private applyVoiceMute(muted: boolean): void {
     if (this.voiceMuted === muted) {
       // 状態が変化しない場合は何もしない
       return
     }
 
     this.voiceMuted = muted
-
     this.logger.info(`Voice ${muted ? 'muted' : 'unmuted'}`)
-
-    // イベントバスに通知
-    this.eventBus.emit('voice:mute-changed', { muted })
 
     // クライアントイベントとして通知
     this.emit('voice-mute-changed', { muted })
+  }
+
+  async muteVoice(muted: boolean): Promise<void> {
+    this.logger.debug('Voice mute requested', { muted })
+
+    try {
+      // イベントバスに通知
+      this.eventBus.emit('voice:mute-changed', { muted })
+    } catch (err) {
+      this.logger.warn('Failed to emit voice mute change on event bus', { error: err })
+      // フォールバックとしてローカル状態を更新
+      this.applyVoiceMute(muted)
+    }
   }
 
   async sendVoiceFrame(_pcm: Int16Array): Promise<void> {
