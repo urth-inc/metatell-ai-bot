@@ -69,11 +69,6 @@ export interface AgentClientEvents {
   'voice:connected': () => void
   'voice:disconnected': () => void
   'voice:error': (error: Error) => void
-  // Deprecated camelCase aliases (kept for compatibility)
-  voiceFrameReceived?: (data: { participantId: string; pcmData: Int16Array }) => void
-  voiceConnected?: () => void
-  voiceDisconnected?: () => void
-  voiceError?: (error: Error) => void
   'voice:mute-changed': (data: { muted: boolean }) => void
   'avatar:updated': (state: unknown) => void
 
