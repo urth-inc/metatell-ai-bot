@@ -63,8 +63,8 @@ importers:
         specifier: workspace:*
         version: link:../sdk
       commander:
-        specifier: 12.0.0
-        version: 12.0.0
+        specifier: 14.0.1
+        version: 14.0.1
       ink:
         specifier: 6.3.0
         version: 6.3.0(@types/react@18.3.12)(react@18.3.1)
@@ -1086,6 +1086,10 @@ packages:
   commander@12.0.0:
     resolution: {integrity: sha512-MwVNWlYjDTtOjX5PiD7o5pK0UrFU/OYgcJfjjK4RaHZETNtjJqrZa9Y9ds88+A+f+d5lv+561eZ+yCKoS3gbAA==}
     engines: {node: '>=18'}
+
+  commander@14.0.1:
+    resolution: {integrity: sha512-2JkV3gUZUVrbNA+1sjBOYLsMZ5cEEl8GTFP2a4AVz5hvasAMCQ1D2l2le/cX+pV4N6ZU17zjUahLpIXRrnWL8A==}
+    engines: {node: '>=20'}
 
   convert-to-spaces@2.0.1:
     resolution: {integrity: sha512-rcQ1bsQO9799wq24uE5AM2tAILy4gXGIK/njFWcVQkGNZ96edlpY+A7bjwvzjYvLDyzmG1MmMLZhpcsb+klNMQ==}
@@ -3044,6 +3048,8 @@ snapshots:
   colorette@2.0.20: {}
 
   commander@12.0.0: {}
+
+  commander@14.0.1: {}
 
   convert-to-spaces@2.0.1: {}
 
