@@ -609,6 +609,13 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
       }
     })
   }
+
+  /**
+   * Get session ID
+   */
+  getSessionId(): string | null {
+    return this.connectionManager.getSessionId()
+  }
 }
 
 /**

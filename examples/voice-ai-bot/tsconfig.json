@@ -1,11 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
+    "rootDir": ".",
     "outDir": "dist",
-    "composite": true
+    "composite": true,
+    "jsx": "react-jsx"
   },
   "include": ["src/**/*"],
   "exclude": ["**/*.spec.ts", "**/*.test.ts", "dist", "node_modules"],
-  "references": [{ "path": "../core" }, { "path": "../realtime" }]
+  "references": [{ "path": "../../packages/sdk" }]
 }
