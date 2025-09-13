@@ -1,0 +1,24 @@
+{
+  "name": "voice-ai-bot",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "start": "tsx --env-file=.env src/main.ts"
+  },
+  "dependencies": {
+    "@google/genai": "^1.19.0",
+    "@metatell/bot-realtime": "file:../../packages/realtime",
+    "@metatell/bot-sdk": "file:../../packages/sdk",
+    "mime": "^4.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "8.18.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.6.3",
+    "ws": "8.18.3"
+  }
+}

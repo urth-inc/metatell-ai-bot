@@ -1,0 +1,603 @@
+import * as fs from 'node:fs'
+import type { MetatellClient } from '@metatell/bot-sdk'
+import { createMetatellClient, enableVoice } from '@metatell/bot-sdk'
+import { GeminiLLMProcessor } from './gemini-llm-processor.js'
+import { SpeechRecognizer } from './speech-recognizer.js'
+import { SpeechSynthesizer } from './speech-synthesizer.js'
+import { VadProcessor } from './vad-processor.js'
+
+/**
+ * 音声認識→LLM→音声合成ボット
+ */
+export class SpeechToSpeechBot {
+  private client: MetatellClient
+  private speechRecognizer: SpeechRecognizer
+  private llmProcessor: GeminiLLMProcessor
+  private speechSynthesizer: SpeechSynthesizer
+  private vadProcessor: VadProcessor
+
+  // デバッグ用録音ディレクトリ
+  private recordingsDir = './recordings'
+
+  // 音声再生関連
+  private playbackQueue: Int16Array[] = []
+  private isPlaying = false
+
+  // アバター制御
+  private isMoving = false
+  private moveInterval?: NodeJS.Timeout
+
+  // 音声処理状態
+  private isProcessing = false
+  private isRecording = false
+  private audioBuffer: Int16Array[] = []
+
+  // VAD用フレームバッファ（10msフレームを20msに結合するため）
+  private vadFrameBuffer: Int16Array[] = []
+
+  // 音声レベル表示用
+  private voiceLevelInterval?: NodeJS.Timeout
+  private lastVoiceLevel = 0
+
+  // ボット情報
+  private botInfo: { sessionId?: string; name: string } | null = null
+
+  constructor(
+    serverUrl: string,
+    roomId: string,
+    username: string = 'SpeechToSpeechBot',
+    geminiApiKey: string,
+    difyApiUrl?: string,
+    difyApiKey?: string,
+    difyAppId?: string,
+  ) {
+    this.client = createMetatellClient({ serverUrl, roomId, username })
+    this.speechRecognizer = new SpeechRecognizer()
+    this.llmProcessor = new GeminiLLMProcessor(geminiApiKey, difyApiUrl, difyApiKey, difyAppId)
+    this.speechSynthesizer = new SpeechSynthesizer()
+    this.vadProcessor = new VadProcessor()
+  }
+
+  async start() {
+    console.log('🤖 Speech-to-Speech Bot: 起動中...')
+
+    // クライアントを接続
+    await this.client.connect()
+
+    // ボット情報を取得
+    this.botInfo = await this.client.getInfo()
+    console.log(`🤖 ボット名: ${this.botInfo.name}, セッションID: ${this.botInfo.sessionId}`)
+
+    // 録音ディレクトリを作成
+    if (!fs.existsSync(this.recordingsDir)) {
+      fs.mkdirSync(this.recordingsDir, { recursive: true })
+    }
+
+    // 音声認識とTTSを初期化
+    try {
+      await this.speechRecognizer.initialize()
+      console.log('✅ 音声認識準備完了')
+
+      await this.speechSynthesizer.initialize()
+      console.log('✅ 音声合成準備完了')
+    } catch (error) {
+      console.error('❌ 初期化エラー:', error)
+      throw error
+    }
+
+    // 音声機能を有効化
+    console.log('🔌 音声機能を有効化中...')
+    await enableVoice(this.client, {
+      transport: { type: 'livekit' },
+      loggerTag: 'SpeechToSpeechBot',
+      handlers: {
+        // リモート音声を受信
+        onRemotePcm: async (pcm, _meta) => {
+          // pcmはArrayBufferなので、正しく変換
+          const frame = new Int16Array(pcm.buffer || pcm)
+
+          // デバッグ: フレームサイズを確認
+          if (Math.random() < 0.01) {
+            // 1%の確率でログ出力
+            console.log(`🔍 フレームサイズ: ${frame.length}サンプル`)
+          }
+
+          // 音声レベルを記録（可視化用）
+          const amplitude = Math.max(...Array.from(frame).map(Math.abs))
+          this.lastVoiceLevel = amplitude
+
+          // 処理中は新しい音声を無視
+          if (this.isProcessing) {
+            return
+          }
+
+          // 10msフレームをバッファリング
+          this.vadFrameBuffer.push(frame)
+
+          // 2フレーム（20ms）が貯まったらVAD処理
+          if (this.vadFrameBuffer.length >= 2) {
+            // 2つの10msフレームを1つの20msフレームに結合
+            const frame20ms = new Int16Array(960)
+            frame20ms.set(this.vadFrameBuffer[0], 0)
+            frame20ms.set(this.vadFrameBuffer[1], 480)
+
+            // バッファをクリア
+            this.vadFrameBuffer = []
+
+            // VADで音声活動を検出
+            const vadResult = this.vadProcessor.processFrame(frame20ms)
+
+            // デバッグ: VADの結果を確認
+            if (vadResult.isSpeech) {
+              console.log(
+                `📊 VAD: 音声検出 (shouldStart: ${vadResult.shouldStartRecording}, shouldStop: ${vadResult.shouldStopRecording})`,
+              )
+            }
+
+            if (vadResult.shouldStartRecording && !this.isRecording) {
+              console.log('🎙️ 録音開始...')
+              this.isRecording = true
+            }
+
+            if (this.isRecording) {
+              // 録音中は元の10msフレームを保存（高精度を維持）
+              this.audioBuffer.push(frame)
+            }
+
+            if (vadResult.shouldStopRecording && this.isRecording) {
+              console.log('🛑 録音終了...')
+              this.isRecording = false
+              await this.processAudioBuffer()
+            }
+          } else {
+            // 録音中は10msフレームも保存
+            if (this.isRecording) {
+              this.audioBuffer.push(frame)
+            }
+          }
+        },
+
+        // ローカル音声ストリームを提供
+        getLocalPcmStream: this.getLocalAudioStream.bind(this),
+      },
+      frameDurationMs: 20,
+      sampleRate: 48000,
+      autoStartPublish: true,
+      enableTopicAutoAdd: true,
+    })
+
+    console.log('✅ Speech-to-Speech Bot: 準備完了!')
+
+    // アバター制御を開始
+    await this.startAvatarControl()
+
+    // 音声レベル表示を開始
+    this.startVoiceLevelMonitor()
+
+    // チャットメッセージハンドラーを設定
+    this.setupChatHandlers()
+  }
+
+  /**
+   * 音声バッファを処理
+   */
+  private async processAudioBuffer(): Promise<void> {
+    if (this.isProcessing || this.audioBuffer.length === 0) {
+      return
+    }
+
+    this.isProcessing = true
+    console.log('\n🎯 音声処理開始...')
+
+    try {
+      // 1. 音声データをWAVに変換
+      const wavBuffer = this.createWavFromFrames(this.audioBuffer)
+
+      // デバッグ用に保存
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const inputPath = `${this.recordingsDir}/input_${timestamp}.wav`
+      fs.writeFileSync(inputPath, wavBuffer)
+
+      // 音声の統計情報を出力
+      const duration = (this.audioBuffer.length * 20) / 1000 // 秒
+      const samples = this.audioBuffer.reduce((sum, frame) => sum + frame.length, 0)
+      console.log(`💾 入力音声を保存: ${inputPath}`)
+      console.log(
+        `   時間: ${duration.toFixed(2)}秒, サンプル数: ${samples}, フレーム数: ${this.audioBuffer.length}`,
+      )
+
+      // 2. 音声認識
+      console.log('🎤 音声認識中...')
+      const transcript = await this.speechRecognizer.recognize(wavBuffer)
+      if (!transcript) {
+        console.log('❌ 音声認識失敗')
+        return
+      }
+      console.log(`📝 認識結果: "${transcript}"`)
+
+      // 3. LLM処理
+      console.log('🤔 LLM応答生成中...')
+      const response = await this.llmProcessor.generateResponse(transcript)
+      console.log(`💭 応答: "${response}"`)
+
+      // 4. 音声合成
+      console.log('🔊 音声合成中...')
+      const audioData = await this.speechSynthesizer.synthesize(response)
+
+      // デバッグ用に保存
+      const outputPath = `${this.recordingsDir}/output_${timestamp}.wav`
+      fs.writeFileSync(outputPath, audioData)
+      console.log(`💾 出力音声を保存: ${outputPath}`)
+
+      // 5. 音声を再生
+      await this.playAudioResponse(audioData)
+    } catch (error) {
+      console.error('❌ 処理エラー:', error)
+    } finally {
+      // バッファをクリア
+      this.audioBuffer = []
+      this.isRecording = false
+      this.isProcessing = false
+      console.log('✨ 音声処理完了\n')
+    }
+  }
+
+  /**
+   * フレーム配列からWAVを作成
+   */
+  private createWavFromFrames(frames: Int16Array[]): Buffer {
+    const totalSamples = frames.reduce((sum, frame) => sum + frame.length, 0)
+    const pcmData = new Int16Array(totalSamples)
+    let offset = 0
+
+    for (const frame of frames) {
+      pcmData.set(frame, offset)
+      offset += frame.length
+    }
+
+    // ベストプラクティス: 再サンプリングは避け、ネイティブの48kHzを維持
+    return this.createWavBuffer(pcmData, 48000)
+  }
+
+  /**
+   * PCMデータからWAVバッファを作成
+   */
+  private createWavBuffer(pcmData: Int16Array, sampleRate: number): Buffer {
+    const dataSize = pcmData.length * 2
+    const buffer = Buffer.alloc(44 + dataSize)
+
+    // WAVヘッダー
+    buffer.write('RIFF', 0)
+    buffer.writeUInt32LE(36 + dataSize, 4)
+    buffer.write('WAVE', 8)
+    buffer.write('fmt ', 12)
+    buffer.writeUInt32LE(16, 16)
+    buffer.writeUInt16LE(1, 20)
+    buffer.writeUInt16LE(1, 22) // モノラル
+    buffer.writeUInt32LE(sampleRate, 24)
+    buffer.writeUInt32LE(sampleRate * 2, 28)
+    buffer.writeUInt16LE(2, 32)
+    buffer.writeUInt16LE(16, 34)
+    buffer.write('data', 36)
+    buffer.writeUInt32LE(dataSize, 40)
+
+    // PCMデータ
+    for (let i = 0; i < pcmData.length; i++) {
+      buffer.writeInt16LE(pcmData[i], 44 + i * 2)
+    }
+
+    return buffer
+  }
+
+  /**
+   * 音声応答を再生
+   */
+  private async playAudioResponse(wavBuffer: Buffer): Promise<void> {
+    console.log('🎵 応答音声再生開始')
+
+    // WAVヘッダーから情報を取得
+    const sampleRate = wavBuffer.readUInt32LE(24)
+    const dataSize = wavBuffer.readUInt32LE(40)
+    console.log(`📊 サンプルレート: ${sampleRate}Hz, データサイズ: ${dataSize}バイト`)
+
+    // PCMデータを抽出
+    const pcmData = wavBuffer.slice(44)
+    const pcmArray = new Uint8Array(pcmData)
+    const samplesBuffer = new ArrayBuffer(pcmArray.length)
+    const samplesView = new Uint8Array(samplesBuffer)
+    samplesView.set(pcmArray)
+
+    let samples: Int16Array = new Int16Array(samplesBuffer)
+
+    // 48kHzにリサンプリング（必要な場合）
+    if (sampleRate !== 48000) {
+      console.log(`🔄 リサンプリング: ${sampleRate}Hz → 48000Hz`)
+      const resampled = this.resample(samples, sampleRate, 48000)
+      samples = new Int16Array(resampled)
+    }
+
+    // 960サンプル（20ms）ごとに分割してキューに追加
+    const frameSize = 960
+    for (let i = 0; i < samples.length; i += frameSize) {
+      const frame = samples.slice(i, Math.min(i + frameSize, samples.length))
+
+      if (frame.length < frameSize) {
+        const paddedFrame = new Int16Array(frameSize)
+        paddedFrame.set(frame)
+        this.playbackQueue.push(paddedFrame)
+      } else {
+        this.playbackQueue.push(new Int16Array(frame))
+      }
+    }
+
+    console.log(`📦 ${this.playbackQueue.length}フレームをキューに追加`)
+
+    // 再生完了まで待機
+    const startTime = Date.now()
+    while (this.playbackQueue.length > 0 || this.isPlaying) {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+
+    const duration = Date.now() - startTime
+    console.log(`✅ 応答音声再生完了 (${duration}ms)`)
+  }
+
+  /**
+   * サンプルレート変換
+   */
+  private resample(input: Int16Array, inputRate: number, outputRate: number): Int16Array {
+    const ratio = outputRate / inputRate
+    const outputLength = Math.floor(input.length * ratio)
+    const output = new Int16Array(outputLength)
+
+    for (let i = 0; i < outputLength; i++) {
+      const srcIndex = i / ratio
+      const srcIndexInt = Math.floor(srcIndex)
+      const srcIndexFrac = srcIndex - srcIndexInt
+
+      if (srcIndexInt + 1 < input.length) {
+        const sample1 = input[srcIndexInt]
+        const sample2 = input[srcIndexInt + 1]
+        const interpolated = sample1 + (sample2 - sample1) * srcIndexFrac
+        output[i] = Math.max(-32768, Math.min(32767, Math.round(interpolated)))
+      } else if (srcIndexInt < input.length) {
+        output[i] = input[srcIndexInt]
+      } else {
+        output[i] = 0
+      }
+    }
+
+    return output
+  }
+
+  /**
+   * ローカル音声ストリーム
+   */
+  private async *getLocalAudioStream(): AsyncIterable<Int16Array> {
+    console.log('🎵 音声ストリーム開始')
+
+    while (true) {
+      if (this.playbackQueue.length > 0) {
+        const frame = this.playbackQueue.shift()
+        if (frame) {
+          this.isPlaying = true
+          yield frame
+        }
+      } else {
+        this.isPlaying = false
+        // 無音を送信
+        yield new Int16Array(960)
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+  }
+
+  /**
+   * アバター制御を開始
+   */
+  private async startAvatarControl(): Promise<void> {
+    console.log('🤖 アバター制御開始')
+
+    const playAnimation = async (animationId: string) => {
+      try {
+        await this.client.avatar.play({ id: animationId, loop: true })
+      } catch (error) {
+        console.warn(`Animation ${animationId} not available:`, error)
+      }
+    }
+
+    this.moveInterval = setInterval(async () => {
+      const users = this.client.getUsers()
+      const meInfo = await this.client.getInfo()
+
+      const otherUser = users.find((user) => user.name !== meInfo.name)
+      if (!otherUser?.position) {
+        if (this.isMoving) {
+          this.isMoving = false
+          await playAnimation('idle')
+        }
+        return
+      }
+
+      const myPosition = this.client.avatar.getPosition()
+      if (!myPosition) {
+        return
+      }
+
+      const dx = otherUser.position.x - myPosition.x
+      const dz = otherUser.position.z - myPosition.z
+      const distance = Math.sqrt(dx * dx + dz * dz)
+
+      await this.client.avatar.lookAt({
+        x: otherUser.position.x,
+        y: otherUser.position.y,
+        z: otherUser.position.z,
+      })
+
+      if (distance < 2) {
+        if (this.isMoving) {
+          this.isMoving = false
+          await playAnimation('idle')
+        }
+        return
+      }
+
+      if (!this.isMoving) {
+        this.isMoving = true
+        await playAnimation('walking')
+      }
+
+      const moveX = myPosition.x + (dx / distance) * 0.5
+      const moveZ = myPosition.z + (dz / distance) * 0.5
+
+      await this.client.avatar.moveTo({
+        x: moveX,
+        y: myPosition.y,
+        z: moveZ,
+      })
+    }, 200)
+  }
+
+  /**
+   * 音声レベルの可視化
+   */
+  private startVoiceLevelMonitor(): void {
+    this.voiceLevelInterval = setInterval(() => {
+      const level = Math.min(10, Math.floor(this.lastVoiceLevel / 3000))
+      if (level > 0 || this.isRecording) {
+        const bar = `🎤 ${'▮'.repeat(level)}${'▯'.repeat(10 - level)}`
+        const db = Math.round(20 * Math.log10(Math.max(1, this.lastVoiceLevel) / 32768))
+        const status = this.isRecording ? '🔴 録音中' : '⚪ 待機中'
+        process.stdout.write(`\r${bar} ${db}dB ${status} [WebRTC VAD] `)
+      } else {
+        process.stdout.write(`\r${' '.repeat(50)}\r`)
+      }
+
+      this.lastVoiceLevel = Math.floor(this.lastVoiceLevel * 0.8)
+    }, 100)
+  }
+
+  /**
+   * チャットメッセージハンドラーを設定
+   */
+  private setupChatHandlers() {
+    this.client.chat.onMessage(async ({ from, text, mention, reply }) => {
+      // デバッグ: メッセージの詳細を表示
+      console.log('📨 メッセージ受信:', {
+        from: from.name,
+        text: text,
+        mention: mention,
+        botSessionId: this.botInfo?.sessionId,
+      })
+
+      if (!this.botInfo) {
+        console.log('❌ ボット情報が未初期化')
+        return
+      }
+
+      // メンションの検出（mentionオブジェクトがない場合の対策）
+      const isMentioned =
+        mention?.sessionId === this.botInfo.sessionId ||
+        text.includes(`[@${this.botInfo.name}]`) ||
+        text.includes(`(${this.botInfo.sessionId})`)
+
+      if (isMentioned) {
+        // ボット自身へのメンション
+        console.log(`💬 ${from.name} mentioned me: ${text}`)
+
+        try {
+          // 処理中フラグをセット（音声処理と競合しないように）
+          this.isProcessing = true
+
+          // LLM処理
+          console.log('🤔 LLM応答生成中...')
+          const response = await this.llmProcessor.generateResponse(text)
+          console.log(`💭 応答: "${response}"`)
+
+          // チャットで返信
+          await reply(response)
+
+          // 音声合成して再生（オプション）
+          console.log('🔊 音声合成中...')
+          const audioData = await this.speechSynthesizer.synthesize(response)
+
+          // デバッグ用に保存
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+          const outputPath = `${this.recordingsDir}/mention_output_${timestamp}.wav`
+          fs.writeFileSync(outputPath, audioData)
+          console.log(`💾 出力音声を保存: ${outputPath}`)
+
+          // 音声を再生
+          await this.playAudioResponse(audioData)
+        } catch (error) {
+          console.error('❌ メンション処理エラー:', error)
+          await reply('すみません、処理中にエラーが発生しました。')
+        } finally {
+          this.isProcessing = false
+        }
+      } else if (mention) {
+        // 他のユーザーへのメンション
+        console.log(`📢 ${from.name} mentioned @${mention.name}: ${text}`)
+      } else {
+        // 通常のメッセージ（ログのみ）
+        console.log(`💭 ${from.name}: ${text}`)
+      }
+    })
+  }
+
+  /**
+   * チャット入力を処理
+   */
+  async processChatInput(text: string): Promise<string> {
+    try {
+      console.log(`📝 チャット入力: "${text}"`)
+
+      // LLM処理
+      console.log('🤔 LLM応答生成中...')
+      const response = await this.llmProcessor.generateResponse(text)
+      console.log(`💭 応答: "${response}"`)
+
+      // 音声合成
+      console.log('🔊 音声合成中...')
+      const audioData = await this.speechSynthesizer.synthesize(response)
+
+      // デバッグ用に保存
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const outputPath = `${this.recordingsDir}/chat_output_${timestamp}.wav`
+      fs.writeFileSync(outputPath, audioData)
+      console.log(`💾 出力音声を保存: ${outputPath}`)
+
+      // 音声を再生
+      await this.playAudioResponse(audioData)
+
+      return response
+    } catch (error) {
+      console.error('❌ チャット処理エラー:', error)
+      return 'すみません、処理中にエラーが発生しました。'
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    console.log('🔌 切断中...')
+
+    if (this.voiceLevelInterval) {
+      clearInterval(this.voiceLevelInterval)
+      this.voiceLevelInterval = undefined
+      process.stdout.write(`\r${' '.repeat(30)}\r`)
+    }
+
+    if (this.moveInterval) {
+      clearInterval(this.moveInterval)
+      this.moveInterval = undefined
+    }
+
+    if (this.speechRecognizer) {
+      await this.speechRecognizer.close()
+    }
+
+    if (this.client) {
+      await this.client.disconnect()
+    }
+  }
+}
