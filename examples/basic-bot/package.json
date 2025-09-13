@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@metatell/bot-sdk": "^0.0.1"
+    "@metatell/bot-sdk": "^0.0.10"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
