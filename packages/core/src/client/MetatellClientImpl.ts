@@ -770,21 +770,9 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
   }
 
   async muteVoice(muted: boolean): Promise<void> {
-    if (this.voiceMuted === muted) {
-      // Skip emitting if state is unchanged
-      return
-    }
-
     this.logger.debug('Voice mute requested', { muted })
-
-    try {
-      // イベントバスに通知
-      this.eventBus.emit('voice:mute-changed', { muted })
-    } catch (err) {
-      this.logger.warn('Failed to emit voice mute change on event bus', { error: err })
-      // フォールバックとしてローカル状態を更新
-      this.applyVoiceMute(muted)
-    }
+    // Only emit to the event bus; state and public event are updated via subscription
+    this.eventBus.emit('voice:mute-changed', { muted })
   }
 
   async sendVoiceFrame(_pcm: Int16Array): Promise<void> {

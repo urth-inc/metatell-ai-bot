@@ -25,6 +25,8 @@ import {
   type IConnectionManager,
   type IMessageService,
   MessageService,
+  EventBus,
+  type IEventBus,
   UserAvatarManager,
 } from '@metatell/bot-core'
 import { getLogger } from './logging/index.js'
@@ -62,10 +64,17 @@ export interface AgentClientEvents {
   'avatar:moved': (state: { position: { x: number; y: number; z: number } }) => void
 
   // Voice events
-  voiceFrameReceived: (data: { participantId: string; pcmData: Int16Array }) => void
-  voiceConnected: () => void
-  voiceDisconnected: () => void
-  voiceError: (error: Error) => void
+  // Normalized colon-style names
+  'voice:frame-received': (data: { participantId: string; pcmData: Int16Array }) => void
+  'voice:connected': () => void
+  'voice:disconnected': () => void
+  'voice:error': (error: Error) => void
+  // Deprecated camelCase aliases (kept for compatibility)
+  voiceFrameReceived?: (data: { participantId: string; pcmData: Int16Array }) => void
+  voiceConnected?: () => void
+  voiceDisconnected?: () => void
+  voiceError?: (error: Error) => void
+  'voice:mute-changed': (data: { muted: boolean }) => void
   'avatar:updated': (state: unknown) => void
 
   // Error events
@@ -173,6 +182,7 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
   }
   private lastConnectionOptions?: ConnectionOptions
   private configProvider: IConfigurationProvider
+  private eventBus: IEventBus
 
   constructor(factory: CoreServiceFactory, config: AgentClientConfig = {}) {
     super()
@@ -183,6 +193,7 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
     this.userAvatarManager = factory.getService(UserAvatarManager)
     this.connectionManager = factory.getService(ConnectionManager)
     this.configProvider = factory.getService(ConfigurationProvider)
+    this.eventBus = factory.getService(EventBus)
 
     // Optional services
     try {
@@ -196,6 +207,14 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
 
     // Setup event handlers for user join
     this.setupEventHandlers()
+
+    // Sync voice mute state via event bus
+    this.eventBus.on('voice:mute-changed', ({ muted }: { muted: boolean }) => {
+      if (this.voiceMuted !== muted) {
+        this.voiceMuted = muted
+        this.emit('voice:mute-changed', { muted })
+      }
+    })
 
     // レート制限の設定
     if (config.rateLimit?.messages) {
@@ -579,10 +598,9 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
    * Mute/unmute voice (stub - implementation moved to consuming packages)
    */
   async muteVoice(muted: boolean): Promise<void> {
-    this.voiceMuted = muted
-    this.logger.debug(
-      `Voice ${muted ? 'muted' : 'unmuted'} - functionality moved to consuming packages`,
-    )
+    // Emit only to event bus; state + public event handled by subscription
+    this.logger.debug('Voice mute requested (SDK)', { muted })
+    this.eventBus.emit('voice:mute-changed', { muted })
   }
 
   /**
