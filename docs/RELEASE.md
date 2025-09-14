@@ -34,7 +34,7 @@
 4. "GitHub Actions" を選択して以下を入力：
    - **Organization/Username**: `urth-inc`
    - **Repository**: `metatell-ai-bot`
-   - **Workflow file name**: `publish.yml` （注意：publish.ymlを指定）
+   - **Workflow file name**: `release.yml` （注意：publish.ymlを呼び出す呼び出し元のrelease.ymlを指定）
    - **Environment name**: (空欄のまま)
 
 ### 3. GitHub リポジトリの設定
@@ -120,7 +120,7 @@ git push
 
 原因と対策：
 1. Trusted Publisherが未設定 → 上記のセットアップ手順を確認
-2. ワークフロー名が一致しない → `publish.yml` であることを確認
+2. ワークフロー名が一致しない → `release.yml` （呼び出し元）であることを確認
 3. ブランチが異なる → `develop` ブランチから実行
 
 ### 権限エラー
