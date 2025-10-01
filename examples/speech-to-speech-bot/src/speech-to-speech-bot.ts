@@ -215,10 +215,20 @@ export class SpeechToSpeechBot {
       }
       console.log(`📝 認識結果: "${transcript}"`)
 
+      // 認識結果をチャットに送信
+      await this.client.chat.send(`🎤 ${transcript}`)
+      console.log(`📢 認識結果をチャットに送信: "${transcript}"`)
+
       // 3. LLM処理
       console.log('🤔 LLM応答生成中...')
+      // 待機メッセージを送信
+      await this.sendWaitingMessage('回答を準備しています...')
       const response = await this.llmProcessor.generateResponse(transcript)
       console.log(`💭 応答: "${response}"`)
+
+      // 応答をチャットに送信
+      await this.client.chat.send(response)
+      console.log(`📢 応答をチャットに送信: "${response}"`)
 
       // 4. 音声合成
       console.log('🔊 音声合成中...')
@@ -479,6 +489,18 @@ export class SpeechToSpeechBot {
   }
 
   /**
+   * 待機メッセージを送信
+   */
+  private async sendWaitingMessage(message: string): Promise<void> {
+    try {
+      await this.client.chat.send(message)
+      console.log(`📤 待機メッセージ送信: "${message}"`)
+    } catch (error) {
+      console.error('❌ 待機メッセージ送信エラー:', error)
+    }
+  }
+
+  /**
    * チャットメッセージハンドラーを設定
    */
   private setupChatHandlers() {
@@ -512,6 +534,8 @@ export class SpeechToSpeechBot {
 
           // LLM処理
           console.log('🤔 LLM応答生成中...')
+          // 待機メッセージを送信
+          await this.sendWaitingMessage('回答を準備しています...')
           const response = await this.llmProcessor.generateResponse(text)
           console.log(`💭 応答: "${response}"`)
 
