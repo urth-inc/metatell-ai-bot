@@ -35,6 +35,10 @@ export class SpeechToSpeechBot {
   // VAD用フレームバッファ（10msフレームを20msに結合するため）
   private vadFrameBuffer: Int16Array[] = []
 
+  // 音声開始前のバッファ（先頭が切れるのを防ぐ）
+  private preRecordingBuffer: Int16Array[] = []
+  private readonly preRecordingBufferSize = 30 // 600ms分（各フレームが20ms）
+
   // 音声レベル表示用
   private voiceLevelInterval?: NodeJS.Timeout
   private lastVoiceLevel = 0
@@ -134,9 +138,22 @@ export class SpeechToSpeechBot {
               )
             }
 
+            // 録音開始前のバッファを管理
+            if (!this.isRecording) {
+              // 録音中でない場合は、事前バッファにフレームを保存
+              this.preRecordingBuffer.push(frame20ms)
+              // バッファサイズを制限
+              if (this.preRecordingBuffer.length > this.preRecordingBufferSize) {
+                this.preRecordingBuffer.shift()
+              }
+            }
+
             if (vadResult.shouldStartRecording && !this.isRecording) {
               console.log('🎙️ 録音開始...')
               this.isRecording = true
+              // 録音開始前のフレームを音声バッファに追加
+              console.log(`📦 事前バッファから${this.preRecordingBuffer.length}フレームを復元`)
+              this.audioBuffer.push(...this.preRecordingBuffer)
             }
 
             if (this.isRecording) {
@@ -147,6 +164,8 @@ export class SpeechToSpeechBot {
             if (vadResult.shouldStopRecording && this.isRecording) {
               console.log('🛑 録音終了...')
               this.isRecording = false
+              // 事前バッファをクリア
+              this.preRecordingBuffer = []
               await this.processAudioBuffer()
             }
           } else {
@@ -215,10 +234,20 @@ export class SpeechToSpeechBot {
       }
       console.log(`📝 認識結果: "${transcript}"`)
 
+      // 認識結果をチャットに送信
+      await this.client.chat.send(`🎤 ${transcript}`)
+      console.log(`📢 認識結果をチャットに送信: "${transcript}"`)
+
       // 3. LLM処理
       console.log('🤔 LLM応答生成中...')
+      // 待機メッセージを送信
+      await this.sendWaitingMessage('回答を準備しています...')
       const response = await this.llmProcessor.generateResponse(transcript)
       console.log(`💭 応答: "${response}"`)
+
+      // 応答をチャットに送信
+      await this.client.chat.send(response)
+      console.log(`📢 応答をチャットに送信: "${response}"`)
 
       // 4. 音声合成
       console.log('🔊 音声合成中...')
@@ -479,6 +508,18 @@ export class SpeechToSpeechBot {
   }
 
   /**
+   * 待機メッセージを送信
+   */
+  private async sendWaitingMessage(message: string): Promise<void> {
+    try {
+      await this.client.chat.send(message)
+      console.log(`📤 待機メッセージ送信: "${message}"`)
+    } catch (error) {
+      console.error('❌ 待機メッセージ送信エラー:', error)
+    }
+  }
+
+  /**
    * チャットメッセージハンドラーを設定
    */
   private setupChatHandlers() {
@@ -512,6 +553,8 @@ export class SpeechToSpeechBot {
 
           // LLM処理
           console.log('🤔 LLM応答生成中...')
+          // 待機メッセージを送信
+          await this.sendWaitingMessage('回答を準備しています...')
           const response = await this.llmProcessor.generateResponse(text)
           console.log(`💭 応答: "${response}"`)
 

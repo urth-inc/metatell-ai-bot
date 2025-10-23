@@ -29,20 +29,25 @@ export class GeminiLLMProcessor {
 - 絵文字は一切使用しないこと
 
 最重要ルール: 
-あなたは質問に直接答えてはいけません。代わりに、以下のパターンの質問では必ずcallDifyApi関数を使用してください:
-- 「〜について教えて」
-- 「〜とは何ですか」
-- 「〜の情報」
-- 「〜について説明」
-- その他、具体的な知識や情報を求める質問
+あなたは質問に直接答えてはいけません。以下の場合は必ずcallDifyApi関数を使用してください:
+1. 何かについて教えてほしい、説明してほしい、情報が欲しいという依頼
+2. 「〜以外」「〜ではない」「他の」など、特定の話題を除外する表現
+3. 具体的な事物、概念、サービス、制度などについての質問
+4. 「どんな」「何が」「どのような」などの疑問詞を含む質問
+5. その他、知識や情報を求めていると判断できる発話
 
-質問を受けたら、自分で回答せず必ずcallDifyApi関数を使用してください。`
+例外:
+- 単純な挨拶（こんにちは、おはよう等）
+- 感謝の言葉（ありがとう等）
+- 単純な相槌（はい、そうですね等）
+
+これらの例外以外は、必ずcallDifyApi関数を使用してください。`
 
     // Function Declaration定義
     const callDifyApiFunctionDeclaration = {
       name: 'callDifyApi',
       description:
-        '必須：ユーザーが何かについて質問した場合は必ずこの関数を使用してください。「〜について教えて」「〜とは何ですか」「〜の情報」など、あらゆる質問に対してこの関数を使用してDify APIから回答を取得します。質問を受けたら確認せずに即座にこの関数を呼び出してください。',
+        '必須：ユーザーが何かについて質問したり、情報を求めたりした場合は必ずこの関数を使用してください。「〜について」「〜以外」「〜ではない」「他の」などの表現や、疑問詞を含む発話はすべてこの関数で処理します。挨拶と感謝以外のほぼすべての発話でこの関数を使用してください。',
       parameters: {
         type: Type.OBJECT,
         properties: {
@@ -88,15 +93,20 @@ export class GeminiLLMProcessor {
    */
   async generateResponse(input: string): Promise<string> {
     try {
+      // デバッグ: 入力内容を確認
+      console.log('🎯 入力メッセージ:', input)
+
       const response = await this.chat.sendMessage({
         message: input,
       })
 
-      // デバッグ: レスポンス内容を確認
-      console.log('📊 Gemini応答:', {
-        text: `${response.text?.substring(0, 100)}...`,
+      // デバッグ: レスポンス内容を詳細に確認
+      console.log('📊 Gemini応答詳細:', {
+        input: input,
+        text: response.text ? `${response.text.substring(0, 100)}...` : 'なし',
         hasFunctionCalls: !!response.functionCalls,
         functionCallsCount: response.functionCalls?.length || 0,
+        functionNames: response.functionCalls?.map((fc) => fc.name) || [],
       })
 
       // Function Callの処理

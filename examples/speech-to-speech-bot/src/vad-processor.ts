@@ -9,12 +9,12 @@ const VAD = require('webrtcvad').default
 export class VadProcessor {
   private vad: VAD
   private readonly sampleRate = 48000
-  private readonly vadLevel = 2 // 0-3 (0が最も寛容, 3が最も厳格)
+  private readonly vadLevel = 1 // 0-3 (0が最も寛容, 3が最も厳格) - より敏感に設定
 
   // VAD判定用バッファ
   private speechFrames = 0
   private silenceFrames = 0
-  private readonly speechThreshold = 15 // 300ms以上の発話で録音開始 (20ms * 15 = 300ms)
+  private readonly speechThreshold = 10 // 200ms以上の発話で録音開始 (20ms * 10 = 200ms) - より早く録音開始
   private readonly silenceThreshold = 50 // 1秒以上の無音で録音終了 (20ms * 50 = 1000ms)
 
   constructor() {
