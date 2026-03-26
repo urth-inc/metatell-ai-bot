@@ -40,9 +40,9 @@ export interface OrganizationAvatar {
  */
 export interface IOrganizationService {
   /**
-   * Get organization info from hub ID
+   * Get organization info from domain
    */
-  getOrganizationInfo(hubUrl: string, hubId: string): Promise<OrganizationInfo>
+  getOrganizationInfo(hubUrl: string, domain: string): Promise<OrganizationInfo>
 
   /**
    * Fetch organization avatars

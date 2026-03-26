@@ -97,6 +97,8 @@ export interface CreateClientOptions {
   username?: string
   avatarId?: string
   debug?: boolean
+  /** @internal Original domain before subdomain stripping (set by createMetatellClient) */
+  _originalDomain?: string
 }
 
 /**
@@ -117,12 +119,23 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
   private logger: Logger
   private orgAvatarUrlCache = new Map<string, string>()
   private voiceMuted = false
+  private originalDomain: string
 
   constructor(private options: CreateClientOptions) {
     super()
 
     // Initialize logger
     this.logger = getLogger('MetatellClient')
+
+    // 元のhostnameを保持（realm-from-domain APIで使用）
+    this.originalDomain = options._originalDomain || ''
+    if (!this.originalDomain) {
+      try {
+        this.originalDomain = new URL(options.serverUrl.replace(/^ws/, 'http')).hostname
+      } catch {
+        this.originalDomain = ''
+      }
+    }
 
     // デバッグモードの場合、ロギングを有効化
     if (options.debug) {
@@ -301,7 +314,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       // 組織情報を取得
       const orgInfo = await this.organizationService.getOrganizationInfo(
         this.options.serverUrl.replace(/^ws/, 'http'),
-        this.options.roomId,
+        this.originalDomain,
       )
 
       // アバターIDが指定されていない場合、組織アバターから選択
@@ -456,12 +469,11 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
           if (!avatarSrc) {
             // キャッシュにない場合はOrganizationServiceから取得
             const hubUrl = this.configProvider.getConfiguration().hubUrl
-            const hubId = this.configProvider.getConfiguration().hubId
-            const orgInfo = await this.organizationService.getOrganizationInfo(hubUrl, hubId)
+            const orgInfo = await this.organizationService.getOrganizationInfo(hubUrl, this.originalDomain)
 
             if (!orgInfo.organizationId) {
               throw new Error(
-                `Cannot fetch organization avatars: organization ID not set for hub ${hubId}`,
+                `Cannot fetch organization avatars: organization ID not set for domain ${this.originalDomain}`,
               )
             }
 
@@ -587,11 +599,11 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     },
 
     getAvailableAssets: async (): Promise<AvatarAsset[]> => {
-      // organizationInfoを取得するには、hubUrlとhubIdが必要
+      // organizationInfoを取得するには、hubUrlとdomainが必要
       const config = this.configProvider.getConfiguration()
       const orgInfo = await this.organizationService.getOrganizationInfo(
         config.hubUrl,
-        config.hubId,
+        this.originalDomain,
       )
       if (!orgInfo.organizationId) {
         // 組織IDがない場合は空配列を返す
@@ -781,6 +793,8 @@ export function createMetatellClient(options: CreateClientOptions): MetatellClie
   const processedOptions = { ...options }
   try {
     const url = new URL(options.serverUrl.replace(/^ws/, 'http'))
+    // 元のhostnameを保持（realm-from-domain APIで使用）
+    processedOptions._originalDomain = url.hostname
     const hostParts = url.hostname.split('.')
 
     if (hostParts.length >= 2) {
