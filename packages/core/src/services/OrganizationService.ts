@@ -65,7 +65,9 @@ export class OrganizationService implements IOrganizationService {
 
       const roomConfigResponse = await fetch(roomConfigEndpoint)
       if (!roomConfigResponse.ok) {
-        throw new Error(`Failed to fetch room config: ${roomConfigResponse.status} ${roomConfigResponse.statusText}`)
+        throw new Error(
+          `Failed to fetch room config: ${roomConfigResponse.status} ${roomConfigResponse.statusText}`,
+        )
       }
 
       const roomConfigData = (await roomConfigResponse.json()) as RoomConfigResponse

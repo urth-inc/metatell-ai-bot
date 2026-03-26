@@ -354,8 +354,12 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         hubChannel.push('events:entering', {})
         hubChannel.push('events:entered', {
           initialOccupantCount: 0,
-          entryDisplayType: 'Screen',
-          userAgent: 'MetatellBot',
+          isNewDaily: true,
+          isNewMonthly: true,
+          isNewDayWindow: true,
+          isNewMonthWindow: true,
+          entryDisplayType: 'Bot',
+          userAgent: 'MetatellBot/1.0',
         })
       }
     } catch (error) {
@@ -467,12 +471,13 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
           if (!avatarSrc) {
             // キャッシュにない場合はOrganizationServiceから取得
             const hubUrl = this.configProvider.getConfiguration().hubUrl
-            const orgInfo = await this.organizationService.getOrganizationInfo(hubUrl, this.configProvider.getConfiguration().hubId)
+            const orgInfo = await this.organizationService.getOrganizationInfo(
+              hubUrl,
+              this.configProvider.getConfiguration().hubId,
+            )
 
             if (!orgInfo.organizationId) {
-              throw new Error(
-                `Cannot fetch organization avatars: organization ID not found`,
-              )
+              throw new Error(`Cannot fetch organization avatars: organization ID not found`)
             }
 
             const avatars = await this.organizationService.fetchOrganizationAvatars(
