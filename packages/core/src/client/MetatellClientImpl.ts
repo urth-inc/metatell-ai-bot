@@ -347,6 +347,17 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
         await this.avatarController.spawn(avatarId, undefined, avatarUrl)
       }
+
+      // ロビーからルームへ遷移
+      const hubChannel = this.connectionManager.getHubChannel()
+      if (hubChannel) {
+        hubChannel.push('events:entering', {})
+        hubChannel.push('events:entered', {
+          initialOccupantCount: 0,
+          entryDisplayType: 'Screen',
+          userAgent: 'MetatellBot',
+        })
+      }
     } catch (error) {
       // エラーを適切なタイプに変換
       if (error instanceof Error && error.message.includes('auth')) {
