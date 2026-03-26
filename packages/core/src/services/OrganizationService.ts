@@ -5,8 +5,13 @@ import type {
 } from '../interfaces/IOrganizationService.js'
 import { getLogger } from '../logging/index.js'
 
-interface RealmFromDomainResponse {
-  realm: string
+interface RoomConfigResponse {
+  status: string
+  result: {
+    roomOrganization?: {
+      organization_id: string
+    }
+  }
 }
 
 interface OrganizationAvatarsResponse {
@@ -49,30 +54,26 @@ function resolveWorkersBasePath(hostname: string): string {
 export class OrganizationService implements IOrganizationService {
   private logger = getLogger('OrganizationService')
 
-  async getOrganizationInfo(hubUrl: string, domain: string): Promise<OrganizationInfo> {
+  async getOrganizationInfo(hubUrl: string, hubId: string): Promise<OrganizationInfo> {
     try {
       const url = new URL(hubUrl)
-      const basePath = resolveWorkersBasePath(url.hostname)
-      const endpoint = `${url.origin}${basePath}/api/v1/realm-from-domain?domain=${encodeURIComponent(domain)}`
 
-      this.logger.debug('Fetching organization info from realm-from-domain', { endpoint, domain })
+      // room-config API で organization_id を取得
+      const roomConfigEndpoint = `${url.origin}/room-config/${hubId}`
 
-      const response = await fetch(endpoint)
+      this.logger.debug('Fetching room config for organization info', { roomConfigEndpoint })
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch realm info: ${response.status} ${response.statusText}`)
+      const roomConfigResponse = await fetch(roomConfigEndpoint)
+      if (!roomConfigResponse.ok) {
+        throw new Error(`Failed to fetch room config: ${roomConfigResponse.status} ${roomConfigResponse.statusText}`)
       }
 
-      const data = (await response.json()) as RealmFromDomainResponse
-
-      const realmId = typeof data?.realm === 'string' ? data.realm.trim() : ''
-      if (!realmId) {
-        throw new Error('Invalid realm response: missing realm ID')
-      }
+      const roomConfigData = (await roomConfigResponse.json()) as RoomConfigResponse
+      const organizationId = roomConfigData.result?.roomOrganization?.organization_id || null
 
       return {
-        organizationId: null,
-        realmId,
+        organizationId,
+        realmId: organizationId || 'unknown',
       }
     } catch (error) {
       this.logger.error('Error fetching organization info:', { error })
@@ -85,7 +86,6 @@ export class OrganizationService implements IOrganizationService {
     organizationId: string,
   ): Promise<OrganizationAvatar[]> {
     try {
-      // URLから環境を判定（stgやdevの場合はそれをAPIパスに含める）
       const url = new URL(hubUrl)
       const basePath = resolveWorkersBasePath(url.hostname)
       const endpoint = `${url.origin}${basePath}/api/v1/organizations/${organizationId}/avatars/public`
