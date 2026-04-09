@@ -347,6 +347,21 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
         await this.avatarController.spawn(avatarId, undefined, avatarUrl)
       }
+
+      // ロビーからルームへ遷移
+      const hubChannel = this.connectionManager.getHubChannel()
+      if (hubChannel) {
+        hubChannel.push('events:entering', {})
+        hubChannel.push('events:entered', {
+          initialOccupantCount: 0,
+          isNewDaily: true,
+          isNewMonthly: true,
+          isNewDayWindow: true,
+          isNewMonthWindow: true,
+          entryDisplayType: 'Bot',
+          userAgent: 'MetatellBot/1.0',
+        })
+      }
     } catch (error) {
       // エラーを適切なタイプに変換
       if (error instanceof Error && error.message.includes('auth')) {
@@ -456,13 +471,13 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
           if (!avatarSrc) {
             // キャッシュにない場合はOrganizationServiceから取得
             const hubUrl = this.configProvider.getConfiguration().hubUrl
-            const hubId = this.configProvider.getConfiguration().hubId
-            const orgInfo = await this.organizationService.getOrganizationInfo(hubUrl, hubId)
+            const orgInfo = await this.organizationService.getOrganizationInfo(
+              hubUrl,
+              this.configProvider.getConfiguration().hubId,
+            )
 
             if (!orgInfo.organizationId) {
-              throw new Error(
-                `Cannot fetch organization avatars: organization ID not set for hub ${hubId}`,
-              )
+              throw new Error(`Cannot fetch organization avatars: organization ID not found`)
             }
 
             const avatars = await this.organizationService.fetchOrganizationAvatars(
@@ -777,21 +792,5 @@ export function createMetatellClient(options: CreateClientOptions): MetatellClie
     throw new MetatellError('INVALID_CONFIG', 'serverUrl and roomId are required')
   }
 
-  // サブドメインを除いたサーバーURLを生成
-  const processedOptions = { ...options }
-  try {
-    const url = new URL(options.serverUrl.replace(/^ws/, 'http'))
-    const hostParts = url.hostname.split('.')
-
-    if (hostParts.length >= 2) {
-      // サブドメインがある場合は除去（例: urth.metatell.app -> metatell.app）
-      const mainDomain = hostParts.slice(-2).join('.')
-      processedOptions.serverUrl = options.serverUrl.replace(url.hostname, mainDomain)
-    }
-  } catch (_error) {
-    // URL解析に失敗した場合はそのまま使用
-    // エラーログなどは出さず、元のURLを使用
-  }
-
-  return new MetatellClientImpl(processedOptions)
+  return new MetatellClientImpl(options)
 }

@@ -4,8 +4,8 @@ import { ServiceIdentifier } from '../ServiceIdentifier.js'
  * Organization information from realm endpoint
  */
 export interface OrganizationInfo {
-  organizationId: string | null // result.id from realm endpoint (null if not configured)
-  realmId: string // result.realm from realm endpoint
+  organizationId: string | null // organization_id from room-config endpoint
+  realmId: string // realm identifier (derived from organizationId)
 }
 
 /**
@@ -40,7 +40,7 @@ export interface OrganizationAvatar {
  */
 export interface IOrganizationService {
   /**
-   * Get organization info from hub ID
+   * Get organization info from hub URL and hub ID
    */
   getOrganizationInfo(hubUrl: string, hubId: string): Promise<OrganizationInfo>
 

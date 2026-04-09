@@ -38,42 +38,49 @@ describe('OrganizationService', () => {
   })
 
   describe('getOrganizationInfo', () => {
-    it('should fetch organization info successfully', async () => {
-      const mockRealmResponse = {
+    it('should fetch organization info from room-config', async () => {
+      const mockRoomConfigResponse = {
+        status: 'ok',
         result: {
-          id: 'org-123',
-          realm: 'realm-456',
-          public_key: {
-            keys: [
-              {
-                kid: 'key-1',
-                kty: 'RSA',
-                alg: 'RS256',
-                use: 'sig',
-                n: 'test-n',
-                e: 'AQAB',
-                x5c: ['cert1'],
-                x5t: 'thumbprint',
-                'x5t#S256': 'thumbprint256',
-              },
-            ],
+          roomOrganization: {
+            room_id: mockHubId,
+            organization_id: 'org-123',
           },
         },
       }
 
       vi.mocked(fetch).mockResolvedValueOnce({
         ok: true,
-        json: vi.fn().mockResolvedValue(mockRealmResponse),
+        json: vi.fn().mockResolvedValue(mockRoomConfigResponse),
       } as MockResponse)
 
       const result = await organizationService.getOrganizationInfo(mockServerUrl, mockHubId)
 
       expect(result).toEqual({
         organizationId: 'org-123',
-        realmId: 'realm-456',
+        realmId: 'org-123',
       })
 
-      expect(fetch).toHaveBeenCalledWith(`${mockServerUrl}/realm?room-id=${mockHubId}`)
+      expect(fetch).toHaveBeenCalledWith(`${mockServerUrl}/room-config/${mockHubId}`)
+    })
+
+    it('should return null organizationId when roomOrganization is missing', async () => {
+      const mockRoomConfigResponse = {
+        status: 'ok',
+        result: {},
+      }
+
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue(mockRoomConfigResponse),
+      } as MockResponse)
+
+      const result = await organizationService.getOrganizationInfo(mockServerUrl, mockHubId)
+
+      expect(result).toEqual({
+        organizationId: null,
+        realmId: 'unknown',
+      })
     })
 
     it('should throw error when fetch fails', async () => {
@@ -85,7 +92,7 @@ describe('OrganizationService', () => {
 
       await expect(
         organizationService.getOrganizationInfo(mockServerUrl, mockHubId),
-      ).rejects.toThrow('Failed to fetch realm info: 404 Not Found')
+      ).rejects.toThrow('Failed to fetch room config: 404 Not Found')
     })
 
     it('should throw error on network failure', async () => {
@@ -172,7 +179,7 @@ describe('OrganizationService', () => {
       ])
 
       expect(fetch).toHaveBeenCalledWith(
-        `${mockServerUrl}/api/v1/organizations/org-123/avatars/public`,
+        `${mockServerUrl}/api/admin/prod/api/v1/organizations/org-123/avatars/public`,
       )
     })
 
@@ -213,7 +220,7 @@ describe('OrganizationService', () => {
       ).rejects.toThrow('Connection refused')
     })
 
-    it('should use both organization ID and hub ID in URL', async () => {
+    it('should use staging API path for stg hostname', async () => {
       const mockResponse = {
         status: 'success',
         result: [],
@@ -224,23 +231,50 @@ describe('OrganizationService', () => {
         json: vi.fn().mockResolvedValue(mockResponse),
       } as MockResponse)
 
-      await organizationService.fetchOrganizationAvatars(mockServerUrl, 'org-456')
+      await organizationService.fetchOrganizationAvatars('https://metatell-stg.app', 'org-456')
 
       expect(fetch).toHaveBeenCalledWith(
-        `${mockServerUrl}/api/v1/organizations/org-456/avatars/public`,
+        'https://metatell-stg.app/api/admin/stg/api/v1/organizations/org-456/avatars/public',
+      )
+    })
+
+    it('should use dev API path for dev hostname', async () => {
+      const mockResponse = {
+        status: 'success',
+        result: [],
+      }
+
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue(mockResponse),
+      } as MockResponse)
+
+      await organizationService.fetchOrganizationAvatars('https://metatell-dev.app', 'org-789')
+
+      expect(fetch).toHaveBeenCalledWith(
+        'https://metatell-dev.app/api/admin/dev/api/v1/organizations/org-789/avatars/public',
       )
     })
   })
 
-  describe('constructor', () => {
-    it('should handle server URLs with trailing slash', () => {
-      const service = new OrganizationService('https://test.server/', 'hub-id')
-      expect(service).toBeDefined()
+  describe('selectAvatar', () => {
+    const mockAvatars = [
+      { id: 'a1', name: 'Avatar 1', gltf: { avatar: 'url1' } },
+      { id: 'a2', name: 'Avatar 2', gltf: { avatar: 'url2' } },
+    ]
+
+    it('should return null for empty array', () => {
+      expect(organizationService.selectAvatar([])).toBeNull()
     })
 
-    it('should handle server URLs without protocol', () => {
-      const service = new OrganizationService('test.server', 'hub-id')
-      expect(service).toBeDefined()
+    it('should return first avatar by default', () => {
+      expect(organizationService.selectAvatar(mockAvatars)).toEqual(mockAvatars[0])
+    })
+
+    it('should return specified avatar by id', () => {
+      expect(organizationService.selectAvatar(mockAvatars, { avatarId: 'a2' })).toEqual(
+        mockAvatars[1],
+      )
     })
   })
 })
