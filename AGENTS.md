@@ -8,7 +8,7 @@
 - Docs in `docs/`. Type configs in `tsconfig*.json`.
 
 ## Build, Test, and Development Commands
-- Install: `pnpm install` (Node 22 pinned via Volta).
+- Install: `pnpm install` (Node 22 pinned via .node-version).
 - Build all: `pnpm build` (recurses). Per package: `pnpm -F @metatell/bot-core build`.
 - Typecheck: `pnpm typecheck` or `pnpm -F <pkg> typecheck`.
 - Test: `pnpm test` (Vitest). Coverage: `pnpm test:coverage`. UI: `pnpm test:ui`.
