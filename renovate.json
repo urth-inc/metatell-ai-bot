@@ -1,5 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:best-practices"],
-  "minimumReleaseAge": "7 days"
+  "minimumReleaseAge": "7 days",
+  "packageRules": [
+    {
+      "matchDatasources": ["npm"],
+      "minimumReleaseAge": "7 days"
+    }
+  ]
 }
