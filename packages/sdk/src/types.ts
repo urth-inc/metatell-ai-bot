@@ -44,6 +44,7 @@ export interface CreateClientOptions {
   token?: string // 認証トークン（要否は環境設定に依存）
   username?: string // ボット名
   avatarId?: string // アバターID（未指定の場合はデフォルト）
+  apiBaseUrl?: string // Workers API base URL override
   debug?: boolean // デバッグモード
   logger?: 'silent' | 'info' | 'debug' // ログレベル
   reconnect?: { enabled?: boolean; maxDelayMs?: number }

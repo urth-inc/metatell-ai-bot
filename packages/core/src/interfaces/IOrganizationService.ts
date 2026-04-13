@@ -45,9 +45,12 @@ export interface IOrganizationService {
   getOrganizationInfo(hubUrl: string, hubId: string): Promise<OrganizationInfo>
 
   /**
-   * Fetch organization avatars
+   * Fetch organization avatars from the workers API base URL
    */
-  fetchOrganizationAvatars(hubUrl: string, organizationId: string): Promise<OrganizationAvatar[]>
+  fetchOrganizationAvatars(
+    apiBaseUrl: string,
+    organizationId: string,
+  ): Promise<OrganizationAvatar[]>
 
   /**
    * Select avatar based on configuration

@@ -30,6 +30,7 @@ import type {
   User,
   Vec3,
 } from '../types/client.js'
+import { resolveWorkersApiBaseUrl } from '../utils/resolveWorkersApiBaseUrl.js'
 
 // Rate limiting classes (these might need to be moved to core too)
 class RateLimitedQueue {
@@ -96,6 +97,7 @@ export interface CreateClientOptions {
   token?: string
   username?: string
   avatarId?: string
+  apiBaseUrl?: string
   debug?: boolean
 }
 
@@ -133,6 +135,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     this.serviceFactory = new CoreServiceFactory({
       serverUrl: options.serverUrl,
       hubUrl: options.serverUrl.replace(/^ws/, 'http'), // WebSocket URLからHTTP URLに変換
+      apiBaseUrl: options.apiBaseUrl || resolveWorkersApiBaseUrl(options.serverUrl.replace(/^ws/, 'http')),
       hubId: options.roomId,
       profile: {
         displayName: options.username || 'MetatellBot',
@@ -298,9 +301,11 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         hubId: this.options.roomId,
       })
 
+      const config = this.configProvider.getConfiguration()
+
       // 組織情報を取得
       const orgInfo = await this.organizationService.getOrganizationInfo(
-        this.options.serverUrl.replace(/^ws/, 'http'),
+        config.hubUrl,
         this.options.roomId,
       )
 
@@ -312,7 +317,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         try {
           // 組織アバター一覧を取得
           const avatars = await this.organizationService.fetchOrganizationAvatars(
-            this.options.serverUrl.replace(/^ws/, 'http'),
+            config.apiBaseUrl || resolveWorkersApiBaseUrl(config.hubUrl),
             orgInfo.organizationId,
           )
 
@@ -339,7 +344,6 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       // アバターをスポーン
       if (avatarId) {
         // 設定を更新
-        const config = this.configProvider.getConfiguration()
         config.profile.avatarId = avatarId
         if (avatarUrl) {
           config.organizationAvatarUrl = avatarUrl
@@ -481,7 +485,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
             }
 
             const avatars = await this.organizationService.fetchOrganizationAvatars(
-              hubUrl,
+              this.configProvider.getConfiguration().apiBaseUrl || resolveWorkersApiBaseUrl(hubUrl),
               orgInfo.organizationId,
             )
             const targetAvatar = avatars.find((a) => a.id === assetId)
@@ -614,7 +618,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       }
 
       const avatars = await this.organizationService.fetchOrganizationAvatars(
-        config.hubUrl,
+        config.apiBaseUrl || resolveWorkersApiBaseUrl(config.hubUrl),
         orgInfo.organizationId,
       )
       return avatars.map((avatar) => ({

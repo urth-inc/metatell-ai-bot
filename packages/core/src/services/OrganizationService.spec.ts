@@ -29,7 +29,8 @@ global.fetch = vi.fn()
 
 describe('OrganizationService', () => {
   let organizationService: OrganizationService
-  const mockServerUrl = 'https://test.server'
+  const mockHubUrl = 'https://test.server'
+  const mockApiBaseUrl = 'https://workers.test.server'
   const mockHubId = 'test-hub-id'
 
   beforeEach(() => {
@@ -54,14 +55,14 @@ describe('OrganizationService', () => {
         json: vi.fn().mockResolvedValue(mockRoomConfigResponse),
       } as MockResponse)
 
-      const result = await organizationService.getOrganizationInfo(mockServerUrl, mockHubId)
+      const result = await organizationService.getOrganizationInfo(mockHubUrl, mockHubId)
 
       expect(result).toEqual({
         organizationId: 'org-123',
         realmId: 'org-123',
       })
 
-      expect(fetch).toHaveBeenCalledWith(`${mockServerUrl}/room-config/${mockHubId}`)
+      expect(fetch).toHaveBeenCalledWith(`${mockHubUrl}/room-config/${mockHubId}`)
     })
 
     it('should return null organizationId when roomOrganization is missing', async () => {
@@ -75,7 +76,7 @@ describe('OrganizationService', () => {
         json: vi.fn().mockResolvedValue(mockRoomConfigResponse),
       } as MockResponse)
 
-      const result = await organizationService.getOrganizationInfo(mockServerUrl, mockHubId)
+      const result = await organizationService.getOrganizationInfo(mockHubUrl, mockHubId)
 
       expect(result).toEqual({
         organizationId: null,
@@ -91,7 +92,7 @@ describe('OrganizationService', () => {
       } as MockResponse)
 
       await expect(
-        organizationService.getOrganizationInfo(mockServerUrl, mockHubId),
+        organizationService.getOrganizationInfo(mockHubUrl, mockHubId),
       ).rejects.toThrow('Failed to fetch room config: 404 Not Found')
     })
 
@@ -99,7 +100,7 @@ describe('OrganizationService', () => {
       vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'))
 
       await expect(
-        organizationService.getOrganizationInfo(mockServerUrl, mockHubId),
+        organizationService.getOrganizationInfo(mockHubUrl, mockHubId),
       ).rejects.toThrow('Network error')
     })
   })
@@ -157,7 +158,7 @@ describe('OrganizationService', () => {
         json: vi.fn().mockResolvedValue(mockAvatarsResponse),
       } as MockResponse)
 
-      const result = await organizationService.fetchOrganizationAvatars(mockServerUrl, 'org-123')
+      const result = await organizationService.fetchOrganizationAvatars(mockApiBaseUrl, 'org-123')
 
       expect(result).toEqual([
         {
@@ -179,7 +180,7 @@ describe('OrganizationService', () => {
       ])
 
       expect(fetch).toHaveBeenCalledWith(
-        `${mockServerUrl}/api/admin/prod/api/v1/organizations/org-123/avatars/public`,
+        `${mockApiBaseUrl}/api/v1/organizations/org-123/avatars/public`,
       )
     })
 
@@ -194,7 +195,7 @@ describe('OrganizationService', () => {
         json: vi.fn().mockResolvedValue(mockAvatarsResponse),
       } as MockResponse)
 
-      const result = await organizationService.fetchOrganizationAvatars(mockServerUrl, 'org-123')
+      const result = await organizationService.fetchOrganizationAvatars(mockApiBaseUrl, 'org-123')
 
       expect(result).toEqual([])
     })
@@ -208,7 +209,7 @@ describe('OrganizationService', () => {
       } as MockResponse)
 
       await expect(
-        organizationService.fetchOrganizationAvatars(mockServerUrl, 'org-123'),
+        organizationService.fetchOrganizationAvatars(mockApiBaseUrl, 'org-123'),
       ).rejects.toThrow('Failed to fetch organization avatars: 403 Forbidden - Access denied')
     })
 
@@ -216,7 +217,7 @@ describe('OrganizationService', () => {
       vi.mocked(fetch).mockRejectedValueOnce(new Error('Connection refused'))
 
       await expect(
-        organizationService.fetchOrganizationAvatars(mockServerUrl, 'org-123'),
+        organizationService.fetchOrganizationAvatars(mockApiBaseUrl, 'org-123'),
       ).rejects.toThrow('Connection refused')
     })
 
@@ -234,7 +235,7 @@ describe('OrganizationService', () => {
       await organizationService.fetchOrganizationAvatars('https://metatell-stg.app', 'org-456')
 
       expect(fetch).toHaveBeenCalledWith(
-        'https://metatell-stg.app/api/admin/stg/api/v1/organizations/org-456/avatars/public',
+        'https://metatell-stg.app/api/v1/organizations/org-456/avatars/public',
       )
     })
 
@@ -252,7 +253,7 @@ describe('OrganizationService', () => {
       await organizationService.fetchOrganizationAvatars('https://metatell-dev.app', 'org-789')
 
       expect(fetch).toHaveBeenCalledWith(
-        'https://metatell-dev.app/api/admin/dev/api/v1/organizations/org-789/avatars/public',
+        'https://metatell-dev.app/api/v1/organizations/org-789/avatars/public',
       )
     })
   })

@@ -38,19 +38,6 @@ interface OrganizationAvatarsResponse {
   }>
 }
 
-/**
- * Resolve the admin workers API path based on the hostname.
- *
- * Production : /api/admin/prod
- * Staging    : /api/admin/stg
- * Development: /api/admin/dev
- */
-function resolveWorkersBasePath(hostname: string): string {
-  if (hostname.includes('-stg.')) return '/api/admin/stg'
-  if (hostname.includes('-dev.')) return '/api/admin/dev'
-  return '/api/admin/prod'
-}
-
 export class OrganizationService implements IOrganizationService {
   private logger = getLogger('OrganizationService')
 
@@ -84,19 +71,17 @@ export class OrganizationService implements IOrganizationService {
   }
 
   async fetchOrganizationAvatars(
-    hubUrl: string,
+    apiBaseUrl: string,
     organizationId: string,
   ): Promise<OrganizationAvatar[]> {
     try {
-      const url = new URL(hubUrl)
-      const basePath = resolveWorkersBasePath(url.hostname)
-      const endpoint = `${url.origin}${basePath}/api/v1/organizations/${organizationId}/avatars/public`
+      const url = new URL(apiBaseUrl)
+      const endpoint = `${url.origin}/api/v1/organizations/${organizationId}/avatars/public`
 
       this.logger.debug('Fetching organization avatars', {
-        hubUrl,
+        apiBaseUrl,
         organizationId,
         hostname: url.hostname,
-        basePath,
         endpoint,
       })
 
@@ -140,7 +125,7 @@ export class OrganizationService implements IOrganizationService {
       return avatars
     } catch (error) {
       this.logger.error('Error fetching organization avatars:', {
-        hubUrl,
+        apiBaseUrl,
         organizationId,
         error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
       })

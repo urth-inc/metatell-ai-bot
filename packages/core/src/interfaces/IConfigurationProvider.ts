@@ -25,6 +25,7 @@ export interface BotVoiceConfig {
 export interface BotConfiguration {
   serverUrl: string // WebSocket server URL (wss://...)
   hubUrl: string // Hub API URL (https://...)
+  apiBaseUrl?: string // Workers API base URL for avatar/room related HTTP APIs
   hubId: string
   profile: BotProfile
   context?: BotContext
