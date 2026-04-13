@@ -91,17 +91,17 @@ describe('OrganizationService', () => {
         statusText: 'Not Found',
       } as MockResponse)
 
-      await expect(
-        organizationService.getOrganizationInfo(mockHubUrl, mockHubId),
-      ).rejects.toThrow('Failed to fetch room config: 404 Not Found')
+      await expect(organizationService.getOrganizationInfo(mockHubUrl, mockHubId)).rejects.toThrow(
+        'Failed to fetch room config: 404 Not Found',
+      )
     })
 
     it('should throw error on network failure', async () => {
       vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'))
 
-      await expect(
-        organizationService.getOrganizationInfo(mockHubUrl, mockHubId),
-      ).rejects.toThrow('Network error')
+      await expect(organizationService.getOrganizationInfo(mockHubUrl, mockHubId)).rejects.toThrow(
+        'Network error',
+      )
     })
   })
 

@@ -30,8 +30,8 @@ import { MessageService as MessageServiceImpl } from './services/MessageService.
 import { OrganizationService as OrganizationServiceImpl } from './services/OrganizationService.js'
 import { PresenceManager as PresenceManagerImpl } from './services/PresenceManager.js'
 import { UserAvatarManager as UserAvatarManagerImpl } from './services/UserAvatarManager.js'
-import { resolveWorkersApiBaseUrl } from './utils/resolveWorkersApiBaseUrl.js'
 import { WebSocketConnectionManager } from './services/WebSocketConnectionManager.js'
+import { resolveWorkersApiBaseUrl } from './utils/resolveWorkersApiBaseUrl.js'
 
 /**
  * Core Service Factory - Contains only SDK core services

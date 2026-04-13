@@ -135,7 +135,8 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     this.serviceFactory = new CoreServiceFactory({
       serverUrl: options.serverUrl,
       hubUrl: options.serverUrl.replace(/^ws/, 'http'), // WebSocket URLからHTTP URLに変換
-      apiBaseUrl: options.apiBaseUrl || resolveWorkersApiBaseUrl(options.serverUrl.replace(/^ws/, 'http')),
+      apiBaseUrl:
+        options.apiBaseUrl || resolveWorkersApiBaseUrl(options.serverUrl.replace(/^ws/, 'http')),
       hubId: options.roomId,
       profile: {
         displayName: options.username || 'MetatellBot',
