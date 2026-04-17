@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:best-practices"],
+  "extends": ["config:best-practices", "customManagers:biomeVersions"],
   "ignorePresets": ["security:minimumReleaseAgeNpm"],
   "minimumReleaseAge": "7 days",
   "internalChecksFilter": "strict"
