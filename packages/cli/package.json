@@ -24,7 +24,7 @@
   "dependencies": {
     "@metatell/bot-sdk": "workspace:*",
     "commander": "12.1.0",
-    "ink": "6.5.0",
+    "ink": "6.8.0",
     "react": "19.1.1"
   },
   "devDependencies": {
