@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@metatell/bot-sdk": "workspace:*",
-    "commander": "12.1.0",
+    "commander": "14.0.3",
     "ink": "6.5.0",
     "react": "19.1.1"
   },
