@@ -179,7 +179,7 @@ describe('OrganizationService', () => {
       ])
 
       expect(fetch).toHaveBeenCalledWith(
-        `${mockServerUrl}/api/admin/prod/api/v1/organizations/org-123/avatars/public`,
+        'https://v-air-admin-production.urth.workers.dev/api/v1/organizations/org-123/avatars/public',
       )
     })
 
@@ -220,7 +220,7 @@ describe('OrganizationService', () => {
       ).rejects.toThrow('Connection refused')
     })
 
-    it('should use staging API path for stg hostname', async () => {
+    it('should use staging admin host for stg hostname', async () => {
       const mockResponse = {
         status: 'success',
         result: [],
@@ -234,11 +234,11 @@ describe('OrganizationService', () => {
       await organizationService.fetchOrganizationAvatars('https://metatell-stg.app', 'org-456')
 
       expect(fetch).toHaveBeenCalledWith(
-        'https://metatell-stg.app/api/admin/stg/api/v1/organizations/org-456/avatars/public',
+        'https://v-air-admin-staging.urth.workers.dev/api/v1/organizations/org-456/avatars/public',
       )
     })
 
-    it('should use dev API path for dev hostname', async () => {
+    it('should use dev admin host for dev hostname', async () => {
       const mockResponse = {
         status: 'success',
         result: [],
@@ -252,7 +252,7 @@ describe('OrganizationService', () => {
       await organizationService.fetchOrganizationAvatars('https://metatell-dev.app', 'org-789')
 
       expect(fetch).toHaveBeenCalledWith(
-        'https://metatell-dev.app/api/admin/dev/api/v1/organizations/org-789/avatars/public',
+        'https://v-air-admin-development.urth.workers.dev/api/v1/organizations/org-789/avatars/public',
       )
     })
   })
