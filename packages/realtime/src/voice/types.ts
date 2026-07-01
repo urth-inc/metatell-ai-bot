@@ -1,65 +1,65 @@
-// type-only import で循環依存を避ける
+// Use type-only imports to avoid circular dependencies.
 import type { VoiceCapableClient } from '@metatell/bot-core'
 import type { RealtimeTransport } from '../transport.js'
 
 /**
- * 音声メタデータ
+ * Voice metadata.
  */
 export interface VoiceMetadata {
-  /** 送信者のidentity */
+  /** Sender identity. */
   fromIdentity?: string
-  /** 送信者のSID（将来拡張） */
+  /** Sender SID for future expansion. */
   fromSid?: string
-  /** トラックSID（将来拡張） */
+  /** Track SID for future expansion. */
   trackSid?: string
 }
 
 /**
- * 音声ハンドラー
+ * Voice handlers.
  */
 export interface VoiceHandlers {
   /**
-   * 受信PCM処理（48kHz/PCM16/mono）
-   * @param pcm - 受信したPCMデータ
-   * @param meta - メタデータ
+   * Handles received PCM data (48 kHz, PCM16, mono).
+   * @param pcm - Received PCM data.
+   * @param meta - Metadata.
    */
   onRemotePcm?: (pcm: Int16Array, meta: VoiceMetadata) => Promise<void> | void
 
   /**
-   * ローカルPCM供給元（TTS など）
-   * @returns 10ms/20ms のPCMフレームを返すAsyncIterable
+   * Local PCM source, such as TTS.
+   * @returns AsyncIterable that yields 10 ms or 20 ms PCM frames.
    */
   getLocalPcmStream?: () => AsyncIterable<Int16Array>
 }
 
 /**
- * attachVoice のオプション
+ * Options for attachVoice.
  */
 export interface AttachVoiceOptions {
-  /** フレーム長（ミリ秒） default: 20 */
+  /** Frame duration in milliseconds. Default: 20. */
   frameDurationMs?: 10 | 20
-  /** サンプルレート（情報目的、内部は48kHz固定） default: 48000 */
+  /** Sample rate for metadata. Internally fixed at 48 kHz. Default: 48000. */
   sampleRate?: 48000 | 24000 | 16000
-  /** チャンネル数（送信は1ch必須） default: 1 */
+  /** Channel count. Sending requires mono audio. Default: 1. */
   channels?: 1 | 2
-  /** 自動パブリッシュ開始 default: true */
+  /** Starts publishing automatically. Default: true. */
   autoStartPublish?: boolean
-  /** audioトピックの自動追加 default: true */
+  /** Adds the audio topic automatically. Default: true. */
   enableTopicAutoAdd?: boolean
-  /** ログタグ default: 'voice.bridge' */
+  /** Log tag. Default: 'voice.bridge'. */
   loggerTag?: string
 }
 
 /**
- * VoiceAttachment インターフェース
+ * VoiceAttachment interface.
  */
 export interface VoiceAttachment {
-  /** ブリッジを解除する */
+  /** Detaches the bridge. */
   detach(): Promise<void>
 }
 
 /**
- * 内部状態管理用（エクスポートしない）
+ * Internal state management only. Not exported from the public entrypoint.
  */
 export interface AttachmentState {
   agent: VoiceCapableClient

@@ -1,21 +1,35 @@
 # Basic Bot Example
 
-シンプルなメタテルボットの実装例です。
+A minimal metatell bot that connects to a room, replies when mentioned, and
+follows the nearest user.
 
-## 使い方
+## Setup
 
 ```bash
 npm install
 npm run build
-npm start https://urth.metatell.app/XrAU8NY/
 ```
 
-## 機能
+## Run
 
-- 最小限のセットアップ
-- メンション時の自動応答
-- ユーザについてくる
+```bash
+npm start -- https://metatell.app/YOUR_ROOM_ID
+```
 
-## コード構成
+Enable verbose SDK logs:
 
-- `src/main.ts`: メインエントリーポイント
+```bash
+npm start -- https://metatell.app/YOUR_ROOM_ID --debug
+```
+
+## Features
+
+- Parses a metatell room URL into `serverUrl` and `roomId`.
+- Connects with `createMetatellClient()`.
+- Replies only when the bot is mentioned.
+- Lists available avatar animations.
+- Moves near another user and switches between walking and idle animations.
+
+## Files
+
+- `src/main.ts`: example entry point.

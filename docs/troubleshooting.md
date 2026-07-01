@@ -1,27 +1,79 @@
-# トラブルシューティング
+# Troubleshooting
 
-## 接続できない
+## The bot cannot connect
 
-- `serverUrl` が `wss://...` 形式（パス不要）であるか確認
-- ファイアウォール/プロキシの制限を確認
-- トークン必須のルームで `token` が無効/期限切れの可能性
+- Confirm `serverUrl` uses a WebSocket origin such as `wss://metatell.app`.
+  Do not include the room path.
+- Confirm `roomId` is the room ID, not the full URL.
+- If the room requires authentication, confirm `token` is set and has not
+  expired.
+- Check network restrictions such as proxies or firewalls that block WebSocket
+  connections.
+- Run with `debug: true` to print more connection logs.
 
-## メッセージが届かない
+## The bot connects but no chat messages arrive
 
-- ハンドラを登録後に `connect()` しているか
-- `chat.onMessage` は全メッセージ購読。メンションのみ応答する場合は
-  `mention?.sessionId === (await client.getInfo()).sessionId` で自分宛てを判定。
+- Register `chat.onMessage()` before or immediately after `connect()`.
+- Confirm users are sending messages in the same room.
+- If your bot only responds to mentions, log all messages first and verify the
+  `mention` field before filtering.
 
-## アニメーションが再生されない
+```ts
+client.chat.onMessage(({ from, text, mention }) => {
+  console.log({ from: from.name, text, mention })
+})
+```
 
-- `avatarId` が設定済みか
-- `id` の誤り、または対象アバターで未提供の可能性
+## Mention replies do not work
 
-## 音声機能について
+Fetch the bot session ID after `connect()` and compare it with
+`mention.sessionId`:
 
-音声関連の機能は現在開発中・検証中です。安定版公開後にドキュメントを更新します。
+```ts
+await client.connect()
+const botInfo = await client.getInfo()
 
-## 型エラーが出る
+client.chat.onMessage(async ({ mention, reply }) => {
+  if (mention?.sessionId === botInfo.sessionId) {
+    await reply('Mention received.')
+  }
+})
+```
 
-- TypeScript の `target`/`moduleResolution` を確認（SDK は ESM）
-- Node.js のバージョンを更新
+## Avatar movement or rotation does not appear
+
+- Confirm the bot is connected before calling avatar methods.
+- Keep position updates at a reasonable rate. Use `setRateLimit()` for frequent
+  movement loops.
+- Use Euler angles in degrees for `rotateTo()`.
+- Confirm your room client is not hiding or replacing the selected avatar.
+
+## Animations do not play
+
+- Call `avatar.getAvailableAnimations()` and use an ID that exists for the
+  selected avatar.
+- Some avatar-specific animation IDs are UUIDs. Do not assume preset names are
+  available on every avatar.
+- If a bot loops movement animations, stop or replace the loop before playing a
+  one-shot animation.
+
+## Voice does not start
+
+- Install both `@metatell/bot-sdk` and `@metatell/bot-realtime`.
+- Use a supported sample rate: 16000, 24000, or 48000 Hz.
+- For 48000 Hz mono audio, provide 960-sample `Int16Array` frames for 20 ms
+  frames.
+- Confirm the room and environment support LiveKit voice transport.
+- Start with the mock transport when testing audio logic without a live room.
+
+## TypeScript reports module or type errors
+
+- Use Node.js 20 or later.
+- Use ESM-compatible TypeScript settings.
+- Use TypeScript 5 or later.
+- Reinstall dependencies if package versions are out of sync.
+
+## Debug logs are too noisy
+
+Disable `debug` for normal operation or register a custom logger provider. See
+[Logging and errors](./logging-and-errors.md).

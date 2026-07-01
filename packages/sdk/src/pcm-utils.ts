@@ -5,8 +5,8 @@
 import type { PcmInput } from './types.js'
 
 /**
- * 16-bit PCMのサンプルレートを変換します。
- * 内部では品質とパフォーマンスのバランスが良い線形補間を使用します。
+ * Converts the sample rate of 16-bit PCM audio.
+ * Uses linear interpolation internally for a practical balance of quality and performance.
  */
 async function* resample(
   input: PcmInput,
@@ -21,13 +21,13 @@ async function* resample(
   const inputIterable = makeIterable(input)
 
   for await (const chunk of inputIterable) {
-    // 既存バッファと新しいチャンクを結合
+    // Merge the existing buffer with the new chunk.
     const newBuffer = new Int16Array(buffer.length + chunk.length)
     newBuffer.set(buffer)
     newBuffer.set(chunk, buffer.length)
     buffer = newBuffer
 
-    // リサンプリング実行
+    // Run resampling.
     const outputLength = Math.floor(buffer.length * ratio)
     if (outputLength > 0) {
       const output = new Int16Array(outputLength)
@@ -39,7 +39,7 @@ async function* resample(
         const fraction = sourceIndex - index1
 
         if (index1 < buffer.length) {
-          // 線形補間
+          // Linear interpolation.
           const sample1 = buffer[index1] || 0
           const sample2 = buffer[index2] || 0
           output[i] = Math.round(sample1 + (sample2 - sample1) * fraction)
@@ -48,7 +48,7 @@ async function* resample(
 
       yield output
 
-      // 処理済みサンプルを削除
+      // Remove processed samples.
       const consumedSamples = Math.floor(outputLength / ratio)
       buffer = buffer.slice(consumedSamples)
     }
@@ -56,7 +56,7 @@ async function* resample(
 }
 
 /**
- * PCMストリームを指定サンプル数ごとのチャンクに分割します。
+ * Splits a PCM stream into chunks with the specified sample count.
  */
 async function* chunk(
   input: AsyncIterable<Int16Array>,
@@ -65,27 +65,27 @@ async function* chunk(
   let buffer = new Int16Array(0)
 
   for await (const chunk of input) {
-    // バッファに追加
+    // Append to the buffer.
     const newBuffer = new Int16Array(buffer.length + chunk.length)
     newBuffer.set(buffer)
     newBuffer.set(chunk, buffer.length)
     buffer = newBuffer
 
-    // 指定サイズのチャンクを出力
+    // Emit chunks with the requested size.
     while (buffer.length >= samplesPerChunk) {
       yield buffer.slice(0, samplesPerChunk)
       buffer = buffer.slice(samplesPerChunk)
     }
   }
 
-  // 残りのデータがある場合は出力
+  // Emit any remaining data.
   if (buffer.length > 0) {
     yield buffer
   }
 }
 
 /**
- * 様々な入力タイプを統一されたAsyncIterableに変換
+ * Converts supported input types into a normalized AsyncIterable.
  */
 async function* makeIterable(input: PcmInput): AsyncIterable<Int16Array> {
   if (input instanceof Int16Array) {
@@ -95,13 +95,13 @@ async function* makeIterable(input: PcmInput): AsyncIterable<Int16Array> {
       yield chunk
     }
   } else {
-    // NodeJS.ReadableStreamの場合
+    // NodeJS.ReadableStream input.
     const stream = input as NodeJS.ReadableStream
     for await (const chunk of stream) {
       if (chunk instanceof Int16Array) {
         yield chunk
       } else if (chunk instanceof Buffer) {
-        // BufferをInt16Arrayに変換
+        // Convert Buffer to Int16Array.
         const samples = new Int16Array(chunk.length / 2)
         for (let i = 0; i < samples.length; i++) {
           samples[i] = chunk.readInt16LE(i * 2)
