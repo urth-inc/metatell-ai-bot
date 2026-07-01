@@ -98,6 +98,8 @@ export interface CreateClientOptions {
   serverUrl: string
   roomId: string
   token?: string
+  /** OIDC access token sent as hub join `auth_token`; authenticates the bot so it gains room-role permissions (e.g. text_chat). */
+  authToken?: string
   username?: string
   avatarId?: string
   /** avatarIdが組織アバター(UUID)の場合に spawn へ渡す gltf URL。 */
@@ -147,6 +149,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         avatarId: options.avatarId || '', // 後で組織アバターから取得
       },
       botAccessKey: options.token,
+      authToken: options.authToken,
       debug: options.debug || false,
     })
 

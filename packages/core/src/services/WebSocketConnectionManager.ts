@@ -148,6 +148,12 @@ export class WebSocketConnectionManager implements IConnectionManager {
         channelParams.bot_access_key = config.botAccessKey
       }
 
+      // Send auth_token when an OIDC token is available. The backend resolves the account from it
+      // and grants room-role permissions such as text_chat. Omit it when unset; do not send null.
+      if (config.authToken) {
+        channelParams.auth_token = config.authToken
+      }
+
       this.logger.debug('Attempting to join hub with:', {
         channel: `hub:${hubId}`,
         params: channelParams,
