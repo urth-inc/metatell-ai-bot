@@ -89,6 +89,10 @@ interface MessageEventData {
   senderId?: string
 }
 
+// 組織アバターもavatarIdも解決できない場合のフォールバック。
+// 非UUIDのため spawn 時に個人アバター（storage URL）として扱われ、接続を止めない。
+const DEFAULT_FALLBACK_AVATAR_ID = 'default'
+
 // Create client options
 export interface CreateClientOptions {
   serverUrl: string
@@ -96,6 +100,10 @@ export interface CreateClientOptions {
   token?: string
   username?: string
   avatarId?: string
+  /** avatarIdが組織アバター(UUID)の場合に spawn へ渡す gltf URL。 */
+  avatarSrc?: string
+  /** 組織アバターもavatarIdも無い場合に使うフォールバックアバターid（非UUID＝個人アバター扱い）。 */
+  defaultAvatarId?: string
   debug?: boolean
 }
 
@@ -306,7 +314,8 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
       // アバターIDが指定されていない場合、組織アバターから選択
       let avatarId = this.options.avatarId
-      let avatarUrl: string | undefined
+      // 明示指定された gltf URL（組織アバターUUIDを直接指定する場合に spawn へ渡す）
+      let avatarUrl: string | undefined = this.options.avatarSrc
 
       if (!avatarId && orgInfo.organizationId) {
         try {
@@ -328,11 +337,13 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         }
       }
 
-      // アバターIDが取得できない場合はエラー
+      // 組織アバターが無く、avatarIdも未指定の場合はデフォルトアバターにフォールバックする。
+      // 非UUIDのidは個人アバター扱いとなり spawn 時に storage URL が組まれるため、接続を止めない。
       if (!avatarId) {
-        throw new MetatellError(
-          'NO_AVATAR_AVAILABLE',
-          'No avatar available. Organization avatars not found and no avatar ID specified.',
+        avatarId = this.options.defaultAvatarId ?? DEFAULT_FALLBACK_AVATAR_ID
+        this.logger.warn(
+          'No organization avatar found and no avatarId specified; falling back to default avatar',
+          { avatarId },
         )
       }
 
