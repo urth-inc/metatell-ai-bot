@@ -1,5 +1,12 @@
 # @metatell/bot-core
 
+## 0.0.12
+
+### Patch Changes
+
+- - Merge pull request #152 from urth-inc/fix/avatar-public-api
+  - fix: fetch organization avatars from v-air-admin public API
+
 ## 0.0.11
 
 ### Patch Changes
