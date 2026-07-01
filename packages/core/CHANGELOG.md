@@ -1,5 +1,95 @@
 # @metatell/bot-core
 
+## 0.0.11
+
+### Patch Changes
+
+- - Merge pull request #149 from urth-inc/akiraueno/urth-1841
+  - chore: add customManagers:biomeVersions to Renovate config
+  - Merge pull request #147 from urth-inc/chore/renovate-internal-checks-filter
+  - chore: add internalChecksFilter strict to prevent premature Renovate PRs
+  - Merge pull request #146 from urth-inc/chore/urth-1812-npm-minimum-release-age
+  - chore: override preset npm minimumReleaseAge to 7 days
+  - Merge pull request #145 from urth-inc/akiraueno/urth-1806
+  - docs: update AGENTS.md to reference .node-version (URTH-1806)
+  - chore: unify pnpm config and add supply chain security settings (URTH-1806)
+  - Merge pull request #143 from urth-inc/fix/realm-from-domain-api
+  - Merge pull request #144 from urth-inc/chore/renovate-minimum-release-age
+  - chore: require 3-day minimum release age for Renovate
+  - fix: address review feedback - lint, tests, payload consistency
+  - fix: push entering/entered events after avatar spawn to enter room
+  - fix: use room-config API for organization info
+  - fix: use realm-from-domain API instead of deprecated /realm endpoint
+  - Merge pull request #134 from urth-inc/renovate/tsx-4.x
+  - Merge pull request #137 from urth-inc/renovate/biomejs-biome-2.x
+  - chore(deps): update dependency @biomejs/biome to v2.4.6
+  - chore(deps): update dependency tsx to v4.21.0
+  - Merge pull request #131 from urth-inc/renovate/livekit-rtc-node-0.x
+  - Merge pull request #125 from urth-inc/renovate/typedoc-0.x
+  - Merge pull request #130 from urth-inc/renovate/ink-6.x
+  - Merge pull request #16 from urth-inc/renovate/node-22.x
+  - Merge pull request #120 from urth-inc/renovate/pnpm-10.x
+  - chore(deps): update dependency typedoc to v0.28.14
+  - Merge pull request #129 from urth-inc/renovate/sonarsource-sonarqube-scan-action-6.x
+  - Merge pull request #127 from urth-inc/renovate/lefthook-1.x
+  - fix(deps): update dependency @livekit/rtc-node to v0.13.21
+  - chore(deps): update pnpm to v10.22.0
+  - fix(deps): update dependency ink to v6.5.0
+  - chore(deps): update node.js to v22.21.1
+  - chore(deps): update sonarsource/sonarqube-scan-action action to v6
+  - chore(deps): update dependency lefthook to v1.13.6
+  - Merge pull request #132 from urth-inc/feature/enhance-voice-bot
+  - fix: 音声認識の先頭が切れる問題を修正
+  - feat: 音声ボットの UX 改善と Dify API 統合の強化
+  - Merge pull request #43 from urth-inc/renovate/lefthook-1.x
+  - Merge pull request #124 from urth-inc/feature/20250914/fix-relase-doc
+  - docs(release): update workflow file name from publish.yml to release.yml
+  - Merge pull request #122 from urth-inc/renovate/uuid-13.x
+  - Merge pull request #121 from urth-inc/renovate/actions-upload-pages-artifact-4.x
+  - Merge pull request #100 from urth-inc/renovate/commander-12.x
+  - fix(deps): update dependency uuid to v13
+  - chore(deps): update actions/upload-pages-artifact action to v4
+  - Merge pull request #35 from urth-inc/renovate/major-react-monorepo
+  - fix(deps): update react monorepo to v19
+  - Merge pull request #119 from urth-inc/renovate/livekit-agents-1.x
+  - Merge pull request #118 from urth-inc/renovate/biomejs-biome-2.x
+  - Merge pull request #17 from urth-inc/renovate/react-monorepo
+  - fix(deps): update dependency commander to v12.1.0
+  - fix(deps): update dependency @livekit/agents to v1.0.3
+  - chore(deps): update react monorepo
+  - chore(deps): update dependency @biomejs/biome to v2.2.4
+  - Merge pull request #99 from urth-inc/renovate/vitest-monorepo
+  - Merge branch 'develop' into renovate/vitest-monorepo
+  - Merge pull request #97 from urth-inc/renovate/typescript-5.x
+  - Merge pull request #31 from urth-inc/renovate/ink-6.x
+  - Merge pull request #98 from urth-inc/renovate/changesets-cli-2.x
+  - Merge pull request #113 from urth-inc/codex/2025-09-13/implement-mutevoice-method-logic
+  - docs: document voice events and bus-driven mute; simplify wording
+  - style(sdk): reorder imports in AgentClient and remove trailing newline in mute spec
+  - sdk: enforce colon-style voice events only\n\n- Remove camelCase voice event aliases (breaking change)\n- API now only supports 'voice:\*' event names
+  - core: centralize voice mute via event bus
+  - fix(core): avoid duplicate mute events
+  - Merge pull request #116 from urth-inc/feature/add-Agents.md
+  - Merge pull request #115 from urth-inc/codex/2025-09-13/refactor-room.getusers-to-use-builduserlist
+  - fix: derive connection status from session ID
+  - test(core): fix event bus mute tests
+  - docs: add AGENTS.md for agent guidance
+  - refactor(core): centralize voice mute state
+  - Merge pull request #111 from urth-inc/codex/2025-09-13/find-todo-comments-in-look-method
+  - refactor: extract user list builder
+  - fix(cli): guard user look for missing API
+  - Merge pull request #112 from urth-inc/codex/2025-09-13/update-stopanimation-method-logging
+  - feat(core): add voice mute control
+  - fix(cli): handle stop command errors
+  - feat(cli): support looking at user
+  - Merge pull request #110 from urth-inc/chore/20250913/upgrade-sdk-versions
+  - chore: update @metatell/bot-\* packages to ^0.0.10 in examples
+  - chore(deps): update dependency lefthook to v1.13.0
+  - chore(deps): update dependency vitest to v3.2.4
+  - chore(deps): update dependency typescript to v5.9.2
+  - chore(deps): update dependency @changesets/cli to v2.29.7
+  - fix(deps): update dependency ink to v6
+
 ## 0.0.10
 
 ### Patch Changes
