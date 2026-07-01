@@ -31,15 +31,15 @@ function createLogger(logger?: Logger): LoggerWrapper {
   }
 }
 
-// 二段マップで管理: client → (transport → state)
+// Two-level map: client -> (transport -> state).
 const attachments = new WeakMap<VoiceCapableClient, WeakMap<RealtimeTransport, AttachmentState>>()
 
 /**
- * VoiceCapableClient と RealtimeTransport の間に音声ブリッジを作成
- * @param client - VoiceCapableClient インスタンス
- * @param transport - RealtimeTransport インスタンス
- * @param handlers - 音声ハンドラー
- * @param opts - オプション
+ * Creates a voice bridge between a VoiceCapableClient and a RealtimeTransport.
+ * @param client - VoiceCapableClient instance.
+ * @param transport - RealtimeTransport instance.
+ * @param handlers - Voice handlers.
+ * @param opts - Options.
  * @returns VoiceAttachment
  */
 export function attachVoice(
@@ -61,7 +61,7 @@ export function attachVoice(
   const transportWithOptions = transport as unknown as { options?: { logger?: Logger } }
   const logger = createLogger(transportWithOptions.options?.logger)
 
-  // 多重アタッチ防止
+  // Prevent duplicate attachments.
   let inner = attachments.get(client)
   if (!inner) {
     inner = new WeakMap()
@@ -87,7 +87,7 @@ export function attachVoice(
     removeListener: undefined,
   }
 
-  // audio トピックの自動有効化
+  // Enable the audio topic automatically.
   const transportWithTopics = transport as unknown as { activeTopics?: Set<string> }
   if (
     options.enableTopicAutoAdd &&
@@ -98,16 +98,16 @@ export function attachVoice(
     logger.debug('added "audio" to activeTopics')
   }
 
-  // 受信ハンドラ
+  // Receive handler.
   setupReceive(state, handlers, logger)
 
-  // 送信パッチ
+  // Send patch.
   patchSend(state, logger)
 
-  // ミュートパッチ
+  // Mute patch.
   patchMute(state, logger)
 
-  // 自動publish
+  // Automatic publishing.
   if (options.autoStartPublish && handlers.getLocalPcmStream) {
     logger.debug('Starting auto-publish')
     startAutoPublish(state, handlers.getLocalPcmStream, logger).catch((err) =>
@@ -121,7 +121,7 @@ export function attachVoice(
 }
 
 /**
- * 受信処理のセットアップ
+ * Sets up receive handling.
  */
 function setupReceive(state: AttachmentState, handlers: VoiceHandlers, logger: LoggerWrapper) {
   if (!handlers.onRemotePcm) return
@@ -144,7 +144,7 @@ function setupReceive(state: AttachmentState, handlers: VoiceHandlers, logger: L
 }
 
 /**
- * 送信メソッドのパッチ
+ * Patches the send method.
  */
 function patchSend(state: AttachmentState, _logger: LoggerWrapper) {
   const client = state.agent
@@ -161,7 +161,7 @@ function patchSend(state: AttachmentState, _logger: LoggerWrapper) {
 }
 
 /**
- * ミュート制御のパッチ
+ * Patches mute controls.
  */
 function patchMute(state: AttachmentState, logger: LoggerWrapper) {
   const client = state.agent
@@ -171,7 +171,7 @@ function patchMute(state: AttachmentState, logger: LoggerWrapper) {
         await state.transport.setMicEnabled(!muted)
         logger.debug(`microphone ${muted ? 'muted' : 'unmuted'}`)
       } else {
-        // フォールバック（元のフラグ操作）
+        // Fallback to the original flag operation.
         await state.original.muteVoice?.(muted)
       }
     }
@@ -179,7 +179,7 @@ function patchMute(state: AttachmentState, logger: LoggerWrapper) {
 }
 
 /**
- * 自動パブリッシュの開始
+ * Starts automatic publishing.
  */
 async function startAutoPublish(
   state: AttachmentState,
@@ -196,13 +196,13 @@ async function startAutoPublish(
 
   ;(async () => {
     try {
-      // フレームサイズが不一致でも chunkToFrames() で合わせる（resampleは行わない）
+      // Normalize frame sizes with chunkToFrames(); resampling is not performed here.
       for await (const raw of getLocalPcmStream()) {
         if (ac.signal.aborted) break
 
         for (const frame of chunkToFrames(raw, state.expectedSamples)) {
           if (ac.signal.aborted) break
-          await state.transport.pushPcmFrame(frame) // 背圧に追従
+          await state.transport.pushPcmFrame(frame) // Follow backpressure.
         }
       }
     } catch (e) {
@@ -212,16 +212,16 @@ async function startAutoPublish(
 }
 
 /**
- * デタッチ処理
+ * Detaches the voice bridge.
  */
 async function detachInternal(state: AttachmentState, logger: LoggerWrapper) {
   const client = state.agent
 
-  // 送信ループ停止
+  // Stop the send loop.
   state.abortController?.abort()
   state.abortController = undefined
 
-  // publisher 停止
+  // Stop the publisher.
   if (state.isPublishing) {
     try {
       await state.transport.stopAudioPublisher()
@@ -232,11 +232,11 @@ async function detachInternal(state: AttachmentState, logger: LoggerWrapper) {
     }
   }
 
-  // 受信解除
+  // Remove the receive handler.
   state.removeListener?.()
   state.removeListener = undefined
 
-  // メソッド復元
+  // Restore patched methods.
   if (client.sendVoiceFrame && state.original.sendVoiceFrame) {
     client.sendVoiceFrame = state.original.sendVoiceFrame
   }
@@ -244,7 +244,7 @@ async function detachInternal(state: AttachmentState, logger: LoggerWrapper) {
     client.muteVoice = state.original.muteVoice
   }
 
-  // 登録解除
+  // Remove the attachment registration.
   const inner = attachments.get(client)
   inner?.delete(state.transport)
 

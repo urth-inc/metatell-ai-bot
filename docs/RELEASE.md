@@ -1,17 +1,19 @@
-# リリースプロセス
+# Release Process
 
-このプロジェクトはpnpm、changesets、npm OIDC trusted publishingを使用してリリースを管理しています。
+This repository uses pnpm, Changesets, and npm OIDC trusted publishing.
 
-## リリースワークフロー概要
+## Workflows
 
-1. **release.yml**: メインワークフロー（チェンジセット作成、バージョンPR作成・マージ、publish.yml呼び出し）
-2. **publish.yml**: 再利用可能ワークフロー（npmへの公開とGitHubリリース作成）
+1. `release.yml`: creates changesets, opens the version PR, merges it, and
+   invokes publishing.
+2. `publish.yml`: reusable workflow that publishes packages to npm and creates
+   GitHub releases.
 
-## 初回セットアップ
+## First-Time Setup
 
-### 1. スコープパッケージの公開設定
+### Package Publish Settings
 
-初回公開時は各パッケージの`package.json`に以下の設定が必要です：
+Each public package must include:
 
 ```json
 "publishConfig": {
@@ -20,120 +22,81 @@
 }
 ```
 
-### 2. npm OIDC Trusted Publisher の設定
+### npm Trusted Publishers
 
-各パッケージでOIDC trusted publisherを設定する必要があります：
+Configure OIDC trusted publishing for each package:
 
-1. [npmjs.com](https://www.npmjs.com) にログイン
-2. 各パッケージの設定ページへ移動：
-   - [@metatell/bot-core](https://www.npmjs.com/package/@metatell/bot-core/access)
-   - [@metatell/bot-sdk](https://www.npmjs.com/package/@metatell/bot-sdk/access)
-   - [@metatell/bot-cli](https://www.npmjs.com/package/@metatell/bot-cli/access)
-   - [@metatell/bot-realtime](https://www.npmjs.com/package/@metatell/bot-realtime/access)
-3. "Publishing access" → "Trusted Publishers" セクションで設定
-4. "GitHub Actions" を選択して以下を入力：
-   - **Organization/Username**: `urth-inc`
-   - **Repository**: `metatell-ai-bot`
-   - **Workflow file name**: `release.yml` （注意：publish.ymlを呼び出す呼び出し元のrelease.ymlを指定）
-   - **Environment name**: (空欄のまま)
+- [@metatell/bot-core](https://www.npmjs.com/package/@metatell/bot-core/access)
+- [@metatell/bot-sdk](https://www.npmjs.com/package/@metatell/bot-sdk/access)
+- [@metatell/bot-cli](https://www.npmjs.com/package/@metatell/bot-cli/access)
+- [@metatell/bot-realtime](https://www.npmjs.com/package/@metatell/bot-realtime/access)
 
-### 3. GitHub リポジトリの設定
+Use these trusted publisher settings:
 
-NPM_TOKENは不要です。OIDCが自動的に認証を処理します。
+| Field | Value |
+| --- | --- |
+| Organization or username | `urth-inc` |
+| Repository | `metatell-ai-bot` |
+| Workflow file name | `release.yml` |
+| Environment name | Leave empty |
 
-## 開発フロー
+An `NPM_TOKEN` secret is not required for publishing through OIDC.
 
-### 1. 変更の記録
+### GitHub Actions Permissions
 
-開発中に変更を記録：
+GitHub Actions must have read and write permissions:
+
+1. Open repository settings.
+2. Go to Actions > General > Workflow permissions.
+3. Select "Read and write permissions".
+
+## Development Flow
+
+Create a changeset for user-facing package changes:
 
 ```bash
-# changeset を作成
 pnpm changeset
-
-# 対話的に以下を選択：
-# 1. 変更したパッケージを選択
-# 2. バージョンタイプを選択：
-#    - patch: バグ修正
-#    - minor: 新機能（後方互換性あり）
-#    - major: 破壊的変更
-# 3. 変更内容の説明を入力
-
-# コミット
-git add .changeset/
-git commit -m "chore: add changeset for [変更内容]"
-git push
 ```
 
-### 2. リリースの実行
+Commit the generated `.changeset/` file with the code or documentation change.
 
-リリース担当者が実行：
+## Running a Release
 
-1. [GitHub Actions](https://github.com/urth-inc/metatell-ai-bot/actions/workflows/release.yml) へアクセス
-2. "Run workflow" をクリック
-3. 設定：
-   - Branch: `develop`
-   - Semver bump type: `patch`、`minor`、または `major` を選択
-4. "Run workflow" をクリック
+1. Open the `release.yml` workflow in GitHub Actions.
+2. Click "Run workflow".
+3. Select the `develop` branch.
+4. Select the semver bump type: `patch`, `minor`, or `major`.
+5. Run the workflow.
 
-### 3. リリースプロセス
+The release workflow creates a version PR, merges it after checks pass, waits for
+the merge to complete, and then invokes `publish.yml`.
 
-自動的に以下が実行されます：
+## Troubleshooting
 
-1. **release.yml ワークフロー**：
-   - コミット履歴から自動的にチェンジセットを生成（create-changeset.mjs）
-   - changesets/actionでバージョン更新PRを作成
-   - PRを自動マージ（gh pr merge --auto --merge）
-   - マージ完了を待機（最大10分）
-   - publish.ymlワークフローを呼び出し
+### First Publish Returns E404
 
-2. **publish.yml ワークフロー**（release完了後に自動実行）：
-   - 最新の`develop`ブランチをチェックアウト
-   - 依存関係をインストール（pnpm install）
-   - ワークスペース全体をビルド（pnpm build）
-   - changesets/actionでnpmへ公開（OIDC認証、Provenance付き）
-   - GitHub Releaseを自動作成
-   - バージョンタグを作成
+Scoped public packages need `publishConfig.access` set to `public`. Add the
+package publish settings, merge the PR, and rerun the release workflow.
 
-## トラブルシューティング
+### npm Publish Returns E403
 
-### 初回パッケージ公開エラー
+Check these settings:
 
-エラー: `E404 Not Found - PUT https://registry.npmjs.org/@metatell%2fbot-* - Not found`
+- The npm trusted publisher is configured for the package.
+- The workflow file name is `release.yml`.
+- The workflow is running from the `develop` branch.
+- The package name in `package.json` matches the npm package.
 
-原因：スコープパッケージ（@組織名/*）の初回公開時に発生
+### GitHub Integration Permission Error
 
-対策：
-1. 各パッケージの`package.json`に`publishConfig`を追加：
-   ```json
-   "publishConfig": {
-     "access": "public",
-     "registry": "https://registry.npmjs.org/"
-   }
-   ```
-2. コミットしてPRを作成・マージ
-3. リリースワークフローを再実行
+If GitHub Actions reports `Resource not accessible by integration`, confirm the
+repository workflow permissions are set to read and write.
 
-### npm公開エラー（E403）
+## Notes
 
-エラー: `npm error code E403`
-
-原因と対策：
-1. Trusted Publisherが未設定 → 上記のセットアップ手順を確認
-2. ワークフロー名が一致しない → `release.yml` （呼び出し元）であることを確認
-3. ブランチが異なる → `develop` ブランチから実行
-
-### 権限エラー
-
-エラー: `Error: HttpError: Resource not accessible by integration`
-
-対策：リポジトリ設定でGitHub Actionsの権限を確認：
-- Settings → Actions → General → Workflow permissions
-- "Read and write permissions" を選択
-
-## 注意事項
-
-- npm CLI v11.5.1以降が必要（GitHub Actionsでは自動）
-- セルフホストランナーはサポートされていません
-- 各パッケージに1つのtrusted publisherのみ設定可能
-- OIDCは`npm publish`のみに適用（installには従来の認証が必要）
+- npm CLI 11.5.1 or later is required. GitHub Actions installs the required
+  version.
+- Self-hosted runners are not supported for the publishing workflow.
+- Each npm package can have one trusted publisher.
+- OIDC publishing applies to `npm publish`; dependency installation uses normal
+  npm registry access.

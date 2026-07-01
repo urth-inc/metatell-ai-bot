@@ -36,7 +36,7 @@ class RateLimitedQueue {
   private rates = new Map<string, number>()
 
   async execute(_key: string, fn: () => Promise<void>): Promise<void> {
-    // シンプルなレート制限実装
+    // Simple rate limiting implementation.
     await fn()
   }
 
@@ -89,8 +89,8 @@ interface MessageEventData {
   senderId?: string
 }
 
-// 組織アバターもavatarIdも解決できない場合のフォールバック。
-// 非UUIDのため spawn 時に個人アバター（storage URL）として扱われ、接続を止めない。
+// Fallback used when neither an organization avatar nor avatarId can be resolved.
+// Because this is not a UUID, spawn treats it as a personal avatar from storage and keeps the connection alive.
 const DEFAULT_FALLBACK_AVATAR_ID = 'default'
 
 // Create client options
@@ -100,9 +100,9 @@ export interface CreateClientOptions {
   token?: string
   username?: string
   avatarId?: string
-  /** avatarIdが組織アバター(UUID)の場合に spawn へ渡す gltf URL。 */
+  /** GLTF URL passed to spawn when avatarId is an organization avatar UUID. */
   avatarSrc?: string
-  /** 組織アバターもavatarIdも無い場合に使うフォールバックアバターid（非UUID＝個人アバター扱い）。 */
+  /** Fallback avatar ID used when neither an organization avatar nor avatarId is available. Non-UUID values are treated as personal avatars. */
   defaultAvatarId?: string
   debug?: boolean
 }
@@ -132,25 +132,25 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     // Initialize logger
     this.logger = getLogger('MetatellClient')
 
-    // デバッグモードの場合、ロギングを有効化
+    // Enable logging in debug mode.
     if (options.debug) {
       process.env.DEBUG = 'metatell:*'
     }
 
-    // CoreServiceFactoryを初期化
+    // Initialize CoreServiceFactory.
     this.serviceFactory = new CoreServiceFactory({
       serverUrl: options.serverUrl,
-      hubUrl: options.serverUrl.replace(/^ws/, 'http'), // WebSocket URLからHTTP URLに変換
+      hubUrl: options.serverUrl.replace(/^ws/, 'http'), // Convert WebSocket URL to HTTP URL.
       hubId: options.roomId,
       profile: {
         displayName: options.username || 'MetatellBot',
-        avatarId: options.avatarId || '', // 後で組織アバターから取得
+        avatarId: options.avatarId || '', // Resolved from the organization avatar later.
       },
       botAccessKey: options.token,
       debug: options.debug || false,
     })
 
-    // 必要なサービスを取得
+    // Resolve required services.
     const container = this.serviceFactory.getContainer()
     this.connectionManager = container.get(ConnectionManager) as IConnectionManager
     this.messageService = container.get(MessageService) as IMessageService
@@ -162,14 +162,14 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     this.eventBus = container.get(EventBus) as IEventBus
     this.configProvider = container.get(ConfigurationProvider) as IConfigurationProvider
 
-    // デバッグモードの場合、AppSettingsのログレベルを変更
+    // Update AppSettings log level in debug mode.
     if (options.debug) {
       const appSettings = container.get(AppSettings)
       ;(appSettings as unknown as { setLogLevel: (level: string) => void }).setLogLevel('debug')
       ;(appSettings as unknown as { setDebugMode: (enabled: boolean) => void }).setDebugMode(true)
     }
 
-    // イベントのプロキシ設定
+    // Set up event proxies.
     this.setupEventProxies()
 
     // Voice mute state synchronization
@@ -180,8 +180,8 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
   /**
    * Parse mention from message body
-   * Format: [@displayName](session-id) message
-   * Example: [@MetatellCLI](b754ca96-d395-4b80-adb1-77cb0240a43d) hello
+   * Format: `[@displayName](session-id) message`
+   * Example: `[@MetatellCLI](b754ca96-d395-4b80-adb1-77cb0240a43d) hello`
    */
   private parseMessageMention(body: string): {
     text: string
@@ -207,7 +207,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
   }
 
   private setupEventProxies(): void {
-    // Coreのイベントをクライアントイベントにマッピング
+    // Map core events to client events.
     this.eventBus.on(SystemEvents.CONNECTION_ESTABLISHED, () => {
       this.emit('connected')
     })
@@ -220,15 +220,15 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       const messageData = data as MessageEventData
       this.emit('message', messageData)
 
-      // チャットメッセージの場合、詳細な情報を解析して別イベントを発火
+      // For chat messages, parse detailed information and emit a separate event.
       if (messageData.type === 'chat' && messageData.body) {
         const parsed = this.parseMessageMention(messageData.body)
 
-        // PresenceManagerから送信者の情報を取得
+        // Get sender information from PresenceManager.
         const users = this.presenceManager.getUsers()
         const sender = users.find((u) => u.id === messageData.senderId)
 
-        // デバッグ情報
+        // Debug information.
         if (this.options.debug) {
           this.logger.debug('Message sender lookup:', {
             senderId: messageData.senderId,
@@ -253,9 +253,9 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     })
 
     this.eventBus.on(SystemEvents.USER_JOINED, (data: unknown) => {
-      // PresenceUserデータをUser型に変換
+      // Convert PresenceUser data to the User type.
       const presenceUser = data as import('../interfaces/IPresenceManager.js').PresenceUser
-      // UserAvatarManagerからアバター情報を取得
+      // Get avatar information from UserAvatarManager.
       const avatar = this.userAvatarManager.getUser(presenceUser.id)
 
       const user: User = {
@@ -266,14 +266,14 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         rotation: avatar?.rotation,
       }
       this.emit('user-join', user)
-      // 新しいユーザーが入室したときにアバターを再同期
+      // Resync the avatar when a new user enters the room.
       this.resyncAvatarForNewUser()
     })
 
     this.eventBus.on(SystemEvents.USER_LEFT, (data: unknown) => {
-      // PresenceUserデータをUser型に変換
+      // Convert PresenceUser data to the User type.
       const presenceUser = data as import('../interfaces/IPresenceManager.js').PresenceUser
-      // UserAvatarManagerからアバター情報を取得
+      // Get avatar information from UserAvatarManager.
       const avatar = this.userAvatarManager.getUser(presenceUser.id)
 
       const user: User = {
@@ -289,7 +289,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
   private async resyncAvatarForNewUser(): Promise<void> {
     try {
-      // アバターがスポーンされている場合のみ再同期
+      // Resync only when the avatar has been spawned.
       if (this.avatarController.getState()) {
         await this.avatarController.resyncAvatar()
         this.logger.debug('Avatar resynced for new user')
@@ -306,39 +306,39 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         hubId: this.options.roomId,
       })
 
-      // 組織情報を取得
+      // Fetch organization information.
       const orgInfo = await this.organizationService.getOrganizationInfo(
         this.options.serverUrl.replace(/^ws/, 'http'),
         this.options.roomId,
       )
 
-      // アバターIDが指定されていない場合、組織アバターから選択
+      // Select an organization avatar when no avatar ID is specified.
       let avatarId = this.options.avatarId
-      // 明示指定された gltf URL（組織アバターUUIDを直接指定する場合に spawn へ渡す）
+      // Explicit GLTF URL passed to spawn when an organization avatar UUID is provided directly.
       let avatarUrl: string | undefined = this.options.avatarSrc
 
       if (!avatarId && orgInfo.organizationId) {
         try {
-          // 組織アバター一覧を取得
+          // Fetch organization avatars.
           const avatars = await this.organizationService.fetchOrganizationAvatars(
             this.options.serverUrl.replace(/^ws/, 'http'),
             orgInfo.organizationId,
           )
 
           if (avatars.length > 0) {
-            // 最初のアバターを使用
+            // Use the first avatar.
             const defaultAvatar = avatars[0]
             avatarId = defaultAvatar.id
             avatarUrl = defaultAvatar.gltf.avatar
           }
         } catch (error) {
-          // 組織アバター取得に失敗した場合はスキップ
+          // Continue if organization avatar fetching fails.
           this.logger.debug('Failed to fetch organization avatars', error)
         }
       }
 
-      // 組織アバターが無く、avatarIdも未指定の場合はデフォルトアバターにフォールバックする。
-      // 非UUIDのidは個人アバター扱いとなり spawn 時に storage URL が組まれるため、接続を止めない。
+      // Fall back to the default avatar when no organization avatar or avatarId is available.
+      // Non-UUID IDs are treated as personal avatars, so spawn builds a storage URL and keeps connecting.
       if (!avatarId) {
         avatarId = this.options.defaultAvatarId ?? DEFAULT_FALLBACK_AVATAR_ID
         this.logger.warn(
@@ -347,9 +347,9 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         )
       }
 
-      // アバターをスポーン
+      // Spawn the avatar.
       if (avatarId) {
-        // 設定を更新
+        // Update configuration.
         const config = this.configProvider.getConfiguration()
         config.profile.avatarId = avatarId
         if (avatarUrl) {
@@ -359,7 +359,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         await this.avatarController.spawn(avatarId, undefined, avatarUrl)
       }
 
-      // ロビーからルームへ遷移
+      // Move from the lobby into the room.
       const hubChannel = this.connectionManager.getHubChannel()
       if (hubChannel) {
         hubChannel.push('events:entering', {})
@@ -374,7 +374,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         })
       }
     } catch (error) {
-      // エラーを適切なタイプに変換
+      // Convert the error to the appropriate type.
       if (error instanceof Error && error.message.includes('auth')) {
         throw new AuthError('AUTH_FAILED', 'Authentication failed', error)
       }
@@ -392,17 +392,17 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     },
 
     getNearbyUsers: async (radius: number = 10): Promise<User[]> => {
-      // 現在のアバター位置を取得
+      // Get the current avatar position.
       const currentPosition = this.avatar.getPosition()
       if (!currentPosition) {
-        // アバターがスポーンされていない場合は全ユーザーを返す
+        // Return all users when the avatar has not been spawned.
         return this.room.getUsers()
       }
 
-      // UserAvatarManagerから距離内のユーザーを取得
+      // Get users within range from UserAvatarManager.
       const nearbyAvatars = this.userAvatarManager.getUsersInRange(currentPosition, radius)
 
-      // UserAvatarをUser型に変換
+      // Convert UserAvatar values to the User type.
       return nearbyAvatars.map((avatar) => ({
         id: avatar.id,
         name: avatar.nickname || avatar.id.split('#')[0] || avatar.id,
@@ -431,14 +431,14 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         reply: (text: string) => Promise<void>
       }) => void,
     ): void => {
-      // メッセージ受信イベントをサブスクライブ
+      // Subscribe to message received events.
       this.eventBus.on(SystemEvents.MESSAGE_RECEIVED, async (data: unknown) => {
         const messageData = data as MessageEventData
 
         if (messageData.type === 'chat' && messageData.body) {
           const parsed = this.parseMessageMention(messageData.body)
 
-          // PresenceManagerから送信者の情報を取得
+          // Get sender information from PresenceManager.
           const users = this.presenceManager.getUsers()
           const sender = users.find((u) => u.id === messageData.senderId)
           const senderName = sender?.profile?.displayName || sender?.id.split('#')[0] || 'Unknown'
@@ -464,23 +464,23 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
   readonly avatar = {
     select: async (assetId: string): Promise<void> => {
-      // アバターを変更するには再度spawnを呼び出す
+      // Changing avatars requires calling spawn again.
       const state = this.avatarController.getState()
 
       try {
-        // まず通常のアバターとしてspawnを試みる
+        // Try spawning as a regular avatar first.
         await this.avatarController.spawn(assetId, state?.position)
       } catch (error) {
-        // avatarSrc URLが必要というエラーの場合のみ、組織アバターとして処理
+        // Treat it as an organization avatar only when avatarSrc is required.
         if (
           error instanceof Error &&
           error.message.includes('Organization avatar requires avatarSrc URL')
         ) {
-          // キャッシュをチェック
+          // Check the cache.
           let avatarSrc = this.orgAvatarUrlCache.get(assetId)
 
           if (!avatarSrc) {
-            // キャッシュにない場合はOrganizationServiceから取得
+            // Fetch from OrganizationService when the URL is not cached.
             const hubUrl = this.configProvider.getConfiguration().hubUrl
             const orgInfo = await this.organizationService.getOrganizationInfo(
               hubUrl,
@@ -502,17 +502,17 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
             }
 
             avatarSrc = targetAvatar.gltf.avatar
-            // URLをキャッシュに保存
+            // Save the URL to the cache.
             this.orgAvatarUrlCache.set(assetId, avatarSrc)
             this.logger.debug('Cached organization avatar URL', { assetId, avatarSrc })
           } else {
             this.logger.debug('Using cached organization avatar URL', { assetId, avatarSrc })
           }
 
-          // avatarSrc付きで再度spawnを試みる
+          // Retry spawn with avatarSrc.
           await this.avatarController.spawn(assetId, state?.position, avatarSrc)
         } else {
-          // その他のエラーはそのまま再スロー
+          // Re-throw all other errors.
           throw error
         }
       }
@@ -520,7 +520,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
     play: async (animation: Animation): Promise<void> => {
       try {
-        // アニメーションオプションを変換
+        // Convert animation options.
         const playOptions = {
           loop: animation.loop || false,
           duration: animation.duration,
@@ -530,8 +530,8 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         if ('id' in animation && animation.id) {
           await this.avatarController.playAnimation(animation.id, playOptions)
         } else if ('url' in animation && animation.url) {
-          // URLベースのアニメーションは現在のインターフェースではサポートされていない
-          // カスタムアニメーションとして扱う必要がある
+          // URL-based animations are not supported by the current interface.
+          // They must be handled as custom animations.
           throw new NotFoundError(
             'ANIMATION_NOT_FOUND',
             'URL-based animations are not yet supported',
@@ -554,12 +554,12 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     },
 
     rotateTo: async (rotation: Euler): Promise<void> => {
-      // Euler角（度数法）をラジアンに変換
+      // Convert Euler angles in degrees to radians.
       const xRad = (rotation.x * Math.PI) / 180
       const yRad = (rotation.y * Math.PI) / 180
       const zRad = (rotation.z * Math.PI) / 180
 
-      // オイラー角からクォータニオンに変換（ZYX順）
+      // Convert Euler angles to a quaternion in ZYX order.
       const cx = Math.cos(xRad / 2)
       const sx = Math.sin(xRad / 2)
       const cy = Math.cos(yRad / 2)
@@ -574,26 +574,26 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         w: cx * cy * cz + sx * sy * sz,
       }
 
-      // AvatarControllerのrotateメソッドを使用
+      // Use the AvatarController rotate method.
       await this.avatarController.rotate(quaternion)
     },
 
     lookAt: async (target: Vec3): Promise<void> => {
       await this.rateLimiter.execute('looks', async () => {
-        // 現在位置を取得
+        // Get the current position.
         const state = this.avatarController.getState()
         if (!state) {
           throw new MetatellError('AVATAR_NOT_SPAWNED', 'Avatar is not spawned')
         }
 
-        // ターゲットへの方向ベクトルを計算
+        // Calculate the direction vector to the target.
         const dx = target.x - state.position.x
         const dz = target.z - state.position.z
 
-        // Y軸周りの回転角度を計算（ラジアン）
+        // Calculate the rotation angle around the Y axis in radians.
         const yRotation = Math.atan2(dx, dz)
 
-        // ラジアンからクォータニオンに変換（Y軸回転のみ）
+        // Convert radians to a quaternion for Y-axis rotation only.
         const halfAngle = yRotation / 2
         const quaternion = {
           x: 0,
@@ -602,7 +602,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
           w: Math.cos(halfAngle),
         }
 
-        // 回転を適用
+        // Apply the rotation.
         await this.avatarController.rotate(quaternion)
       })
     },
@@ -613,14 +613,14 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     },
 
     getAvailableAssets: async (): Promise<AvatarAsset[]> => {
-      // organizationInfoを取得するには、hubUrlとhubIdが必要
+      // hubUrl and hubId are required to fetch organizationInfo.
       const config = this.configProvider.getConfiguration()
       const orgInfo = await this.organizationService.getOrganizationInfo(
         config.hubUrl,
         config.hubId,
       )
       if (!orgInfo.organizationId) {
-        // 組織IDがない場合は空配列を返す
+        // Return an empty array when no organization ID is available.
         return []
       }
 
@@ -637,7 +637,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     },
 
     getAvailableAnimations: async (): Promise<Animation[]> => {
-      // 現在のアバターIDを取得
+      // Get the current avatar ID.
       const state = this.avatarController.getState()
       if (!state) {
         return []
@@ -663,15 +663,15 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
   readonly voice = {
     playPcm: async (_input: unknown, _options: PcmInputOptions): Promise<PlaybackControls> => {
-      // 音声機能は別パッケージ（@metatell/realtime）で実装
-      // ここではプレースホルダーを返す
+      // Voice features are implemented in a separate package, @metatell/realtime.
+      // Return a placeholder here.
       const finishedPromise = new Promise<void>((resolve) => {
         setTimeout(resolve, 1000)
       })
 
       return {
         stop: async () => {
-          // 音声停止の実装は別パッケージで行う
+          // Audio stopping is implemented in a separate package.
         },
         finished: finishedPromise,
       }
@@ -706,7 +706,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
                 x: (avatarState.rotation.x * 180) / Math.PI,
                 y: (avatarState.rotation.y * 180) / Math.PI,
                 z: (avatarState.rotation.z * 180) / Math.PI,
-                w: 1, // 簡略化
+                w: 1, // Simplified.
               }
             : undefined,
         }
@@ -745,20 +745,20 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
   }
 
   getSessionId(): string | null {
-    // 接続マネージャーからセッションIDを取得
+    // Get the session ID from the connection manager.
     return this.connectionManager.getSessionId()
   }
 
   private applyVoiceMute(muted: boolean): void {
     if (this.voiceMuted === muted) {
-      // 状態が変化しない場合は何もしない
+      // Do nothing when the state has not changed.
       return
     }
 
     this.voiceMuted = muted
     this.logger.info(`Voice ${muted ? 'muted' : 'unmuted'}`)
 
-    // クライアントイベントとして通知
+    // Notify as a client event.
     this.emit('voice:mute-changed', { muted })
   }
 
@@ -774,19 +774,19 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       return
     }
 
-    // 実装は外部パッケージからランタイムでパッチされる
+    // The implementation is patched at runtime by an external package.
     throw new Error('Voice functionality not available - enable voice first with enableVoice()')
   }
 
-  // EventEmitterのメソッドをオーバーライド
+  // Override EventEmitter methods.
   on<E extends keyof MetatellClientEvents>(event: E, listener: MetatellClientEvents[E]): this {
-    // EventEmitterは汎用的な型を期待するため、型変換が必要
-    // string型にキャストして、リスナーは関数型として扱う
+    // EventEmitter expects generic types, so casting is required.
+    // Cast the event to string and treat the listener as a function.
     return super.on(event as string, listener as (...args: unknown[]) => void)
   }
 
   off<E extends keyof MetatellClientEvents>(event: E, listener: MetatellClientEvents[E]): this {
-    // EventEmitterは汎用的な型を期待するため、型変換が必要
+    // EventEmitter expects generic types, so casting is required.
     return super.off(event as string, listener as (...args: unknown[]) => void)
   }
 }
@@ -798,7 +798,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
  * @throws {MetatellError} If configuration is invalid
  */
 export function createMetatellClient(options: CreateClientOptions): MetatellClient {
-  // 設定バリデーション
+  // Validate configuration.
   if (!options.serverUrl || !options.roomId) {
     throw new MetatellError('INVALID_CONFIG', 'serverUrl and roomId are required')
   }

@@ -42,13 +42,13 @@ export class WebSocketConnectionManager implements IConnectionManager {
       // Create Phoenix socket (no authentication here, just connect)
       const socketUrl = new URL(config.serverUrl)
       socketUrl.pathname = '/socket'
-      // プロトコルがhttpまたはhttpsの場合のみ変換
+      // Convert only when the protocol is http or https.
       if (socketUrl.protocol === 'http:') {
         socketUrl.protocol = 'ws:'
       } else if (socketUrl.protocol === 'https:') {
         socketUrl.protocol = 'wss:'
       }
-      // すでにws:またはwss:の場合はそのまま使用
+      // Leave ws: and wss: URLs unchanged.
 
       this.socket = new Socket(socketUrl.toString(), {
         params: {
@@ -156,10 +156,10 @@ export class WebSocketConnectionManager implements IConnectionManager {
       this.hubChannel = this.socket?.channel(`hub:${hubId}`, channelParams) || null
 
       if (this.hubChannel) {
-        // デバッグモードの場合、主要なイベントを監視
+        // Watch key events in debug mode.
         if (this.appSettings.debugMode) {
-          // PhoenixのChannelは特定のイベントに対してのみリスナーを設定可能
-          // 全てのイベントを監視するには、個別にリスナーを追加する必要がある
+          // Phoenix channels can register listeners only for specific events.
+          // Add listeners individually to observe every event needed here.
           const debugEvents = [
             'phx_reply',
             'presence_state',
@@ -189,7 +189,7 @@ export class WebSocketConnectionManager implements IConnectionManager {
           .receive('ok', (response: unknown) => {
             this.logger.debug('Joined hub channel:', { response })
 
-            // session_idまたはsessionIdを探す
+            // Look for session_id or sessionId.
             const sessionResponse = response as Record<string, unknown>
             this.sessionId =
               ((sessionResponse.session_id ||

@@ -1,187 +1,176 @@
 # @metatell/bot-sdk
 
-MetaTell Bot を TypeScript/Node.js で構築するための公式 SDK。
+High-level TypeScript SDK for building Node.js bots that connect to metatell
+rooms.
 
-## 必要要件
+## Requirements
 
-- Node.js 20 以上（推奨: 22+）
-- ESM モジュール
-- TypeScript 5.0+（TS プロジェクトの場合）
+- Node.js 20 or later. Node.js 22 is recommended.
+- ESM runtime.
+- TypeScript 5 or later for TypeScript projects.
 
-## インストール
+## Install
 
 ```bash
 npm install @metatell/bot-sdk
-# または
+# or
 pnpm add @metatell/bot-sdk
-# または
+# or
 yarn add @metatell/bot-sdk
 ```
 
-## クイックスタート
+Install `@metatell/bot-realtime` as well for LiveKit voice transport:
 
-```typescript
+```bash
+npm install @metatell/bot-sdk @metatell/bot-realtime
+```
+
+## Quick Start
+
+```ts
 import { createMetatellClient } from '@metatell/bot-sdk'
 
 async function main() {
   const client = createMetatellClient({
     serverUrl: 'wss://metatell.app',
     roomId: 'YOUR_ROOM_ID',
-    username: 'MyBot',
-    // token: process.env.METATELL_TOKEN, // 認証が必要な環境では設定
-    debug: true, // 詳細ログ
+    username: 'GuideBot',
+    token: process.env.METATELL_TOKEN,
+    debug: true,
   })
 
-  // 接続
   await client.connect()
 
-  // ボット情報
   const botInfo = await client.getInfo()
-  console.log('接続しました:', botInfo.name)
+  console.log('Connected as:', botInfo.name)
 
-  // メッセージ処理（メンションにのみ応答）
   client.chat.onMessage(async ({ from, text, mention, reply }) => {
     if (mention?.sessionId === botInfo.sessionId) {
-      await reply(`こんにちは ${from.name ?? ''}`.trim())
+      await reply(`Hello ${from.name ?? 'there'}. You said: ${text}`)
     }
   })
 
-  // アバター選択と操作
-  await client.avatar.select('default-avatar')
   await client.avatar.moveTo({ x: 1, y: 1.6, z: -2 })
   await client.avatar.rotateTo({ x: 0, y: 180, z: 0 })
   await client.avatar.play({ id: 'wave', loop: false })
 }
 
-main().catch(console.error)
-```
-
-## 主な機能
-
-- メッセージ送受信（`client.chat.send`, `client.chat.onMessage`）
-- ルーム・プレゼンス（`room.getUsers`, `getUsers`）
-- アバター操作（選択・移動・回転・アニメーション再生）
-- 型付きイベント（`MetatellClientEvents`）
-- レート制御・ロギング・エラー階層（再試行判定に便利）
-
-### 接続管理
-
-```typescript
-await client.connect()
-await client.disconnect()
-
-// 接続状態
-const status = client.getStatus() // { connected: boolean, connecting: boolean }
-
-// ボット情報
-const info = await client.getInfo() // { name, version, roomId, sessionId? }
-```
-
-### チャット
-
-```typescript
-// メッセージ送信
-await client.chat.send('こんにちは！')
-
-// メッセージ購読 + 返信
-client.chat.onMessage(async ({ from, text, reply }) => {
-  console.log(`${from.name}: ${text}`)
-  await reply('メッセージありがとうございます！')
+main().catch((error) => {
+  console.error(error)
+  process.exit(1)
 })
 ```
 
-### アバター制御
+## Main Features
 
-```typescript
-// アバター選択
+- Chat send and receive APIs.
+- Room presence and nearby-user queries.
+- Avatar selection, movement, rotation, and animation playback.
+- Typed events through `MetatellClientEvents`.
+- Error classes for authentication, network, not found, rate limit, and audio
+  format failures.
+- Logging provider hooks.
+- Optional realtime voice integration through `enableVoice()`.
+
+## Connection
+
+```ts
+await client.connect()
+await client.disconnect()
+
+const status = client.getStatus()
+const info = await client.getInfo()
+const sessionId = client.getSessionId()
+```
+
+## Chat
+
+```ts
+await client.chat.send('Hello from a bot.')
+
+client.chat.onMessage(async ({ from, text, reply }) => {
+  console.log(`${from.name ?? from.id}: ${text}`)
+  await reply('Thanks for the message.')
+})
+```
+
+## Avatar Control
+
+```ts
 await client.avatar.select('avatar-asset-id')
-
-// 移動/回転（度数法）
 await client.avatar.moveTo({ x: 10, y: 0, z: 5 })
 await client.avatar.rotateTo({ x: 0, y: 90, z: 0 })
-
-// アニメーション再生
+await client.avatar.lookAt({ x: 0, y: 1.6, z: 0 })
 await client.avatar.play({ id: 'wave', loop: true, duration: 5000 })
 
-// 利用可能なアセット/アニメーション
 const assets = await client.avatar.getAvailableAssets()
 const animations = await client.avatar.getAvailableAnimations()
 ```
 
-### ルームとプレゼンス
+`moveTo()` uses room coordinates. `rotateTo()` uses Euler angles in degrees.
 
-```typescript
-// すべてのユーザー
+## Room Presence
+
+```ts
 const users = await client.room.getUsers()
-
-// 近傍ユーザー（既定 10m）
 const nearby = await client.room.getNearbyUsers(10)
-
-// 現在キャッシュしているユーザー（同期）
 const cached = client.getUsers()
 ```
 
-### イベント
+## Events
 
-```typescript
+```ts
 client.on('connected', () => {})
 client.on('disconnected', (reason) => {})
 client.on('chat-message', (message) => {})
 client.on('user-join', (user) => {})
 client.on('user-leave', (user) => {})
+client.on('voice:mute-changed', ({ muted }) => {})
 ```
 
-注記: 現状 `error` イベントの発火は限定的で、主に例外としてスローされます。
+## Voice
 
-#### 音声イベント
+```ts
+import { enableVoice } from '@metatell/bot-sdk'
 
-```typescript
-client.on('voice:connected', () => {})
-client.on('voice:disconnected', () => {})
-client.on('voice:error', (err) => {})
-client.on('voice:frame-received', ({ participantId, pcmData }) => {})
-
-// ミュート状態の変化
-client.on('voice:mute-changed', ({ muted }) => {
-  console.log('microphone muted:', muted)
+const voice = await enableVoice(client, {
+  transport: { type: 'livekit' },
+  sampleRate: 48000,
+  channels: 1,
+  handlers: {
+    onRemotePcm: async (pcm, meta) => {
+      console.log('audio frame from', meta.fromIdentity, pcm.length)
+    },
+  },
 })
 
-// ミュート要求
-await client.muteVoice(true)  // -> EventBus に 'voice:mute-changed' を emit
-await client.muteVoice(false) // -> 同上
+await voice.stop()
 ```
 
-補足: `muteVoice(muted)` は内部状態を直接変更せず、EventBus に `'voice:mute-changed'` を発行します。クライアントはこのイベントを購読して `isVoiceMuted()` を同期します。
+## Error Handling
 
-## エラーハンドリング
-
-```typescript
+```ts
 import { AuthError, NetworkError } from '@metatell/bot-sdk'
 
 try {
   await client.connect()
 } catch (error) {
   if (error instanceof AuthError) {
-    console.error('認証に失敗しました:', error.message)
+    console.error('Authentication failed:', error.message)
   } else if (error instanceof NetworkError) {
-    console.error('ネットワークエラー:', error.message)
+    console.error('Network error:', error.message)
+  } else {
+    throw error
   }
 }
 ```
 
-## ベストプラクティス
+## Related Packages
 
-1. エラーハンドリング: 接続エラーと切断を必ず処理する
-2. レート制御: `setRateLimit` で送信頻度を調整
-3. クリーンアップ: 終了時は `disconnect()`
-4. セキュリティ: トークンは環境変数で管理
+- [@metatell/bot-core](../core/README.md): core services and shared types.
+- [@metatell/bot-cli](../cli/README.md): developer CLI.
+- [@metatell/bot-realtime](../realtime/README.md): realtime voice transport.
 
 ## License
 
 MIT
-
-## 関連パッケージ
-
-- [@metatell/bot-core](../core/README.md) — コアサービス/インフラ
-- [@metatell/bot-cli](../cli/README.md) — 開発用 CLI
-- [@metatell/bot-realtime](../realtime/README.md) — リアルタイム通信

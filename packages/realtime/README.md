@@ -1,103 +1,95 @@
 # @metatell/bot-realtime
 
-MetaTell Botのリアルタイム通信レイヤー。LiveKitを使用したWebRTC通信とテスト用モックアダプターを提供します。
+Realtime transport helpers for metatell bots. The package provides LiveKit
+WebRTC transport and a mock adapter for tests and local development.
 
-## 必要要件
+## Requirements
 
-- Node.js 20 以上（推奨: 22+）
-- TypeScript 5.0+
+- Node.js 20 or later. Node.js 22 is recommended.
+- TypeScript 5 or later for TypeScript projects.
 
-## インストール
+## Install
 
 ```bash
 npm install @metatell/bot-realtime
-# または
+# or
 pnpm add @metatell/bot-realtime
-# または
+# or
 yarn add @metatell/bot-realtime
 ```
 
-## 使い方
+## Usage
 
-```typescript
-import { LiveKitAdapter } from '@metatell/bot-realtime';
+```ts
+import { LiveKitAdapter } from '@metatell/bot-realtime'
 
-// アダプター作成
-const adapter = new LiveKitAdapter();
+const adapter = new LiveKitAdapter()
 
-// イベントリスナー
 adapter.on((event) => {
   switch (event.type) {
     case 'state':
-      console.log('接続状態:', event.state);
-      break;
+      console.log('connection state:', event.state)
+      break
     case 'data':
-      console.log('データ受信:', event.topic, event.payload);
-      break;
+      console.log('data received:', event.topic, event.payload)
+      break
     case 'participant-joined':
-      console.log('ユーザー参加:', event.identity);
-      break;
+      console.log('participant joined:', event.identity)
+      break
   }
-});
+})
 
-// 接続
 await adapter.connect({
   url: 'wss://livekit.example.com',
   tokenProvider: async () => getAccessToken(),
   topics: ['control', 'events', 'transcript'],
   audioPublish: {
     sampleRate: 48000,
-    channels: 1
-  }
-});
+    channels: 1,
+  },
+})
 
-// データ送信
-await adapter.send('control', JSON.stringify({ action: 'spawn' }));
-
-// 音声配信
-await adapter.startAudioPublisher();
-await adapter.pushPcmFrame(pcmData);
+await adapter.send('control', JSON.stringify({ action: 'spawn' }))
+await adapter.startAudioPublisher()
+await adapter.pushPcmFrame(pcmData)
 ```
 
-## 主な機能
+## LiveKit Adapter
 
-### LiveKitアダプター
+Use the LiveKit adapter for room voice transport:
 
-本番環境用のLiveKit WebRTCアダプター。
-
-```typescript
+```ts
 const options = {
   url: 'wss://your-livekit-server.com',
-  tokenProvider: async () => {
-    // トークン取得ロジック
-    return token;
-  },
+  tokenProvider: async () => token,
   topics: ['control', 'events', 'transcript', 'audio'],
   audioPublish: {
-    sampleRate: 48000,  // 48kHz, 24kHz, または 16kHz
-    channels: 1,        // モノラルまたはステレオ
-  }
-};
+    sampleRate: 48000,
+    channels: 1,
+  },
+}
 ```
 
-### モックアダプター
+Supported audio sample rates are 16000, 24000, and 48000 Hz. Mono and stereo
+channels are supported.
 
-テストと開発用のモックアダプター。
+## Mock Adapter
 
-```typescript
-import { MockAdapter } from '@metatell/bot-realtime';
+Use the mock adapter for tests and local development without a LiveKit room:
 
-const mock = new MockAdapter();
+```ts
+import { MockAdapter } from '@metatell/bot-realtime'
 
-// モック動作の設定
-mock.simulateConnection();
-mock.simulateParticipant('user-123', 'Alice');
-mock.simulateData('events', { type: 'test' });
+const mock = new MockAdapter()
+
+mock.simulateConnection()
+mock.simulateParticipant('user-123', 'Alice')
+mock.simulateData('events', { type: 'test' })
 ```
 
-## イベント
+## Events
 
-```typescript
+```ts
 type RealtimeEvent =
   | { type: 'state'; state: ConnectionState }
   | { type: 'data'; topic: string; payload: Uint8Array; from?: string }

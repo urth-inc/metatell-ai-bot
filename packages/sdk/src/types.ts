@@ -3,8 +3,8 @@
  */
 
 // Basic types
-export type Vec3 = { x: number; y: number; z: number } // 単位: メートル
-export type Euler = { x: number; y: number; z: number } // 単位: 度
+export type Vec3 = { x: number; y: number; z: number } // Unit: meters.
+export type Euler = { x: number; y: number; z: number } // Unit: degrees.
 export type User = {
   id: string
   name: string | null
@@ -34,18 +34,18 @@ export type Animation = {
 export interface CreateClientOptions {
   /**
    * WebSocket server URL
-   * - Format: ws(s)://<host> （パスは不要。例: wss://metatell.app）
+   * - Format: ws(s)://<host>. No path is required. Example: wss://metatell.app
    * - For Metatell domains (metatell.app, metatell-stg.app, metatell-dev.app),
    *   tenant subdomains are automatically removed.
    *   Example: https://urth.metatell-stg.app -> wss://metatell-stg.app
    */
   serverUrl: string
   roomId: string
-  token?: string // 認証トークン（要否は環境設定に依存）
-  username?: string // ボット名
-  avatarId?: string // アバターID（未指定の場合はデフォルト）
-  debug?: boolean // デバッグモード
-  logger?: 'silent' | 'info' | 'debug' // ログレベル
+  token?: string // Authentication token. Whether it is required depends on the environment.
+  username?: string // Bot name.
+  avatarId?: string // Avatar ID. Uses the default when omitted.
+  debug?: boolean // Debug mode.
+  logger?: 'silent' | 'info' | 'debug' // Log level.
   reconnect?: { enabled?: boolean; maxDelayMs?: number }
 }
 
@@ -53,19 +53,19 @@ export interface CreateClientOptions {
 export type PcmInput = Int16Array | AsyncIterable<Int16Array> | NodeJS.ReadableStream
 
 export interface PcmInputOptions {
-  sampleRateHz: number // 16000, 24000, 48000 など
+  sampleRateHz: number // For example, 16000, 24000, or 48000.
   channels: 1 | 2
 }
 
 export interface PlaybackControls {
-  /** 現在の音声再生を停止します。 */
+  /** Stops the current audio playback. */
   stop(): Promise<void>
-  /** 再生が完了したときに解決されるPromise */
+  /** Promise that resolves when playback finishes. */
   finished: Promise<void>
 }
 
 // Type-safe event system
-// メッセージイベントデータの型定義
+// Message event data type definition.
 export interface MessageEventData {
   body?: string
   senderId?: string

@@ -13,8 +13,8 @@ export interface BotContext {
 
 export interface BotVoiceConfig {
   enabled: boolean
-  useMock?: boolean // 開発・テスト用
-  livekitUrl?: string // デフォルト: wss://livekit.metatell.app
+  useMock?: boolean // For development and testing.
+  livekitUrl?: string // Default: wss://livekit.metatell.app
   audioConfig?: {
     sampleRate?: 48000 | 24000 | 16000
     channels?: 1 | 2
@@ -31,7 +31,7 @@ export interface BotConfiguration {
   debug?: boolean
   storageUrl?: string // Avatar storage URL (defaults to storage.metatell.app)
   botAccessKey?: string // Bot access key for OAuth-required hubs
-  voice?: BotVoiceConfig // 音声通信設定
+  voice?: BotVoiceConfig // Voice communication settings.
   organizationAvatarUrl?: string // Organization avatar GLTF URL from API
 }
 
