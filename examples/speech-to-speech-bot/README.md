@@ -1,141 +1,90 @@
-# Speech-to-Speech Bot
+# Speech-to-Speech Bot Example
 
-音声認識→LLM→音声合成の流れで動作するボットの実装例です。Google Cloud Speech-to-Text、Google Gemini、Google Cloud Text-to-Speechを組み合わせて使用します。
+This example builds a speech pipeline for metatell rooms:
 
-## 🚀 セットアップ
+1. Receive room audio.
+2. Detect speech with WebRTC VAD.
+3. Transcribe with Google Cloud Speech-to-Text.
+4. Generate a response with Gemini or Dify-backed Gemini function calling.
+5. Synthesize speech with Google Cloud Text-to-Speech.
+6. Play the response back into the room.
 
-### 1. 依存関係のインストール
+## Setup
+
 ```bash
-# 依存関係のインストール
 pnpm install
-
-# TypeScriptのビルド
 pnpm build
 ```
 
-### 2. Google Cloud設定
+Enable Google Cloud APIs:
 
-1. [Google Cloud Console](https://console.cloud.google.com)でプロジェクトを作成
-2. Speech-to-Text APIとText-to-Speech APIを有効化
-3. サービスアカウントキーを作成してJSONファイルをダウンロード
-4. 環境変数に設定：
+- Speech-to-Text API.
+- Text-to-Speech API.
+
+Create a service account key and set:
+
 ```bash
-export GOOGLE_APPLICATION_CREDENTIALS="path/to/your/service-account-key.json"
+export GOOGLE_APPLICATION_CREDENTIALS="path/to/service-account-key.json"
 ```
 
-### 3. Gemini API設定
+Create a Gemini API key, then set:
 
-1. [Google AI Studio](https://makersuite.google.com/app/apikey)でAPIキーを取得
-2. `.env`ファイルを作成：
 ```bash
 cp .env.example .env
-# .envファイルを編集してGEMINI_API_KEYを設定
+export GEMINI_API_KEY=your-gemini-api-key
 ```
 
-## 📁 ファイル構造
-
-```
-examples/speech-to-speech-bot/
-├── src/
-│   ├── main.ts                    # メインエントリポイント
-│   ├── speech-to-speech-bot.ts    # メインボットクラス
-│   ├── speech-recognizer.ts       # Google Speech-to-Text
-│   ├── gemini-llm-processor.ts    # Google Gemini処理
-│   └── speech-synthesizer.ts      # Google Text-to-Speech
-├── recordings/                    # 録音ファイル保存先（自動作成）
-└── .env.example                   # 環境変数のサンプル
-```
-
-## 🎯 実行方法
+Optional Dify integration:
 
 ```bash
-# ボットを起動
-npm start <room-url>
-
-# 例
-npm start https://metatell-dev.app/scJgijz
+export DIFY_API_URL=https://api.dify.ai/v1
+export DIFY_API_KEY=your-dify-api-key
+export DIFY_APP_ID=your-dify-app-id
 ```
 
-### 使い方
+## Run
 
-- **自動音声認識**: 話しかけると自動的に文字起こしされます
-- **LLM処理**: Google Geminiが応答を生成します
-- **音声合成**: テキストが音声に変換されて再生されます
-- `q` - 終了（Ctrl+Cでも可）
+```bash
+npm start -- <room-url>
+```
 
-VAD（音声活動検出）により、発話の開始と終了を自動検出します。
-1秒以上の無音で発話区切りと判定し、処理を開始します。
+Example:
 
-## 🎨 主要コンポーネント
+```bash
+npm start -- https://metatell.app/YOUR_ROOM_ID
+```
 
-### SpeechToSpeechBot (`speech-to-speech-bot.ts`)
-- 音声認識→LLM→音声合成のパイプライン管理
-- リアルタイム音声処理
-- アバター自動追跡機能
+## Controls
 
-### SpeechRecognizer (`speech-recognizer.ts`)
-- Google Cloud Speech-to-Text API連携
-- リアルタイムストリーミング認識
-- 日本語対応
+- Speak in the room to trigger the speech pipeline.
+- Type text and press Enter to send chat input through the same response path.
+- Press `q` to quit.
 
-### GeminiLLMProcessor (`gemini-llm-processor.ts`)
-- Google Gemini API連携
-- 会話コンテキスト管理
-- プロンプトエンジニアリング
+## Files
 
-### SpeechSynthesizer (`speech-synthesizer.ts`)
-- Google Cloud Text-to-Speech API連携
-- 日本語音声合成
-- WAVフォーマット変換
+```text
+examples/speech-to-speech-bot/
+  src/main.ts
+  src/speech-to-speech-bot.ts
+  src/speech-recognizer.ts
+  src/gemini-llm-processor.ts
+  src/speech-synthesizer.ts
+  src/vad-processor.ts
+  recordings/
+  .env.example
+```
 
-## 🔧 技術的な詳細
+## Audio Format
 
-- **音声フォーマット**: 48kHz, 16bit, モノラル
-- **フレームサイズ**: 960サンプル（20ms）
-- **トランスポート**: LiveKit WebRTC（`@metatell/bot-realtime` を使用）
-- **LLMモデル**: Gemini 1.5 Pro
-- **音声認識言語**: 日本語（ja-JP）
-- **音声合成**: Wavenet音声
+- Room input: 48000 Hz, signed 16-bit PCM, mono.
+- Frame size: 960 samples for 20 ms frames.
+- Speech recognition language: `ja-JP` by default in the sample code.
+- Speech synthesis voice: `ja-JP-Chirp3-HD-Zephyr` by default in the sample code.
 
-## 🛠️ カスタマイズ
+## Notes
 
-### LLMプロンプトの変更
-
-`gemini-llm-processor.ts`のシステムプロンプトを編集して、ボットの性格や応答スタイルを変更できます。
-
-### 音声パラメータの調整
-
-`speech-synthesizer.ts`で音声の速度、ピッチ、ボリュームを調整できます。
-
-### 言語の変更
-
-各コンポーネントの言語コードを変更することで、他の言語にも対応できます。
-
-## 📝 注意事項
-
-1. **API料金**
-   - Google CloudとGoogle Geminiの使用量に応じて料金が発生します
-   - 開発時は料金アラートを設定することをお勧めします
-
-2. **レイテンシー**
-   - 音声認識→LLM→音声合成の各ステップで遅延が発生します
-   - ネットワーク環境により応答時間が変わります
-
-3. **認証情報の管理**
-   - サービスアカウントキーとAPIキーは安全に管理してください
-   - 本番環境では環境変数や秘密管理サービスを使用してください
-
-## 🐛 トラブルシューティング
-
-### 音声が認識されない場合
-- マイクの権限を確認
-- 音声レベルのしきい値を調整
-- Google Cloud APIの有効化を確認
-
-### LLMの応答が遅い場合
-- Gemini APIの状態を確認
-- モデルをGemini 1.5 Flashに変更して高速化
-
-### 音声合成が失敗する場合
-- Google Cloud APIの割り当てを確認
-- 音声フォーマットの設定を確認
+- Google Cloud and Gemini usage may incur cost. Set billing alerts during
+  development.
+- Keep service account keys and API keys out of git.
+- End-to-end latency depends on speech recognition, LLM generation,
+  text-to-speech, and network conditions.

@@ -1,49 +1,49 @@
 /**
- * フレーム処理ユーティリティ
- * ブリッジ内でのフレーム整形（chunk/pad/truncate）を提供
- * resampleは行わない（SDK側のpcm-utilsを利用してもらう）
+ * Frame processing utilities.
+ * Provides frame normalization (chunk, pad, truncate) inside the bridge.
+ * Resampling is not performed here; use SDK-side pcm-utils when needed.
  */
 
 /**
- * Uint8Array → Int16Array のビュー化（コピー回避, LE前提）
- * @param u8 - 入力バイト配列
- * @returns Int16Arrayビュー
+ * Creates an Int16Array view over a Uint8Array without copying. Assumes little-endian PCM.
+ * @param u8 - Input byte array.
+ * @returns Int16Array view.
  */
 export function toInt16View(u8: Uint8Array): Int16Array {
-  // バイト長が奇数の場合は最後の1バイトを切り捨て
+  // Drop the trailing byte when the byte length is odd.
   const length = Math.floor(u8.byteLength / 2)
   return new Int16Array(u8.buffer, u8.byteOffset, length)
 }
 
 /**
- * 入力 Int16Array を expectedSamples のフレーム群に整える
- * - 短い：zero-pad
- * - 長い：切り出し（余りもpadして出力）
- * - ちょうど：そのまま
+ * Normalizes an input Int16Array into frames of expectedSamples.
+ * - Short input: zero-pad.
+ * - Long input: chunk, and zero-pad the remainder.
+ * - Exact length: return as-is.
  *
- * @param src - 入力PCMデータ
- * @param expectedSamples - 期待されるサンプル数（480 or 960）
- * @yields 整形されたフレーム
+ * @param src - Input PCM data.
+ * @param expectedSamples - Expected sample count, usually 480 or 960.
+ * @yields Normalized frames.
  */
 export function* chunkToFrames(
   src: Int16Array,
   expectedSamples: number,
 ): Generator<Int16Array, void, unknown> {
-  // ちょうどの場合
+  // Exact length.
   if (src.length === expectedSamples) {
     yield src
     return
   }
 
-  // 長い場合：切り出し
+  // Long input: chunk into frames.
   if (src.length > expectedSamples) {
     for (let i = 0; i < src.length; i += expectedSamples) {
       const end = i + expectedSamples
       if (end <= src.length) {
-        // 完全なフレーム
+        // Complete frame.
         yield src.subarray(i, end)
       } else {
-        // 最後の端数：zero-pad
+        // Remainder: zero-pad.
         const out = new Int16Array(expectedSamples)
         out.set(src.subarray(i))
         yield out
@@ -52,17 +52,17 @@ export function* chunkToFrames(
     return
   }
 
-  // 短い場合：zero-pad
+  // Short input: zero-pad.
   const out = new Int16Array(expectedSamples)
   out.set(src)
   yield out
 }
 
 /**
- * フレーム検証用ヘルパー
- * @param frame - 検証対象のフレーム
- * @param expectedSamples - 期待されるサンプル数
- * @returns 有効なフレームかどうか
+ * Helper for frame validation.
+ * @param frame - Frame to validate.
+ * @param expectedSamples - Expected sample count.
+ * @returns Whether the frame is valid.
  */
 export function isValidFrame(frame: Int16Array, expectedSamples: number): boolean {
   return frame.length === expectedSamples

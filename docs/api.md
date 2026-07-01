@@ -1,114 +1,250 @@
-# API リファレンス（抜粋）
+# API Overview
 
-SDK は 2 層の API を提供します。
+The SDK exposes two API layers:
 
-1. 高レベル: `MetatellClient`（シンプルな利用）
-2. 低レベル: `AgentClient`（詳細制御や高度な拡張向け）
+1. `MetatellClient`: a high-level client for common bot use cases.
+2. `AgentClient`: a lower-level client for advanced control and custom integrations.
 
-## `createMetatellClient(options)` → `MetatellClient`
+Use the generated TypeDoc reference at https://sdk.metatell.io/bot/ for exact
+signatures.
 
-### Options（主な項目）
+## `createMetatellClient(options)`
 
-- `serverUrl: string` — 例: `wss://metatell.app`（パス不要）
-- `roomId: string`
-- `token?: string` — 認証トークン（要否は運用/環境に依存）
-- `username?: string`, `avatarId?: string`
-- `debug?: boolean` — 詳細ログを有効化
-- `reconnect?: { enabled?: boolean; maxDelayMs?: number }`
+Creates a high-level `MetatellClient`.
 
-### メソッド
+```ts
+import { createMetatellClient } from '@metatell/bot-sdk'
 
-- `connect(): Promise<void>`
-- `disconnect(): Promise<void>`
-- `getInfo(): Promise<{ name; version; roomId; sessionId? }>`
-- `getUsers(): User[]` — 同期取得（内部キャッシュの現在値）
-- `getSessionId(): string | null`
-- `getRateLimit(key): number | undefined` / `setRateLimit(key, perSecond)`
+const client = createMetatellClient({
+  serverUrl: 'wss://metatell.app',
+  roomId: 'YOUR_ROOM_ID',
+  username: 'GuideBot',
+  token: process.env.METATELL_TOKEN,
+})
+```
 
-### 名前空間: `room`
+### Options
 
-- `room.getUsers(): Promise<User[]>`
-- `room.getNearbyUsers(radius?: number): Promise<User[]>`
+| Option | Description |
+| --- | --- |
+| `serverUrl` | WebSocket origin for the metatell environment. Use an origin such as `wss://metatell.app`; do not include a room path. |
+| `roomId` | Target room ID. |
+| `token` | Optional access token. |
+| `username` | Optional bot display name. |
+| `avatarId` | Optional avatar asset ID. |
+| `debug` | Enables verbose SDK logs. |
+| `logger` | Custom logger implementation. |
+| `reconnect` | Reconnection settings. |
 
-### 名前空間: `chat`
+### Connection
 
-- `chat.send(text: string): Promise<void>`
-- `chat.onMessage(handler)` → すべてのメッセージを購読
+```ts
+await client.connect()
+await client.disconnect()
 
-ハンドラ引数: `{ from: User; text: string; mention?: { sessionId; name }, reply(text) }`
+const status = client.getStatus()
+const info = await client.getInfo()
+const sessionId = client.getSessionId()
+```
 
-### 名前空間: `avatar`
+`getInfo()` returns the bot name, SDK version, room ID, and session ID when the
+session is available.
 
-- `avatar.select(assetId: string): Promise<void>`
-- `avatar.moveTo({ x,y,z }): Promise<void>`
-- `avatar.rotateTo({ x,y,z }): Promise<void>` — 角度（度数法）
-- `avatar.play(animation: { id; url?; name?; loop?; duration?; transitionDuration? }): Promise<void>`
-- `avatar.getAvailableAssets(): Promise<AvatarAsset[]>`
-- `avatar.getAvailableAnimations(): Promise<Animation[]>`
+### Chat
 
-### 音声（experimental）
+```ts
+await client.chat.send('Hello from a bot.')
 
-- `voice.playPcm(...)` は SDK 側にプレースホルダー実装があります。実動環境では `@metatell/bot-realtime` を併用してください（examples を参照）。
+client.chat.onMessage(async ({ from, text, mention, reply }) => {
+  if (mention) {
+    await reply(`Hi ${from.name ?? from.id}.`)
+  }
+})
+```
 
-### イベント（`MetatellClientEvents`）
+The message handler receives:
 
-- `connected()` / `disconnected(reason?)`
-- `chat-message({ from, text, mention? })`
-- `user-join(User)` / `user-leave(User)`
-- 音声:
-  - `'voice:mute-changed'` — ミュート状態の変化 `{ muted: boolean }`
+| Field | Description |
+| --- | --- |
+| `from` | User that sent the message. |
+| `text` | Message text. |
+| `mention` | Mention metadata when the message contains a recognized mention. |
+| `reply(text)` | Convenience method for sending a chat reply. |
 
-注記: `error(MetatellError)` は型として存在しますが、現状 SDK 内からの発火は限定的です（多くは例外としてスロー）。
+### Room and Presence
 
-### エラー
+```ts
+const users = await client.room.getUsers()
+const nearby = await client.room.getNearbyUsers(10)
+const cachedUsers = client.getUsers()
+```
 
-- `MetatellError`（基底）
-- `AuthError`, `NetworkError`, `NotFoundError`, `RateLimitError`, `UnsupportedAudioFormatError`
+`room.getUsers()` returns the current room users asynchronously. `getUsers()`
+returns the current local cache synchronously.
 
----
+### Avatar
 
-## `AgentClient`（低レベル制御）
+```ts
+await client.avatar.select('avatar-asset-id')
+await client.avatar.moveTo({ x: 1, y: 1.6, z: -2 })
+await client.avatar.rotateTo({ x: 0, y: 180, z: 0 })
+await client.avatar.lookAt({ x: 0, y: 1.6, z: 0 })
+await client.avatar.play({ id: 'wave', loop: false })
 
-### 生成
+const assets = await client.avatar.getAvailableAssets()
+const animations = await client.avatar.getAvailableAnimations()
+```
+
+Positions are expressed in room coordinates. Rotations are Euler angles in
+degrees.
+
+### Events
+
+```ts
+client.on('connected', () => {})
+client.on('disconnected', (reason) => {})
+client.on('chat-message', (message) => {})
+client.on('user-join', (user) => {})
+client.on('user-leave', (user) => {})
+client.on('voice:mute-changed', ({ muted }) => {})
+```
+
+Errors are primarily reported by rejected promises. The `error` event type is
+available for integrations that attach their own event sources.
+
+### Rate Limits
+
+```ts
+client.setRateLimit('chat.send', 2)
+const current = client.getRateLimit('chat.send')
+```
+
+Use rate limits to avoid sending chat, movement, or animation updates too
+frequently.
+
+## Voice
+
+Voice transport is provided through `@metatell/bot-realtime` and the
+`enableVoice` helper exported by `@metatell/bot-sdk`.
+
+```ts
+import { createMetatellClient, enableVoice } from '@metatell/bot-sdk'
+
+const client = createMetatellClient({ serverUrl, roomId, token })
+await client.connect()
+
+const voice = await enableVoice(client, {
+  transport: { type: 'livekit' },
+  sampleRate: 48000,
+  channels: 1,
+  handlers: {
+    onRemotePcm: async (pcm, meta) => {
+      console.log('audio frame from', meta.fromIdentity, pcm.length)
+    },
+    getLocalPcmStream: async function* () {
+      while (true) {
+        yield new Int16Array(960)
+        await new Promise((resolve) => setTimeout(resolve, 20))
+      }
+    },
+  },
+})
+
+await voice.stop()
+```
+
+Supported sample rates are 16000, 24000, and 48000 Hz. Use 20 ms PCM frames for
+the default 48000 Hz mono configuration.
+
+## `AgentClient`
+
+`AgentClient` exposes lower-level operations for integrations that need direct
+control over connection, room membership, avatar updates, animation, and voice
+events.
 
 ```ts
 import { createAgentClient } from '@metatell/bot-sdk'
 
-const client = createAgentClient({ /* BotConfiguration */ })
+const client = createAgentClient({
+  url: 'wss://metatell.app',
+  room: 'YOUR_ROOM_ID',
+  username: 'AgentBot',
+})
 ```
 
-### 主なメソッド
+Common methods:
 
-- 接続/状態: `connect({ url, token, ... })`, `disconnect()`, `join(room)`, `leave()`, `getStatus()`
-- メッセージ: `send(text)`
-- アバター: `move({x,y,z})`, `look(target|{userId})`, `lookAtNearest()`
-- アニメーション: `playAnimation(id|{ id, options })`, `stopAnimation()`, `getAvailableAnimations()`
+| Area | Methods |
+| --- | --- |
+| Connection | `connect()`, `disconnect()`, `join(room)`, `leave()`, `getStatus()` |
+| Chat | `send(text)` |
+| Avatar | `move(position)`, `look(target)`, `lookAtNearest()` |
+| Animation | `playAnimation(idOrOptions)`, `stopAnimation()`, `getAvailableAnimations()` |
+| Voice | `sendVoiceFrame(frame)`, `muteVoice(muted)`, `isVoiceMuted()` |
 
-### イベント（例）
+Common events:
 
-- `connection:established`, `connection:lost`, `connection:error`
-- `room:joined`, `room:left`
-- `user:joined`, `user:left`, `user:updated`
-- `message:received`, `message:sent`
-- `avatar:spawned`, `avatar:moved`, `avatar:updated`
-- 音声:
-  - `'voice:connected'`, `'voice:disconnected'`, `'voice:error'`
-  - `'voice:frame-received'` — 受信音声 `{ participantId, pcmData: Int16Array }`
-  - `'voice:mute-changed'` — ミュート状態の変化 `{ muted: boolean }`
+- `connection:established`
+- `connection:lost`
+- `connection:error`
+- `room:joined`
+- `room:left`
+- `user:joined`
+- `user:left`
+- `user:updated`
+- `message:received`
+- `message:sent`
+- `avatar:spawned`
+- `avatar:moved`
+- `avatar:updated`
+- `voice:connected`
+- `voice:disconnected`
+- `voice:error`
+- `voice:frame-received`
+- `voice:mute-changed`
 
-#### ミュート状態の取り扱い（EventBus 集約）
+## Errors
 
-`muteVoice(muted: boolean)` は EventBus に `'voice:mute-changed'` を発行するだけです。クライアントはこのイベントを購読して内部の `voiceMuted` を更新し、必要な公開イベントを再発行します。これにより外部の音声モジュール（`@metatell/bot-realtime` など）と状態が確実に同期され、二重更新や競合を防ぎます。
+The SDK exports a shared error hierarchy:
 
----
+- `MetatellError`
+- `AuthError`
+- `NetworkError`
+- `NotFoundError`
+- `RateLimitError`
+- `UnsupportedAudioFormatError`
 
-## 型（抜粋）
+```ts
+import { AuthError, NetworkError } from '@metatell/bot-sdk'
 
-- `Vec3`, `Euler`, `User`, `BotInfo`, `AvatarAsset`, `Animation`
-- `CreateClientOptions`, `PcmInput`, `PcmInputOptions`, `PlaybackControls`
+try {
+  await client.connect()
+} catch (error) {
+  if (error instanceof AuthError) {
+    console.error('Authentication failed:', error.message)
+  } else if (error instanceof NetworkError) {
+    console.error('Network error:', error.message)
+  } else {
+    throw error
+  }
+}
+```
 
----
+## Types
 
-## NAF（同期メッセージ）
+Frequently used exported types include:
 
-`@metatell/bot-core` の型を再エクスポートしており、`NAF.md` に概要を記載しています。型安全なビルダー/型ガードを活用すると、3D 同期メッセージの扱いが楽になります。
+- `Vec3`
+- `Euler`
+- `User`
+- `BotInfo`
+- `AvatarAsset`
+- `Animation`
+- `CreateClientOptions`
+- `PcmInput`
+- `PcmInputOptions`
+- `PlaybackControls`
+- `MetatellClientEvents`
+
+The SDK also re-exports typed NAF helpers from `@metatell/bot-core`. See
+[NAF messages](./NAF.md).

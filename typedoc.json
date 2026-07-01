@@ -16,7 +16,7 @@
     "GitHub": "https://github.com/urth-inc/metatell-ai-bot",
     "NPM": "https://www.npmjs.com/search?q=%40metatell%2Fbot"
   },
-  "name": "Metatell AI Bot",
+  "name": "metatell Bot SDK",
   "categorizeByGroup": true,
   "sort": ["kind", "alphabetical"],
   "searchInComments": true,

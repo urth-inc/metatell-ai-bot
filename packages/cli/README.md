@@ -1,136 +1,114 @@
 # @metatell/bot-cli
 
-MetaTell Bot 開発とテスト用の CLI ツール。
+Command-line tools for developing and testing metatell bots.
 
-## 必要要件
+## Requirements
 
-- Node.js 20 以上（推奨: 22+）
+- Node.js 20 or later. Node.js 22 is recommended.
 
-## インストール
+## Install
 
 ```bash
-# グローバルインストール
 npm install -g @metatell/bot-cli
+```
 
-# または npx で実行
+Run without global installation:
+
+```bash
 npx @metatell/bot-cli <command>
+```
 
-# または開発依存として
+Install as a development dependency:
+
+```bash
 npm install --save-dev @metatell/bot-cli
 ```
 
-## 使い方
+## Usage
 
 ```bash
-# インタラクティブモード（デフォルト）
 metatell-bot https://metatell.app/ROOM_ID
-
-# 認証トークン付き
 metatell-bot https://metatell.app/ROOM_ID -t "your-auth-token"
-
-# カスタムボット名
 metatell-bot https://metatell.app/ROOM_ID -n "MyBot"
-
-# デバッグログ有効
 metatell-bot https://metatell.app/ROOM_ID -d
 ```
 
-## コマンド
+## Commands
 
-### インタラクティブモード
+### Interactive Mode
 
 ```bash
 metatell-bot https://metatell.app/ROOM_ID [options]
-# または
 metatell-bot interactive https://metatell.app/ROOM_ID [options]
 ```
 
-**利用可能なコマンド:**
-- `/say <message>` — チャットメッセージ送信
-- `/move <x> <y> <z>` — アバター移動
-- `/look <x> <y> <z>` または `/look @<username>` — 指定座標/ユーザーを見る
-- `/nearby [radius]` — 近傍ユーザーを表示（既定 10m）
-- `/users` — ルーム内の全ユーザーを表示
-- `/status` — 接続状態を表示
-- `/info` — ボット情報を表示
-- `/avatar <id>` — アバターを変更
-- `/assets` — 利用可能なアバター一覧
-- `/anime <name>` または `/animation <name>` — アニメーション再生
-- `/animations` — 利用可能なアニメーション一覧
-- `/stop` — アニメーション停止（アイドルに戻す）
-- `quit` / `exit` — 終了
+Available interactive commands:
 
-### 接続テストコマンド
+| Command | Description |
+| --- | --- |
+| `/say <message>` | Send a chat message. |
+| `/move <x> <y> <z>` | Move the bot avatar. |
+| `/look <x> <y> <z>` | Look at a coordinate. |
+| `/look @<username>` | Look at a user. |
+| `/nearby [radius]` | Show nearby users. Default radius is 10 m. |
+| `/users` | Show all users in the room. |
+| `/status` | Show connection status. |
+| `/info` | Show bot information. |
+| `/avatar <id>` | Change the bot avatar. |
+| `/assets` | List available avatars. |
+| `/anime <name>` | Play an animation. |
+| `/animation <name>` | Play an animation. |
+| `/animations` | List available animations. |
+| `/stop` | Stop the current animation and return to idle. |
+| `quit` or `exit` | Exit the CLI. |
+
+### Connection Test
 
 ```bash
 metatell-bot connect https://metatell.app/ROOM_ID [options]
 ```
 
-### ルーム検査コマンド
+### Room Inspection
 
 ```bash
 metatell-bot inspect https://metatell.app/ROOM_ID [options]
 ```
 
-## オプション
+## Options
 
-| オプション | エイリアス | 説明 | デフォルト |
-|--------|-------|-------------|---------|
-| `--token` | `-t` | 認証トークン（任意） | `METATELL_TOKEN` 環境変数 |
-| `--name` | `-n` | ボット表示名 | "MetatellCLI" |
-| `--debug` | `-d` | デバッグログ有効 | false |
+| Option | Alias | Description | Default |
+| --- | --- | --- | --- |
+| `--token` | `-t` | Optional access token. | `METATELL_TOKEN` environment variable |
+| `--name` | `-n` | Bot display name. | `MetatellCLI` |
+| `--debug` | `-d` | Enable debug logs. | `false` |
 
-## 環境変数
+## Environment Variables
 
-- `METATELL_TOKEN` — デフォルト認証トークン（任意）
+- `METATELL_TOKEN`: default access token.
 
-## 開発
-
-### ローカル開発環境のセットアップ
-
-CLIをローカルで開発・テストする場合の手順：
+## Local Development
 
 ```bash
-# 1. リポジトリをクローン
 git clone https://github.com/urth-inc/metatell-ai-bot.git
 cd metatell-ai-bot
-
-# 2. 依存関係をインストール
 npm install
-
-# 3. CLIパッケージへ移動
 cd packages/cli
-
-# 4. ビルド
 npm run build
-
-# 5. ローカルにリンク（グローバルコマンドとして登録）
 npm link
-
-# 6. 動作確認
 metatell-bot --version
 metatell-bot --help
 ```
 
-### 開発時の便利なコマンド
+Useful commands:
 
 ```bash
-# TypeScriptをウォッチモードでコンパイル
 npm run dev
-
-# ビルド
 npm run build
-
-# 型チェック
 npm run typecheck
-
-# テスト実行（ルートディレクトリから）
 cd ../.. && npm test packages/cli/src/cli.spec.ts
 ```
 
-### アンリンク（クリーンアップ）
-
-開発が終了したら、グローバルリンクを削除：
+Remove the global link:
 
 ```bash
 npm unlink -g @metatell/bot-cli
