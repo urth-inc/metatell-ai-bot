@@ -31,6 +31,7 @@ export interface BotConfiguration {
   debug?: boolean
   storageUrl?: string // Avatar storage URL (defaults to storage.metatell.app)
   botAccessKey?: string // Bot access key for OAuth-required hubs
+  authToken?: string // OIDC access token sent as hub join auth_token (authenticates the bot for room-role permissions)
   voice?: BotVoiceConfig // 音声通信設定
   organizationAvatarUrl?: string // Organization avatar GLTF URL from API
 }
