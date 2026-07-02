@@ -34,8 +34,8 @@ After the bot starts, use these keys:
 | `s` | Stop recording and save a WAV file. |
 | `q` | Quit. |
 
-Recording starts automatically when the bot connects. Files are saved under
-`recordings/`.
+Recording is available after the bot connects. Press `r` to start recording
+remote audio. Files are saved under `recordings/`.
 
 ## Files
 

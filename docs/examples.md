@@ -55,7 +55,7 @@ client.chat.onMessage(async ({ text, reply }) => {
 ## Follow the Nearest User
 
 ```ts
-setInterval(async () => {
+const followNearestUser = async () => {
   const [target] = await client.room.getNearbyUsers(10)
   const current = client.avatar.getPosition()
 
@@ -68,7 +68,19 @@ setInterval(async () => {
     y: target.position.y,
     z: target.position.z + 1.5,
   })
-}, 1000)
+}
+
+const followLoop = async () => {
+  try {
+    await followNearestUser()
+  } catch (error) {
+    console.error('Failed to follow nearest user:', error)
+  } finally {
+    setTimeout(followLoop, 1000)
+  }
+}
+
+void followLoop()
 ```
 
 ## List Room Users

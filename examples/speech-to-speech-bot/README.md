@@ -21,25 +21,26 @@ Enable Google Cloud APIs:
 - Speech-to-Text API.
 - Text-to-Speech API.
 
-Create a service account key and set:
-
-```bash
-export GOOGLE_APPLICATION_CREDENTIALS="path/to/service-account-key.json"
-```
-
-Create a Gemini API key, then set:
+Copy the environment template:
 
 ```bash
 cp .env.example .env
-export GEMINI_API_KEY=your-gemini-api-key
 ```
 
-Optional Dify integration:
+Create a service account key and a Gemini API key, then add both values to
+`.env`:
 
-```bash
-export DIFY_API_URL=https://api.dify.ai/v1
-export DIFY_API_KEY=your-dify-api-key
-export DIFY_APP_ID=your-dify-app-id
+```dotenv
+GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account-key.json
+GEMINI_API_KEY=your-gemini-api-key
+```
+
+Optional Dify integration can be configured in `.env` as well:
+
+```dotenv
+DIFY_API_URL=https://api.dify.ai/v1
+DIFY_API_KEY=your-dify-api-key
+DIFY_APP_ID=your-dify-app-id
 ```
 
 ## Run

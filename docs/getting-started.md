@@ -61,7 +61,12 @@ If your application receives a full room URL, derive `serverUrl` and `roomId`
 before creating the client:
 
 ```ts
-const roomUrl = new URL(process.env.METATELL_ROOM_URL!)
+const roomUrlValue = process.env.METATELL_ROOM_URL
+if (!roomUrlValue) {
+  throw new Error('METATELL_ROOM_URL is required')
+}
+
+const roomUrl = new URL(roomUrlValue)
 const serverUrl = `wss://${roomUrl.host}`
 const roomId = roomUrl.pathname.split('/').filter(Boolean)[0]
 

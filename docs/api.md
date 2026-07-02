@@ -115,12 +115,12 @@ available for integrations that attach their own event sources.
 ### Rate Limits
 
 ```ts
-client.setRateLimit('chat.send', 2)
-const current = client.getRateLimit('chat.send')
+client.setRateLimit('messages', 2)
+const current = client.getRateLimit('messages')
 ```
 
-Use rate limits to avoid sending chat, movement, or animation updates too
-frequently.
+Use rate limits to avoid sending message, movement, or look updates too
+frequently. Supported keys are `messages`, `moves`, and `looks`.
 
 ## Voice
 

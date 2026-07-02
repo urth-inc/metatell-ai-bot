@@ -78,13 +78,13 @@ metatell-bot inspect https://metatell.app/ROOM_ID [options]
 
 | Option | Alias | Description | Default |
 | --- | --- | --- | --- |
-| `--token` | `-t` | Optional access token. | `METATELL_TOKEN` environment variable |
+| `--token` | `-t` | Optional access token. Falls back to `METATELL_TOKEN` when omitted. | None |
 | `--name` | `-n` | Bot display name. | `MetatellCLI` |
 | `--debug` | `-d` | Enable debug logs. | `false` |
 
 ## Environment Variables
 
-- `METATELL_TOKEN`: default access token.
+- `METATELL_TOKEN`: fallback access token used when `--token` is not provided.
 
 ## Local Development
 
