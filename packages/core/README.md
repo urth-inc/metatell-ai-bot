@@ -1,83 +1,73 @@
 # @metatell/bot-core
 
-MetaTell Bot SDKのコアライブラリ。
+Core services and shared types for advanced metatell bot integrations.
 
-## 必要要件
+Most bot projects should use `@metatell/bot-sdk`. Use this package directly when
+you need lower-level services, typed NAF helpers, or custom service composition.
 
-- Node.js 20 以上（推奨: 22+）
-- TypeScript 5.0+
+## Requirements
 
-## インストール
+- Node.js 20 or later. Node.js 22 is recommended.
+- TypeScript 5 or later for TypeScript projects.
+
+## Install
 
 ```bash
 npm install @metatell/bot-core
-# または
+# or
 pnpm add @metatell/bot-core
-# または
+# or
 yarn add @metatell/bot-core
 ```
 
-## 使い方
+## Usage
 
-```typescript
-import { CoreServiceFactory } from '@metatell/bot-core';
+```ts
+import { CoreServiceFactory } from '@metatell/bot-core'
 
 const factory = new CoreServiceFactory({
   organizationId: 'your-org-id',
-  hubId: 'your-hub-id',
+  hubId: 'your-room-id',
   avatarData: {
     displayName: 'MyBot',
-    avatarUrl: 'https://example.com/avatar.vrm'
-  }
-});
+    avatarUrl: 'https://example.com/avatar.vrm',
+  },
+})
+
+const container = factory.createContainer()
 ```
 
-## 主なサービス
+## Services
 
 ### EventBus
 
-イベントの発行と購読を管理します。
+Publishes and subscribes to SDK events.
 
-```typescript
-const eventBus = container.get(EventBus);
-
-// イベントの購読
+```ts
 eventBus.on('custom.event', (data) => {
-  console.log('イベントを受信:', data);
-});
+  console.log('event received:', data)
+})
 
-// イベントの発行
-eventBus.emit('custom.event', { message: 'Hello' });
-
-eventBus.on(SystemEvents.AVATAR_SPAWNED, (avatar) => {
-  console.log('アバターがスポーンされました:', avatar.id);
-});
+eventBus.emit('custom.event', { message: 'Hello' })
 ```
 
 ### AvatarController
 
-ボットアバターの管理とアニメーション制御。
+Controls bot avatar state, movement, and animations.
 
-```typescript
-const avatarController = container.get(AvatarController);
-
-// アバターをスポーン
-await avatarController.spawn();
-
-// アニメーション再生
-await avatarController.playAnimation(PresetAnimationId.WAVE);
-
-// 移動
-await avatarController.setPosition({ x: 10, y: 0, z: 5 });
+```ts
+await avatarController.spawn()
+await avatarController.playAnimation(PresetAnimationId.WAVE)
+await avatarController.setPosition({ x: 10, y: 0, z: 5 })
 ```
 
-### その他のサービス
+### Other Services
 
-- **AnimationService**: VRMアニメーションの管理
-- **MessageService**: NAFプロトコルメッセージの送受信
-- **PresenceManager**: ユーザープレゼンスの追跡
-- **AuthenticationService**: 認証処理
-- **ConfigurationProvider**: 設定管理
+- `AnimationService`: avatar animation lookup and playback helpers.
+- `MessageService`: NAF and NAFR message send/receive helpers.
+- `PresenceManager`: room user presence tracking.
+- `AuthenticationService`: room authentication helpers.
+- `ConfigurationProvider`: SDK configuration access.
 
 ## License
 
