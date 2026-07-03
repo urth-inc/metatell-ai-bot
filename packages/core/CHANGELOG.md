@@ -1,5 +1,17 @@
 # @metatell/bot-core
 
+## 0.0.13
+
+### Patch Changes
+
+- - Merge pull request #155 from urth-inc/codex/docs-english-bot-sdk
+  - docs: address Bot SDK review feedback
+  - docs: update Bot SDK docs in English
+  - Merge pull request #156 from urth-inc/codex/add-bot-auth-token
+  - feat(auth): pass auth token when joining hubs
+  - Merge pull request #154 from urth-inc/codex/docs-dispatch-sdk-site
+  - ci: publish Bot SDK docs through sdk.metatell.io
+
 ## 0.0.12
 
 ### Patch Changes
