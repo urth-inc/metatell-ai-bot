@@ -1,0 +1,50 @@
+{
+  "$schema": "../../schemas/tree.schema.json",
+  "root": {
+    "type": "selector",
+    "children": [
+      {
+        "type": "sequence",
+        "name": "呼ばれたら返事",
+        "children": [
+          { "type": "condition", "name": "mentioned" },
+          { "type": "action", "name": "llm_reply" }
+        ]
+      },
+      {
+        "type": "sequence",
+        "name": "人がいたらかまってもらう",
+        "children": [
+          { "type": "condition", "name": "user_nearby", "params": { "range": 5 } },
+          { "type": "condition", "name": "cooldown", "params": { "sec": 45, "key": "chat" } },
+          { "type": "action", "name": "move_to_user" },
+          { "type": "action", "name": "look_at_user" },
+          {
+            "type": "cooldown",
+            "params": { "sec": 60 },
+            "child": {
+              "type": "action",
+              "name": "llm_say",
+              "params": { "topic": "近くに来てくれた人への話しかけ" }
+            }
+          }
+        ]
+      },
+      {
+        "type": "sequence",
+        "name": "ひとりの時間が続いたら人を探す",
+        "children": [
+          { "type": "condition", "name": "is_alone" },
+          { "type": "condition", "name": "cooldown", "params": { "sec": 40, "key": "lonely" } },
+          {
+            "type": "action",
+            "name": "say",
+            "params": { "text": "だれかいませんかー？さみしいよー" }
+          },
+          { "type": "action", "name": "patrol_next" }
+        ]
+      },
+      { "type": "action", "name": "patrol_next" }
+    ]
+  }
+}

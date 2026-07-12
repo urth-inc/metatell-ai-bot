@@ -1,0 +1,39 @@
+{
+  "$schema": "../../schemas/tree.schema.json",
+  "root": {
+    "type": "selector",
+    "children": [
+      {
+        "type": "sequence",
+        "name": "呼ばれたら返事",
+        "children": [
+          { "type": "condition", "name": "mentioned" },
+          { "type": "action", "name": "llm_reply" }
+        ]
+      },
+      {
+        "type": "sequence",
+        "name": "来た人を展示コーナーへ案内",
+        "children": [
+          { "type": "condition", "name": "user_nearby", "params": { "range": 4 } },
+          { "type": "condition", "name": "cooldown", "params": { "sec": 60, "key": "guide" } },
+          { "type": "action", "name": "look_at_user" },
+          {
+            "type": "action",
+            "name": "say",
+            "params": {
+              "text": "{userName}さん、ようこそ！展示コーナーへ案内します。ついてきてください"
+            }
+          },
+          { "type": "action", "name": "move_to", "params": { "x": -6, "y": 0, "z": -5 } },
+          {
+            "type": "action",
+            "name": "say",
+            "params": { "text": "ここが展示コーナーです。ごゆっくりどうぞ！" }
+          }
+        ]
+      },
+      { "type": "action", "name": "patrol_next" }
+    ]
+  }
+}
