@@ -35,7 +35,6 @@ async function main() {
     serverUrl: 'wss://metatell.app',
     roomId: 'YOUR_ROOM_ID',
     username: 'GuideBot',
-    token: process.env.METATELL_TOKEN,
     debug: true,
   })
 
