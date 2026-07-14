@@ -1,5 +1,72 @@
 # @metatell/bot-sdk
 
+## 1.0.1
+
+### Patch Changes
+
+- - Merge pull request #164 from urth-inc/fix/publish-node-version
+  - ci: unblock npm publish broken by npm@12 engine requirements
+  - Merge pull request #163 from urth-inc/changeset-release/develop
+  - chore(release): Version Packages
+  - Merge pull request #161 from urth-inc/fix/animation-service
+  - fix(animation)!: validate animations against the avatar and use current admin API
+  - Merge pull request #150 from urth-inc/renovate/pin-dependencies
+  - chore(deps): pin dependencies
+  - Merge pull request #160 from urth-inc/codex/renovate-pin-digest-age
+  - fix(renovate): unblock pin digest updates
+  - Merge pull request #159 from urth-inc/feature/add-bt-bot-example
+  - test(bt-bot): satisfy lifecycle lint rule
+  - fix(bt-bot): harden runtime safety boundaries
+  - Merge remote-tracking branch 'origin/develop' into feature/add-bt-bot-example
+  - Merge pull request #126 from urth-inc/renovate/uuid-11.x
+  - chore(deps): remove redundant UUID type stubs
+  - Merge remote-tracking branch 'origin/develop' into feature/add-bt-bot-example
+  - fix(deps): update dependency @types/uuid to v11
+  - Merge pull request #128 from urth-inc/renovate/livekit-agents-1.x
+  - chore(core): remove unused LiveKit Agents dependency
+  - Merge remote-tracking branch 'origin/develop' into feature/add-bt-bot-example
+  - Merge remote-tracking branch 'origin/feature/add-bt-bot-example' into feature/add-bt-bot-example
+  - fix(bt-bot): address safety and validation feedback
+  - Merge remote-tracking branch 'origin/develop' into codex/pr-128-cleanup
+  - Merge pull request #138 from urth-inc/renovate/testing-library-monorepo
+  - chore(deps): remove unused React testing dependencies
+  - Merge remote-tracking branch 'origin/develop' into renovate/testing-library-monorepo
+  - Merge pull request #136 from urth-inc/renovate/typescript-5.x
+  - chore(deps): update lockfile for TypeScript 5.9.3
+  - Merge remote-tracking branch 'origin/develop' into feature/add-bt-bot-example
+  - fix(bt-bot): default LLM_MODEL to gemini-flash-lite-latest
+  - Merge remote-tracking branch 'origin/develop' into renovate/typescript-5.x
+  - Merge pull request #142 from urth-inc/renovate/livekit-rtc-node-0.x
+  - fix(deps): sync LiveKit update with develop
+  - Merge pull request #140 from urth-inc/renovate/ink-6.x
+  - docs(bt-bot): clarify LLM endpoint wording in .env.example
+  - chore(deps): sync CLI cleanup with develop
+  - chore(deps): update dependency typescript to v5.9.3
+  - Merge pull request #135 from urth-inc/renovate/typedoc-plugin-missing-exports-4.x
+  - chore(cli): remove unused Ink and React dependencies
+  - Merge pull request #133 from urth-inc/renovate/npm-happy-dom-vulnerability
+  - chore(deps): sync lockfile for TypeDoc plugin
+  - chore(deps): update lockfile for happy-dom 20.8.9
+  - fix(deps): update lockfile for Ink 6.8.0
+  - chore(deps): update dependency typedoc-plugin-missing-exports to v4.1.4
+  - Merge remote-tracking branch 'origin/develop' into renovate/npm-happy-dom-vulnerability
+  - Merge remote-tracking branch 'origin/develop' into renovate/ink-6.x
+  - Merge pull request #141 from urth-inc/renovate/typedoc-0.x
+  - chore(deps): update lockfile for TypeDoc 0.28.20
+  - refactor(bt-bot): authenticate with authToken instead of METATELL_TOKEN
+  - Merge pull request #158 from urth-inc/feature/remove-bot-access-key
+  - feat(auth)!: remove bot_access_key (PSK) client interface
+  - feat: add bt-bot example (behavior tree + LLM bot template)
+  - chore(deps): update dependency typedoc to v0.28.20
+  - fix(deps): update dependency ink to v6.8.0
+  - chore(deps): update testing-library monorepo
+  - chore(deps): update dependency happy-dom to v20 [security]
+  - fix(deps): update dependency @livekit/agents to v1.5.0
+  - fix(deps): update dependency @livekit/rtc-node to v0.13.30
+- Updated dependencies
+  - @metatell/bot-core@1.0.1
+  - @metatell/bot-realtime@1.0.1
+
 ## 1.0.0
 
 ### Minor Changes
