@@ -98,7 +98,7 @@ async function main(): Promise<void> {
       : createLlmApi({
           baseUrl: llmBaseUrl,
           apiKey: llmApiKey,
-          model: envString('LLM_MODEL', 'gemini-2.5-flash-lite'),
+          model: envString('LLM_MODEL', 'gemini-flash-lite-latest'),
           guarded: !unsafeMode,
         })
   if (!llm) {
