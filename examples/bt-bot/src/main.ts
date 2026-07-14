@@ -116,7 +116,7 @@ async function main(): Promise<void> {
   const client = createMetatellClient({
     serverUrl: `wss://${urlObj.host}`,
     roomId,
-    token: envString('METATELL_TOKEN') || undefined,
+    authToken: envString('METATELL_AUTH_TOKEN') || undefined,
     username: config.name,
     debug: envFlag('DEBUG'),
   })

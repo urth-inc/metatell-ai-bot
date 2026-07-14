@@ -13,7 +13,7 @@ LLMが手足を直接動かすのではなく、検証済みのエンジンが�
 ```bash
 pnpm install
 cp .env.example .env
-# .envにボットトークンとLLMキーを貼る
+# .envに認証トークンとLLMキーを貼る
 ```
 
 ## 起動
