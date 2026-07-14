@@ -78,7 +78,6 @@ export interface AgentClientEvents {
 
 export interface ConnectionOptions {
   url: string
-  token?: string
   serverUrl?: string // Allow passing serverUrl directly (WebSocket URL)
   hubUrl?: string // Allow passing hubUrl directly (HTTP API URL)
   hubId?: string // Allow passing hubId directly
@@ -355,7 +354,6 @@ export class DefaultAgentClient extends EventEmitter implements AgentClient {
       // URL形式の接続オプションを使用
       await this.connect({
         url: newUrl,
-        token: this.lastConnectionOptions.token,
         voice: this.lastConnectionOptions.voice,
       })
     } else if (this.lastConnectionOptions) {
