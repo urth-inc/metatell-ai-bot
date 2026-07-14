@@ -41,7 +41,6 @@ export interface CreateClientOptions {
    */
   serverUrl: string
   roomId: string
-  token?: string // Authentication token. Whether it is required depends on the environment.
   username?: string // Bot name.
   avatarId?: string // Avatar ID. Uses the default when omitted.
   debug?: boolean // Debug mode.

@@ -6,7 +6,7 @@ import { createMetatellClient } from '@metatell/bot-sdk'
 import type { CliOptions } from '../types.js'
 import { parseUrl } from '../utils/url.js'
 
-export async function inspectCommand(url: string, options: CliOptions) {
+export async function inspectCommand(url: string, _options: CliOptions) {
   console.log('Inspecting room:', url)
 
   try {
@@ -15,7 +15,6 @@ export async function inspectCommand(url: string, options: CliOptions) {
     const client = createMetatellClient({
       serverUrl,
       roomId,
-      token: options.token || process.env.METATELL_TOKEN || '',
       username: 'MetatellInspector',
       debug: false, // Keep quiet for inspection
     })
