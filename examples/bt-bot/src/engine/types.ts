@@ -95,8 +95,12 @@ export interface BotApi {
    */
   moveTowards(target: Vec3): 'moving' | 'arrived'
   lookAt(target: Vec3): void
-  /** Play an avatar animation by preset id (e.g. "wave", "dance"). */
-  emote(animation: string): void
+  /**
+   * Play an avatar animation. The name is resolved through the emotes
+   * aliases in bot.config.json, then against the avatar's available
+   * animation ids/names. Unassigned aliases are skipped, not failed.
+   */
+  emote(animation: string): Promise<'played' | 'skipped' | 'failed'>
   /** Next patrol point. Cycles through bot.config.json patrol entries. */
   patrolTarget(index: number): { label: string; position: Vec3 } | undefined
   patrolLength(): number

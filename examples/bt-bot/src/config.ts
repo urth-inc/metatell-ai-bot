@@ -14,6 +14,8 @@ export interface BotConfig {
   greeting: string
   patrol: PatrolPoint[]
   tickMs: number
+  /** Aliases used by the emote node, e.g. { "greet": "<animation id>" }. Empty values mean unassigned. */
+  emotes: Record<string, string>
 }
 
 const DEFAULT_TICK_MS = 500
@@ -67,10 +69,26 @@ export function loadBotConfig(myBotDir: string): BotConfig {
   const tickMs =
     typeof doc.tickMs === 'number' ? Math.max(MIN_TICK_MS, doc.tickMs) : DEFAULT_TICK_MS
 
+  const emotes: Record<string, string> = {}
+  if (doc.emotes !== undefined) {
+    if (!isObject(doc.emotes)) {
+      errors.push('「emotes」は { "別名": "アニメーションID" } のオブジェクトで書いてください')
+    } else {
+      for (const [alias, value] of Object.entries(doc.emotes)) {
+        if (typeof value !== 'string') {
+          errors.push(`emotesの「${alias}」の値は文字列で書いてください`)
+        } else if (value !== '') {
+          // 空文字は「未割り当て」の意味で許容する（配布時の雛形用）
+          emotes[alias] = value
+        }
+      }
+    }
+  }
+
   if (errors.length > 0) {
     throw new Error(`bot.config.jsonにエラーがあります:\n- ${errors.join('\n- ')}`)
   }
-  return { name: name ?? '', greeting, patrol, tickMs }
+  return { name: name ?? '', greeting, patrol, tickMs, emotes }
 }
 
 /** Loads my-bot/persona.md (natural-language character sheet). */

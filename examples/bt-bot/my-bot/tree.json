@@ -18,7 +18,7 @@
           { "type": "condition", "name": "user_nearby", "params": { "range": 3 } },
           { "type": "condition", "name": "cooldown", "params": { "sec": 30, "key": "greet" } },
           { "type": "action", "name": "look_at_user" },
-          { "type": "action", "name": "emote", "params": { "animation": "wave" } },
+          { "type": "action", "name": "emote", "params": { "animation": "greet" } },
           { "type": "action", "name": "say", "params": { "text": "{greeting}" } }
         ]
       },

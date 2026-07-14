@@ -51,7 +51,7 @@
             "params": { "key": "mood", "value": "ねむい" }
           },
           { "type": "condition", "name": "cooldown", "params": { "sec": 45, "key": "act" } },
-          { "type": "action", "name": "emote", "params": { "animation": "crouch" } },
+          { "type": "action", "name": "emote", "params": { "animation": "sulk" } },
           { "type": "action", "name": "say", "params": { "text": "ふぁ…ちょっとねむいかも…" } }
         ]
       },

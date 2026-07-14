@@ -38,7 +38,7 @@ registerCondition(
 registerAction(
   'bow',
   async (ctx): Promise<Status> => {
-    ctx.api.emote('nod')
+    void ctx.api.emote('greet')
     return (await ctx.api.say(ctx.api.expand('{userName}さん、いらっしゃいませ！')))
       ? 'SUCCESS'
       : 'FAILURE'
