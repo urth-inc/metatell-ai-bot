@@ -4,6 +4,7 @@ import type {
   OrganizationInfo,
 } from '../interfaces/IOrganizationService.js'
 import { getLogger } from '../logging/index.js'
+import { resolveAdminApiBaseUrl } from './admin-api-url.js'
 
 interface RoomConfigResponse {
   status: string
@@ -36,17 +37,6 @@ interface OrganizationAvatarsResponse {
       }
     }
   }>
-}
-
-/**
- * Resolve the v-air-admin workers base URL from the hub hostname. Avatar listings
- * are served by the admin backend (not the metatell room workers), matching the
- * v-air_client behaviour (REACT_APP_VAIR_ADMIN_WORKERS_URL).
- */
-function resolveAvatarApiBase(hostname: string): string {
-  if (hostname.includes('-stg.')) return 'https://v-air-admin-staging.urth.workers.dev'
-  if (hostname.includes('-dev.')) return 'https://v-air-admin-development.urth.workers.dev'
-  return 'https://v-air-admin-production.urth.workers.dev'
 }
 
 export class OrganizationService implements IOrganizationService {
@@ -89,7 +79,7 @@ export class OrganizationService implements IOrganizationService {
       const url = new URL(hubUrl)
       // v-air-admin backend の公開アバターAPIから取得する。
       // metatell-workers の /room-config/organization/... は公開アバターを返さないため参照先を修正。
-      const adminBase = resolveAvatarApiBase(url.hostname)
+      const adminBase = resolveAdminApiBaseUrl(url.hostname)
       const endpoint = `${adminBase}/api/v1/organizations/${organizationId}/avatars/public`
 
       this.logger.debug('Fetching organization avatars', {

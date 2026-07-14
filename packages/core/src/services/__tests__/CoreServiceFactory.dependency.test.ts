@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CoreServiceFactory } from '../../CoreServiceFactory.js'
 // Import service interface tokens for testing
 import {
+  AnimationService,
   AuthenticationService,
   ConnectionManager,
   EventBus,
@@ -16,6 +17,7 @@ import {
 } from '../../index.js'
 import type { BotConfiguration } from '../../interfaces/IConfigurationProvider.js'
 
+import { AnimationService as AnimationServiceImpl } from '../AnimationService.js'
 import { AuthenticationService as AuthenticationServiceImpl } from '../AuthenticationService.js'
 import { EventBus as EventBusImpl } from '../EventBus.js'
 import { MessageService as MessageServiceImpl } from '../MessageService.js'
@@ -175,6 +177,41 @@ describe('CoreServiceFactory - Dependency Relationships', () => {
       expect(constructorArgs[0]).toBeDefined() // MessageService
       expect(constructorArgs[1]).toBeDefined() // PresenceManager
       expect(constructorArgs[2]).toBeDefined() // EventBus
+    })
+
+    it.each([
+      [
+        'development',
+        'https://urth.metatell-dev.app',
+        'https://v-air-admin-development.urth.workers.dev',
+      ],
+      ['staging', 'https://urth.metatell-stg.app', 'https://v-air-admin-staging.urth.workers.dev'],
+      [
+        'production',
+        'https://urth.metatell.app',
+        'https://v-air-admin-production.urth.workers.dev',
+      ],
+      ['fallback', 'not-a-url', 'https://v-air-admin-production.urth.workers.dev'],
+    ])('should inject the %s admin API URL into AnimationService', (_environment, hubUrl, expected) => {
+      factory = new CoreServiceFactory({ ...testConfig, hubUrl })
+
+      factory.getContainer().get(AnimationService)
+
+      const constructorArgs = vi.mocked(AnimationServiceImpl).mock.calls[0]
+      expect(constructorArgs[1]).toBe(expected)
+    })
+
+    it('should not use storageUrl as the AnimationService API base', () => {
+      factory = new CoreServiceFactory({
+        ...testConfig,
+        hubUrl: 'https://urth.metatell-dev.app',
+        storageUrl: 'https://custom-storage.example.com',
+      })
+
+      factory.getContainer().get(AnimationService)
+
+      const constructorArgs = vi.mocked(AnimationServiceImpl).mock.calls[0]
+      expect(constructorArgs[1]).toBe('https://v-air-admin-development.urth.workers.dev')
     })
   })
 

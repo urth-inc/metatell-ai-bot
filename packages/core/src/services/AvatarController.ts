@@ -107,13 +107,13 @@ export class AvatarController implements IAvatarController {
     // Send spawn message with NAFR (reliable) for critical spawn data
     await this.messageService.sendNAFR(nafMessage)
 
-    // Emit event
-    this.eventBus.emit(SystemEvents.AVATAR_SPAWNED, this.state)
-
     // アニメーションサービスに現在のアバターIDを設定
     if (this.animationService) {
       this.animationService.setCurrentAvatarId(avatarId)
     }
+
+    // Emit event after animation context is ready for subscribers.
+    this.eventBus.emit(SystemEvents.AVATAR_SPAWNED, this.state)
 
     this.logger.debug(`✅ Avatar spawned with ID: ${avatarId}`, {
       avatarSrc: finalAvatarSrc,
@@ -254,6 +254,11 @@ export class AvatarController implements IAvatarController {
 
     const nafMessage = builder.build()
     await this.messageService.sendNAF(nafMessage)
+
+    if (state.avatarId && this.animationService) {
+      this.animationService.setCurrentAvatarId(state.avatarId)
+    }
+
     this.eventBus.emit(SystemEvents.AVATAR_UPDATED, this.state)
   }
 
@@ -327,13 +332,8 @@ export class AvatarController implements IAvatarController {
       throw new AvatarNotSpawnedError()
     }
 
-    // UUID形式のアニメーションかチェック
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-    const isCustomAnimation = uuidRegex.test(animationId)
-
     // Validate animation exists (if animation service is available)
-    // カスタムアニメーション（UUID）の場合は検証をスキップ
-    if (this.animationService && !isCustomAnimation) {
+    if (this.animationService) {
       const isValid = await this.animationService.validateAnimation(animationId)
       if (!isValid) {
         throw new AnimationNotFoundError(animationId)
@@ -436,15 +436,6 @@ export class AvatarController implements IAvatarController {
     options?: AnimationPlayOptions,
   ): Promise<number | undefined> {
     if (!this.animationService) {
-      return undefined
-    }
-
-    // UUID形式のアニメーションかチェック
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-    const isCustomAnimation = uuidRegex.test(animationId)
-
-    // カスタムアニメーション（UUID）の場合はdurationを取得できない
-    if (isCustomAnimation) {
       return undefined
     }
 

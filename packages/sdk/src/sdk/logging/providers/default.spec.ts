@@ -48,6 +48,18 @@ describe('DefaultLoggerProvider', () => {
       )
     })
 
+    it('should serialize Error properties nested in metadata', () => {
+      const logger = provider.getLogger('TestModule')
+
+      logger.error('Failed', { error: new TypeError('boom') })
+
+      const output = String(consoleSpy.error.mock.calls[0][0])
+      expect(output).toContain(
+        '"error":{"name":"TypeError","message":"boom","stack":"TypeError: boom',
+      )
+      expect(output).not.toContain('"error":{}')
+    })
+
     it('should not log debug messages when log level is info', () => {
       provider.setLogLevel('info')
       const logger = provider.getLogger('TestModule')
@@ -122,6 +134,27 @@ describe('DefaultLoggerProvider', () => {
 
       expect(mockSink1.write).toHaveBeenCalled()
       expect(mockSink2.write).toHaveBeenCalled()
+    })
+
+    it('should send normalized Error metadata to registered sinks', () => {
+      const mockSink: LogSink = { write: vi.fn() }
+      provider.registerSink(mockSink)
+      const logger = provider.getLogger('TestModule')
+
+      logger.error('Failed', { error: new Error('boom') })
+
+      expect(mockSink.write).toHaveBeenCalledWith(
+        expect.objectContaining({
+          attributes: {
+            error: {
+              name: 'Error',
+              message: 'boom',
+              stack: expect.stringContaining('Error: boom'),
+            },
+          },
+        }),
+      )
+      provider.unregisterSink(mockSink)
     })
   })
 

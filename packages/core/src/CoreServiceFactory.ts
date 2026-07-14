@@ -24,6 +24,7 @@ import { AnimationService as AnimationServiceImpl } from './services/AnimationSe
 import { AppSettings as AppSettingsImpl } from './services/AppSettings.js'
 import { AuthenticationService as AuthenticationServiceImpl } from './services/AuthenticationService.js'
 import { AvatarController as AvatarControllerImpl } from './services/AvatarController.js'
+import { resolveAdminApiBaseUrl } from './services/admin-api-url.js'
 import { ConfigurationProvider as ConfigurationProviderImpl } from './services/ConfigurationProvider.js'
 import { EventBus as EventBusImpl } from './services/EventBus.js'
 import { MessageService as MessageServiceImpl } from './services/MessageService.js'
@@ -90,30 +91,15 @@ export class CoreServiceFactory {
         const configProvider = container.get(ConfigurationProviderToken)
         const config = configProvider.getConfiguration()
 
-        // 環境に応じてAPI URLを決定
-        let apiBaseUrl = config.storageUrl
-        if (!apiBaseUrl) {
-          const hubUrl = config.hubUrl
-          try {
-            const url = new URL(hubUrl)
-            const hostname = url.hostname
-
-            // メインAPIのURLを決定
-            if (hostname.includes('metatell-stg.app') || hostname.includes('-stg.')) {
-              // staging環境の場合は管理APIパスを含める
-              apiBaseUrl = 'https://metatell-stg.app/api/admin/stg'
-            } else if (hostname.includes('metatell-dev.app') || hostname.includes('-dev.')) {
-              apiBaseUrl = 'https://metatell-dev.app/api/admin/dev'
-            } else {
-              apiBaseUrl = 'https://metatell.app/api/admin/prod'
-            }
-          } catch {
-            apiBaseUrl = 'https://metatell.app/api/admin/prod'
-          }
+        let adminApiBaseUrl = resolveAdminApiBaseUrl('')
+        try {
+          adminApiBaseUrl = resolveAdminApiBaseUrl(new URL(config.hubUrl).hostname)
+        } catch {
+          // Invalid or missing hub URLs use the production API, matching OrganizationService.
         }
 
-        logger.debug('AnimationService initialized with API URL', { apiBaseUrl })
-        return new AnimationServiceImpl(logger, apiBaseUrl)
+        logger.debug('AnimationService initialized with admin API URL', { adminApiBaseUrl })
+        return new AnimationServiceImpl(logger, adminApiBaseUrl)
       })
       .register(
         AvatarControllerToken,

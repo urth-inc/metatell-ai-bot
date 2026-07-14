@@ -639,15 +639,15 @@ describe('AgentClient', () => {
 
       const mockResult: AnimationPlaybackResult = {
         playbackId: 'playback-123',
-        animationId: 'wave',
+        animationId: 'walking',
         startedAt: Date.now(),
         expectedDuration: 1000,
       }
       vi.spyOn(mockAvatarController, 'playAnimation').mockResolvedValue(mockResult)
 
-      const result = await client.playAnimation('wave')
+      const result = await client.playAnimation('walking')
 
-      expect(mockAvatarController.playAnimation).toHaveBeenCalledWith('wave', undefined)
+      expect(mockAvatarController.playAnimation).toHaveBeenCalledWith('walking', undefined)
       expect(result).toEqual(mockResult)
     })
 
@@ -660,17 +660,18 @@ describe('AgentClient', () => {
       })
 
       const options = { loop: true, speed: 0.5 }
+      const customAnimationId = 'cb612a7f-157d-42df-a988-6590b5709880'
       const mockResult: AnimationPlaybackResult = {
         playbackId: 'playback-456',
-        animationId: 'dance',
+        animationId: customAnimationId,
         startedAt: Date.now(),
         expectedDuration: 2000,
       }
       vi.spyOn(mockAvatarController, 'playAnimation').mockResolvedValue(mockResult)
 
-      const result = await client.playAnimation('dance', options)
+      const result = await client.playAnimation(customAnimationId, options)
 
-      expect(mockAvatarController.playAnimation).toHaveBeenCalledWith('dance', options)
+      expect(mockAvatarController.playAnimation).toHaveBeenCalledWith(customAnimationId, options)
       expect(result).toEqual(mockResult)
     })
   })

@@ -57,7 +57,7 @@ Controls bot avatar state, movement, and animations.
 
 ```ts
 await avatarController.spawn()
-await avatarController.playAnimation(PresetAnimationId.WAVE)
+await avatarController.playAnimation(PresetAnimationId.WALKING)
 await avatarController.setPosition({ x: 10, y: 0, z: 5 })
 ```
 

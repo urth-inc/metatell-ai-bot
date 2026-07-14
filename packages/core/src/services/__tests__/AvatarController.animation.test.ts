@@ -1,16 +1,16 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AnimationNotFoundError, AvatarNotSpawnedError } from '../../errors/animation-errors.js'
-import type { IAnimationService } from '../../interfaces/IAnimationService.js'
 import type { IConfigurationProvider } from '../../interfaces/IConfigurationProvider.js'
 import type { IEventBus } from '../../interfaces/IEventBus.js'
 import { SystemEvents } from '../../interfaces/IEventBus.js'
 import type { IMessageService } from '../../interfaces/IMessageService.js'
 import { DefaultLoggerProvider } from '../../logging/providers/default.js'
+import type { Logger } from '../../logging/spi.js'
 import { registerLoggerProvider } from '../../logging/spi.js'
 import type { AnimationPlayOptions } from '../../types/animation.js'
+import { AnimationService } from '../AnimationService.js'
 import { AvatarController } from '../AvatarController.js'
 
-// Mock services
 const mockMessageService: IMessageService = {
   sendMessage: vi.fn(),
   sendNAF: vi.fn(),
@@ -40,102 +40,110 @@ const mockEventBus: IEventBus = {
   removeAllListeners: vi.fn(),
 }
 
-const mockAnimationService: IAnimationService = {
-  getAvailableAnimations: vi.fn(() => Promise.resolve([])),
-  loadAnimation: vi.fn(),
-  validateAnimation: vi.fn(),
-  clearCache: vi.fn(),
-  getDefaultAnimations: vi.fn(() => []),
-  setCurrentAvatarId: vi.fn(),
+const mockLogger: Logger = {
+  error: vi.fn(),
+  warn: vi.fn(),
+  info: vi.fn(),
+  debug: vi.fn(),
+}
+
+global.fetch = vi.fn()
+
+const adminApiBaseUrl = 'https://v-air-admin-development.urth.workers.dev'
+const sessionId = 'test-session-id'
+const avatarId = 'test-avatar-id'
+const customAnimation = {
+  id: 'cb612a7f-157d-42df-a988-6590b5709880',
+  name: 'Custom Motion',
+  vrmaFilePath: 'vrm-animation-files/custom.vrma',
+}
+
+function avatarResponse(): Response {
+  return {
+    ok: true,
+    status: 200,
+    statusText: 'OK',
+    json: async () => ({ animations: [customAnimation] }),
+  } as Response
 }
 
 describe('AvatarController - Animation Features', () => {
   let controller: AvatarController
-  const sessionId = 'test-session-id'
-  const avatarId = 'test-avatar-id'
+  let animationService: AnimationService
 
   beforeAll(() => {
-    // Register logger provider for tests
-    registerLoggerProvider(new DefaultLoggerProvider())
+    const loggerProvider = new DefaultLoggerProvider()
+    loggerProvider.enableConsole(false)
+    registerLoggerProvider(loggerProvider, { allowOverwrite: true })
   })
 
   beforeEach(async () => {
     vi.clearAllMocks()
+    vi.mocked(global.fetch).mockResolvedValue(avatarResponse())
+    vi.mocked(mockMessageService.sendNAF).mockResolvedValue(undefined)
+    vi.mocked(mockMessageService.sendNAFR).mockResolvedValue(undefined)
 
+    animationService = new AnimationService(mockLogger, adminApiBaseUrl)
     controller = new AvatarController(
       mockMessageService,
       mockConfigProvider,
       mockEventBus,
-      mockAnimationService,
+      animationService,
     )
 
-    // Simulate room joined event to set session ID
-    const onCallback = vi
+    const roomJoinedCallback = vi
       .mocked(mockEventBus.on)
       .mock.calls.find((call) => call[0] === SystemEvents.ROOM_JOINED)?.[1]
-    if (onCallback) {
-      onCallback({ session_id: sessionId })
-    }
+    roomJoinedCallback?.({ session_id: sessionId })
 
-    // Mock successful NAF messages
-    vi.mocked(mockMessageService.sendNAF).mockResolvedValue(undefined)
-    vi.mocked(mockMessageService.sendNAFR).mockResolvedValue(undefined)
-
-    // Spawn avatar to enable animation methods
     await controller.spawn(avatarId, { x: 0, y: 0, z: 0 })
-
     vi.clearAllMocks()
   })
 
   describe('playAnimation', () => {
-    it('should throw error if avatar not spawned', async () => {
+    it('should throw if the avatar has not spawned', async () => {
       const newController = new AvatarController(
         mockMessageService,
         mockConfigProvider,
         mockEventBus,
-        mockAnimationService,
+        animationService,
       )
 
-      await expect(newController.playAnimation('test-animation')).rejects.toThrow(
-        AvatarNotSpawnedError,
-      )
+      await expect(newController.playAnimation('walking')).rejects.toThrow(AvatarNotSpawnedError)
     })
 
-    it('should validate animation exists', async () => {
-      vi.mocked(mockAnimationService.validateAnimation).mockResolvedValueOnce(false)
+    it('should reject an ID absent from the current avatar available list', async () => {
+      await expect(controller.playAnimation('wave')).rejects.toThrow(AnimationNotFoundError)
 
-      await expect(controller.playAnimation('invalid-animation')).rejects.toThrow(
+      expect(global.fetch).toHaveBeenCalledWith(`${adminApiBaseUrl}/api/v1/avatars/${avatarId}`)
+      expect(mockMessageService.sendNAF).not.toHaveBeenCalled()
+    })
+
+    it('should validate UUID animations instead of bypassing the available list', async () => {
+      const unavailableUuid = '2bb3c8aa-1ae7-4b45-82df-c5bb2421bc7b'
+
+      await expect(controller.playAnimation(unavailableUuid)).rejects.toThrow(
         AnimationNotFoundError,
       )
 
-      expect(mockAnimationService.validateAnimation).toHaveBeenCalledWith('invalid-animation')
+      expect(global.fetch).toHaveBeenCalledWith(`${adminApiBaseUrl}/api/v1/avatars/${avatarId}`)
+      expect(mockMessageService.sendNAF).not.toHaveBeenCalled()
     })
 
-    it('should send animation NAF message', async () => {
-      const animationId = 'greeting'
+    it('should send a NAF message for an available avatar animation', async () => {
       const options: AnimationPlayOptions = {
         loop: false,
         timeScale: 1.5,
       }
 
-      vi.mocked(mockAnimationService.validateAnimation).mockResolvedValueOnce(true)
-      vi.mocked(mockAnimationService.loadAnimation).mockResolvedValueOnce({
-        id: animationId,
-        name: 'Greeting',
-        type: 'preset',
-        duration: 2000,
-        loop: false,
-      })
-
-      const result = await controller.playAnimation(animationId, options)
+      const result = await controller.playAnimation(customAnimation.id, options)
 
       expect(result).toMatchObject({
-        animationId,
+        animationId: customAnimation.id,
         playbackId: expect.any(String),
         startedAt: expect.any(Number),
-        expectedDuration: 2000 / 1.5, // duration / timeScale
+        expectedDuration: undefined,
       })
-
       expect(mockMessageService.sendNAF).toHaveBeenCalledWith(
         expect.objectContaining({
           dataType: 'um',
@@ -144,7 +152,7 @@ describe('AvatarController - Animation Features', () => {
               expect.objectContaining({
                 components: expect.objectContaining({
                   13: expect.objectContaining({
-                    status: animationId,
+                    status: customAnimation.id,
                     animationRunId: result.playbackId,
                   }),
                 }),
@@ -155,47 +163,38 @@ describe('AvatarController - Animation Features', () => {
       )
     })
 
-    it('should emit animation:played event', async () => {
-      const animationId = 'dance'
-
-      vi.mocked(mockAnimationService.validateAnimation).mockResolvedValueOnce(true)
-
-      const result = await controller.playAnimation(animationId)
+    it('should emit animation:played for an available avatar animation', async () => {
+      const result = await controller.playAnimation(customAnimation.id)
 
       expect(mockEventBus.emit).toHaveBeenCalledWith('animation:played', {
-        animationId,
+        animationId: customAnimation.id,
         playbackId: result.playbackId,
         options: undefined,
       })
     })
 
-    it('should update internal state', async () => {
-      const animationId = 'walking'
+    it('should update the current animation state for a preset', async () => {
+      await controller.playAnimation('walking')
 
-      vi.mocked(mockAnimationService.validateAnimation).mockResolvedValueOnce(true)
-
-      await controller.playAnimation(animationId)
-
-      expect(controller.getCurrentAnimation()).toBe(animationId)
-
-      const state = controller.getState()
-      expect(state?.currentAnimation).toBe(animationId)
+      expect(controller.getCurrentAnimation()).toBe('walking')
+      expect(controller.getState()?.currentAnimation).toBe('walking')
+      expect(global.fetch).not.toHaveBeenCalled()
     })
   })
 
   describe('stopAnimation', () => {
-    it('should throw error if avatar not spawned', async () => {
+    it('should throw if the avatar has not spawned', async () => {
       const newController = new AvatarController(
         mockMessageService,
         mockConfigProvider,
         mockEventBus,
-        mockAnimationService,
+        animationService,
       )
 
       await expect(newController.stopAnimation()).rejects.toThrow(AvatarNotSpawnedError)
     })
 
-    it('should send idle animation message', async () => {
+    it('should send the idle animation message', async () => {
       await controller.stopAnimation()
 
       expect(mockMessageService.sendNAF).toHaveBeenCalledWith(
@@ -217,27 +216,18 @@ describe('AvatarController - Animation Features', () => {
       )
     })
 
-    it('should clear animation state', async () => {
-      // First play an animation
-      vi.mocked(mockAnimationService.validateAnimation).mockResolvedValueOnce(true)
-      await controller.playAnimation('dance')
+    it('should clear the current animation state', async () => {
+      await controller.playAnimation('walking')
 
-      expect(controller.getCurrentAnimation()).toBe('dance')
-
-      // Stop animation
       await controller.stopAnimation()
 
       expect(controller.getCurrentAnimation()).toBeNull()
-
-      const state = controller.getState()
-      expect(state?.currentAnimation).toBeUndefined()
+      expect(controller.getState()?.currentAnimation).toBeUndefined()
     })
 
-    it('should emit animation:stopped event', async () => {
-      // Play animation first
-      vi.mocked(mockAnimationService.validateAnimation).mockResolvedValueOnce(true)
-      await controller.playAnimation('wave')
-      vi.clearAllMocks()
+    it('should emit animation:stopped after returning to idle', async () => {
+      await controller.playAnimation('walking')
+      vi.mocked(mockEventBus.emit).mockClear()
 
       await controller.stopAnimation()
 
@@ -253,71 +243,52 @@ describe('AvatarController - Animation Features', () => {
       expect(controller.getCurrentAnimation()).toBeNull()
     })
 
-    it('should return current animation after playing', async () => {
-      const animationId = 'jumping'
+    it('should return the avatar animation after playing it', async () => {
+      await controller.playAnimation(customAnimation.id)
 
-      vi.mocked(mockAnimationService.validateAnimation).mockResolvedValueOnce(true)
-      await controller.playAnimation(animationId)
-
-      expect(controller.getCurrentAnimation()).toBe(animationId)
+      expect(controller.getCurrentAnimation()).toBe(customAnimation.id)
     })
 
     it('should return null after stopping', async () => {
-      vi.mocked(mockAnimationService.validateAnimation).mockResolvedValueOnce(true)
-      await controller.playAnimation('nod')
+      await controller.playAnimation('walking')
       await controller.stopAnimation()
 
       expect(controller.getCurrentAnimation()).toBeNull()
     })
   })
 
-  describe('calculateExpectedDuration', () => {
-    it('should calculate duration with timeScale', async () => {
-      const animationId = 'greeting'
-      const options: AnimationPlayOptions = {
-        timeScale: 2, // Double speed
-      }
-
-      vi.mocked(mockAnimationService.validateAnimation).mockResolvedValueOnce(true)
-      vi.mocked(mockAnimationService.loadAnimation).mockResolvedValueOnce({
-        id: animationId,
-        name: 'Greeting',
-        type: 'preset',
+  describe('expected duration', () => {
+    it('should apply timeScale to a loaded animation duration', async () => {
+      vi.spyOn(animationService, 'loadAnimation').mockResolvedValue({
+        id: 'timed-animation',
+        name: 'Timed Animation',
+        type: 'custom',
         duration: 2000,
         loop: false,
       })
 
-      const result = await controller.playAnimation(animationId, options)
+      const result = await controller.playAnimation('timed-animation', { timeScale: 2 })
 
-      expect(result.expectedDuration).toBe(1000) // 2000 / 2
+      expect(result.expectedDuration).toBe(1000)
     })
 
-    it('should return undefined if animation has no duration', async () => {
-      const animationId = 'idle'
-
-      vi.mocked(mockAnimationService.validateAnimation).mockResolvedValueOnce(true)
-      vi.mocked(mockAnimationService.loadAnimation).mockResolvedValueOnce({
-        id: animationId,
-        name: 'Idle',
-        type: 'preset',
-        loop: true,
-        // No duration
-      })
-
-      const result = await controller.playAnimation(animationId)
+    it('should return undefined when the animation has no duration', async () => {
+      const result = await controller.playAnimation('idle')
 
       expect(result.expectedDuration).toBeUndefined()
     })
 
-    it('should return undefined if animation service throws', async () => {
-      const animationId = 'test'
+    it('should return undefined when loading duration metadata fails', async () => {
+      vi.spyOn(animationService, 'loadAnimation')
+        .mockResolvedValueOnce({
+          id: 'walking',
+          name: 'Walking',
+          type: 'preset',
+          loop: true,
+        })
+        .mockRejectedValueOnce(new Error('Failed to load'))
 
-      vi.mocked(mockAnimationService.validateAnimation).mockResolvedValueOnce(true)
-      vi.mocked(mockAnimationService.loadAnimation).mockRejectedValueOnce(
-        new Error('Failed to load'),
-      )
-
-      const result = await controller.playAnimation(animationId)
+      const result = await controller.playAnimation('walking')
 
       expect(result.expectedDuration).toBeUndefined()
     })

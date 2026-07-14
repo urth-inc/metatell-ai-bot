@@ -32,9 +32,9 @@ client.chat.onMessage(async ({ text, reply }) => {
   const [command, ...args] = text.trim().split(/\s+/)
 
   switch (command) {
-    case '/wave':
-      await client.avatar.play({ id: 'wave', loop: false })
-      await reply('Wave animation requested.')
+    case '/walk':
+      await client.avatar.play({ id: 'walking', loop: false })
+      await reply('Walking animation requested.')
       break
 
     case '/move': {

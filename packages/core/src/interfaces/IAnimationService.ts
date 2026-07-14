@@ -13,14 +13,14 @@ export interface IAnimationService {
   getAvailableAnimations(avatarId: string): Promise<VRMAnimation[]>
 
   /**
-   * Load animation data from cache or API
+   * Load animation data from the current avatar's available animations
    * @param animationId - The animation ID
    * @returns Promise resolving to animation data
    */
   loadAnimation(animationId: string): Promise<VRMAnimation>
 
   /**
-   * Validate if animation exists
+   * Validate if animation is available for the current avatar
    * @param animationId - The animation ID
    * @returns Promise resolving to boolean
    */
@@ -38,7 +38,7 @@ export interface IAnimationService {
   clearCache(): void
 
   /**
-   * Set current avatar ID for animation loading
+   * Set current avatar ID for animation lookup and validation
    * @param avatarId - The avatar ID
    */
   setCurrentAvatarId(avatarId: string): void

@@ -51,7 +51,7 @@ async function main() {
 
   await client.avatar.moveTo({ x: 1, y: 1.6, z: -2 })
   await client.avatar.rotateTo({ x: 0, y: 180, z: 0 })
-  await client.avatar.play({ id: 'wave', loop: false })
+  await client.avatar.play({ id: 'walking', loop: false })
 }
 
 main().catch((error) => {
@@ -100,13 +100,14 @@ await client.avatar.select('avatar-asset-id')
 await client.avatar.moveTo({ x: 10, y: 0, z: 5 })
 await client.avatar.rotateTo({ x: 0, y: 90, z: 0 })
 await client.avatar.lookAt({ x: 0, y: 1.6, z: 0 })
-await client.avatar.play({ id: 'wave', loop: true, duration: 5000 })
-
 const assets = await client.avatar.getAvailableAssets()
 const animations = await client.avatar.getAvailableAnimations()
+await client.avatar.play({ id: 'walking', loop: true, duration: 5000 })
 ```
 
 `moveTo()` uses room coordinates. `rotateTo()` uses Euler angles in degrees.
+Only `idle` and `walking` are presets. Use an ID returned by
+`getAvailableAnimations()` for avatar-specific animations.
 
 ## Room Presence
 

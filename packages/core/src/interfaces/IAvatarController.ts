@@ -39,7 +39,7 @@ export interface IAvatarController {
 
   /**
    * Play an animation on the avatar
-   * @param animationId - The animation ID (preset or custom UUID)
+   * @param animationId - A preset ID or an ID returned for the current avatar
    * @param options - Animation playback options
    * @returns Promise resolving to playback result
    */

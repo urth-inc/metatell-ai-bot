@@ -52,6 +52,7 @@ client.chat.onMessage(async ({ mention, reply }) => {
 
 - Call `avatar.getAvailableAnimations()` and use an ID that exists for the
   selected avatar.
+- Only `idle` and `walking` are guaranteed preset IDs.
 - Some avatar-specific animation IDs are UUIDs. Do not assume preset names are
   available on every avatar.
 - If a bot loops movement animations, stop or replace the loop before playing a

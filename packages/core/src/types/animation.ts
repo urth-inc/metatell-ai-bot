@@ -76,16 +76,6 @@ export enum AnimationLoopBehavior {
 export enum PresetAnimationId {
   IDLE = 'idle',
   WALKING = 'walking',
-  GREETING = 'greeting',
-  THANKFUL = 'thankful',
-  JUMPING = 'jumping',
-  JUMPING_UP = 'jumping_up',
-  JUMPING_DOWN = 'jumping_down',
-  CROUCH = 'crouch',
-  DANCE = 'dance',
-  WAVE = 'wave',
-  NOD = 'nod',
-  SHAKE_HEAD = 'shake_head',
 }
 
 /**

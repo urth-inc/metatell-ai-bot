@@ -87,7 +87,7 @@ client.chat.onMessage(async ({ from, text, reply }) => {
 ```ts
 await client.avatar.moveTo({ x: 1, y: 1.6, z: -2 })
 await client.avatar.rotateTo({ x: 0, y: 180, z: 0 })
-await client.avatar.play({ id: 'wave', loop: false })
+await client.avatar.play({ id: 'walking', loop: false })
 ```
 
 ### Read room presence

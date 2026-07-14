@@ -7,12 +7,12 @@ import { PresetAnimationId } from '../types/animation.js'
  * Service for managing VRM animations
  */
 export class AnimationService implements IAnimationService {
-  private animationCache: Map<string, VRMAnimation> = new Map()
   private avatarAnimationsCache: Map<string, VRMAnimation[]> = new Map()
+  private currentAvatarId: string | null = null
 
   constructor(
     private logger: Logger,
-    private apiBaseUrl: string,
+    private adminApiBaseUrl: string,
   ) {}
 
   /**
@@ -30,7 +30,7 @@ export class AnimationService implements IAnimationService {
 
     try {
       // アバター情報を取得して利用可能なアニメーションを確認
-      const avatarUrl = `${this.apiBaseUrl}/api/v1/avatars/${avatarId}`
+      const avatarUrl = `${this.adminApiBaseUrl}/api/v1/avatars/${avatarId}`
 
       this.logger.debug('Fetching avatar animations', { avatarUrl })
 
@@ -43,16 +43,9 @@ export class AnimationService implements IAnimationService {
       })
 
       if (!response.ok) {
-        // 404の場合は組織アバターの可能性があるのでデフォルトを返す
-        if (response.status === 404) {
-          this.logger.debug(
-            'Avatar not found in individual avatars, might be organization avatar',
-            { avatarId },
-          )
-          this.avatarAnimationsCache.set(avatarId, defaultAnimations)
-          return defaultAnimations
-        }
-        throw new Error(`Failed to fetch avatar info: ${response.status}`)
+        throw new Error(
+          `Failed to fetch avatar animations from ${avatarUrl}: ${response.status} ${response.statusText}`,
+        )
       }
 
       const avatarData = (await response.json()) as {
@@ -67,13 +60,15 @@ export class AnimationService implements IAnimationService {
       }
 
       // アバター固有のアニメーションをVRMAnimation形式に変換
-      const customAnimations: VRMAnimation[] = (avatarData.animations || []).map((anim) => ({
-        id: anim.id,
-        name: anim.alias || anim.name,
-        vrmaFilePath: anim.vrmaFilePath,
-        type: 'custom' as const,
-        loop: false, // デフォルトはループなし
-      }))
+      const customAnimations: VRMAnimation[] = Array.isArray(avatarData.animations)
+        ? avatarData.animations.map((anim) => ({
+            id: anim.id,
+            name: anim.alias || anim.name,
+            vrmaFilePath: anim.vrmaFilePath,
+            type: 'custom' as const,
+            loop: false, // デフォルトはループなし
+          }))
+        : []
 
       // デフォルトアニメーションとカスタムアニメーションを結合
       const allAnimations = [...defaultAnimations, ...customAnimations]
@@ -88,7 +83,6 @@ export class AnimationService implements IAnimationService {
       return allAnimations
     } catch (error) {
       this.logger.warn('Failed to fetch avatar animations, returning defaults', { avatarId, error })
-      this.avatarAnimationsCache.set(avatarId, defaultAnimations)
       return defaultAnimations
     }
   }
@@ -97,46 +91,32 @@ export class AnimationService implements IAnimationService {
    * Load animation data
    */
   async loadAnimation(animationId: string): Promise<VRMAnimation> {
-    // Check cache
-    const cached = this.animationCache.get(animationId)
-    if (cached) {
-      return cached
-    }
-
     // Check if it's a preset animation
     const presetAnimation = this.getDefaultAnimations().find((a) => a.id === animationId)
     if (presetAnimation) {
-      this.animationCache.set(animationId, presetAnimation)
       return presetAnimation
     }
 
-    // For custom animations, we need to fetch from API
     try {
-      const response = await fetch(`${this.apiBaseUrl}/api/v1/animations/${animationId}`)
-      if (!response.ok) {
-        throw new Error(`Animation not found: ${animationId}`)
+      if (!this.currentAvatarId) {
+        throw new Error(`Cannot load animation without a current avatar: ${animationId}`)
       }
 
-      const animationData = (await response.json()) as {
-        id: string
-        name?: string
-        vrmaFilePath?: string
-        duration?: number
-        loop?: boolean
-      }
-      const animation: VRMAnimation = {
-        id: animationData.id,
-        name: animationData.name,
-        vrmaFilePath: animationData.vrmaFilePath,
-        type: 'custom',
-        duration: animationData.duration,
-        loop: animationData.loop,
+      const availableAnimations = await this.getAvailableAnimations(this.currentAvatarId)
+      const animation = availableAnimations.find((item) => item.id === animationId)
+      if (!animation) {
+        throw new Error(
+          `Animation not available for avatar ${this.currentAvatarId}: ${animationId}`,
+        )
       }
 
-      this.animationCache.set(animationId, animation)
       return animation
     } catch (error) {
-      this.logger.error('Failed to load animation', { animationId, error })
+      this.logger.error('Failed to load animation', {
+        animationId,
+        avatarId: this.currentAvatarId,
+        error,
+      })
       throw error
     }
   }
@@ -177,7 +157,6 @@ export class AnimationService implements IAnimationService {
    * Clear all caches
    */
   clearCache(): void {
-    this.animationCache.clear()
     this.avatarAnimationsCache.clear()
     this.logger.debug('Animation cache cleared')
   }
@@ -186,10 +165,7 @@ export class AnimationService implements IAnimationService {
    * Set current avatar ID for animation context
    */
   setCurrentAvatarId(avatarId: string): void {
-    // アバターIDが変更された場合、そのアバターのアニメーションを事前取得
-    this.getAvailableAnimations(avatarId).catch((error) => {
-      this.logger.warn('Failed to preload avatar animations', { avatarId, error })
-    })
+    this.currentAvatarId = avatarId
     this.logger.debug('Current avatar ID set', { avatarId })
   }
 }
