@@ -91,7 +91,7 @@ async function main(): Promise<void> {
   const llm = createLlmApi({
     baseUrl,
     apiKey,
-    model: envString('LLM_MODEL', 'gemini-2.5-flash-lite'),
+    model: envString('LLM_MODEL', 'gemini-flash-lite-latest'),
     guarded: false,
   })
 
