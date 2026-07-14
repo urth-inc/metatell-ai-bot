@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@metatell/bot-core": "workspace:*",
-    "@types/uuid": "10.0.0"
+    "@types/uuid": "11.0.0"
   },
   "peerDependencies": {
     "@types/node": "*",
