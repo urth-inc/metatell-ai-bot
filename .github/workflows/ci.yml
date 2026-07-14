@@ -40,6 +40,11 @@ jobs:
       - name: Run tests
         run: pnpm run test:coverage -- --reporter=github-actions
 
+      - name: Validate bt-bot example
+        run: |
+          pnpm --filter metatell-bt-bot-example check
+          pnpm --filter metatell-bt-bot-example test
+
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v6
         env:

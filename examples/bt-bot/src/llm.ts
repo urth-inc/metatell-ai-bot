@@ -59,9 +59,8 @@ async function requestChat(
 ): Promise<string> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), LLM_REQUEST_TIMEOUT_MS)
-  let response: Response
   try {
-    response = await fetch(`${options.baseUrl.replace(/\/$/, '')}/chat/completions`, {
+    const response = await fetch(`${options.baseUrl.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -76,14 +75,14 @@ async function requestChat(
       }),
       signal: controller.signal,
     })
+    if (!response.ok) {
+      const detail = (await response.text()).slice(0, 200)
+      throw new Error(`LLMリクエストが失敗しました（HTTP ${response.status}）: ${detail}`)
+    }
+    return extractContent((await response.json()) as JsonValue)
   } finally {
     clearTimeout(timer)
   }
-  if (!response.ok) {
-    const detail = (await response.text()).slice(0, 200)
-    throw new Error(`LLMリクエストが失敗しました（HTTP ${response.status}）: ${detail}`)
-  }
-  return extractContent((await response.json()) as JsonValue)
 }
 
 /** Creates the LlmApi used by llm_reply / llm_say / llm_choose and custom nodes. */

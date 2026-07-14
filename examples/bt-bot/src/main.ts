@@ -8,6 +8,7 @@ import { buildTree, tickTree } from './engine/engine.js'
 import type { BotApi, BTNode, JsonValue, TickContext, TraceEntry } from './engine/types.js'
 import { asTreeDef, validateTreeDoc } from './engine/validate.js'
 import { envFlag, envString, loadDotEnv } from './env.js'
+import { createShutdownController, watchFileChanges } from './lifecycle.js'
 import { createLlmApi } from './llm.js'
 import { registerBuiltins } from './nodes/index.js'
 import {
@@ -105,12 +106,12 @@ async function main(): Promise<void> {
     log('LLM_API_KEYとLLM_BASE_URLが未設定のため、llm_reply / llm_say / llm_chooseは動きません')
   }
 
-  const operatorIds = envString('OPERATOR_IDS')
+  const operatorSessionIds = envString('OPERATOR_SESSION_IDS')
     .split(',')
     .map((id) => id.trim())
     .filter((id) => id !== '')
-  if (operatorIds.length === 0) {
-    log('OPERATOR_IDSが未設定です。キルスイッチ（/killall）を全員が使える状態で起動します')
+  if (operatorSessionIds.length === 0) {
+    log('OPERATOR_SESSION_IDSが未設定のため、リモートキルスイッチ（/killall）は無効です')
   }
 
   const client = createMetatellClient({
@@ -122,12 +123,16 @@ async function main(): Promise<void> {
   })
 
   await client.connect()
-  const botInfo = await client.getInfo()
   log(`接続しました: ルーム=${roomId} 名前=${config.name}`)
 
   const speaker = createSafeSpeaker(log)
   const bb = createBlackboard()
   bb.set('startedAtMs', Date.now())
+  const shutdownController = createShutdownController({
+    disconnect: () => client.disconnect(),
+    exit: (code) => process.exit(code),
+    log,
+  })
 
   // BotApi: ノードが世界に触る唯一の窓口。安全装置はこの内側にある
   let walking = false
@@ -177,30 +182,21 @@ async function main(): Promise<void> {
     },
   }
 
-  let timer: ReturnType<typeof setInterval> | null = null
-  const shutdown = async (reason: string): Promise<void> => {
-    log(`停止します: ${reason}`)
-    if (timer) clearInterval(timer)
-    await client.disconnect()
-    process.exit(0)
-  }
-
   const sensors = createSensors({
     client,
     botName: config.name,
-    botSessionId: botInfo.sessionId,
     allowBotPerception: envFlag('ALLOW_BOT_PERCEPTION'),
-    operatorIds,
+    operatorSessionIds,
     speaker,
-    onKill: (byName) => void shutdown(`キルスイッチ（${byName}さんの${KILL_COMMAND}）`),
+    onKill: (byName) =>
+      void shutdownController.shutdown(`キルスイッチ（${byName}さんの${KILL_COMMAND}）`),
     log,
   })
 
   // tree.jsonのホットリロード: 検証を通過したときだけ差し替える
-  let reloadTimer: ReturnType<typeof setTimeout> | null = null
-  fs.watch(TREE_PATH, () => {
-    if (reloadTimer) clearTimeout(reloadTimer)
-    reloadTimer = setTimeout(() => {
+  const treeWatcher = watchFileChanges(
+    TREE_PATH,
+    () => {
       const doc = loadTreeOrExplain()
       if (doc === null) {
         log('tree.jsonの変更にエラーがあるため、直前のツリーで動き続けます')
@@ -208,12 +204,14 @@ async function main(): Promise<void> {
       }
       root = buildTree(asTreeDef(doc))
       log('tree.jsonを再読み込みしました')
-    }, 300)
-  })
+    },
+    (error) => log(`tree.jsonの監視に失敗しました: ${String(error)}`),
+  )
+  shutdownController.addCleanup(() => treeWatcher.close())
 
   const traceEnabled = process.env.BT_TRACE !== '0'
   let lastTraceText = ''
-  timer = setInterval(() => {
+  const tickTimer = setInterval(() => {
     const now = Date.now()
     sensors.snapshot(bb, now)
     const ctx: TickContext = { bb, inbox: sensors.inbox, api, now, trace: [] }
@@ -227,9 +225,10 @@ async function main(): Promise<void> {
       }
     }
   }, config.tickMs)
+  shutdownController.addCleanup(() => clearInterval(tickTimer))
 
-  process.on('SIGINT', () => void shutdown('Ctrl+C'))
-  process.on('SIGTERM', () => void shutdown('SIGTERM'))
+  process.on('SIGINT', () => void shutdownController.shutdown('Ctrl+C'))
+  process.on('SIGTERM', () => void shutdownController.shutdown('SIGTERM'))
   process.on('unhandledRejection', (reason) => {
     log(`未処理のPromise拒否: ${String(reason)}`)
   })

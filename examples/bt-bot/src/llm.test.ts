@@ -85,6 +85,55 @@ test('LLM fetch成功時もtimerをclearし、従来どおり本文を返す', a
   }
 })
 
+test('LLM response本文の読み取りが止まった場合も30秒でabortする', async () => {
+  const originalFetch = globalThis.fetch
+  const originalSetTimeout = globalThis.setTimeout
+  const originalClearTimeout = globalThis.clearTimeout
+  const timer = 3 as unknown as ReturnType<typeof setTimeout>
+  let abortRequest: (() => void) | undefined
+  let requestSignal: AbortSignal | undefined
+  let clearedTimer: ReturnType<typeof setTimeout> | undefined
+
+  globalThis.setTimeout = ((handler: () => void) => {
+    abortRequest = handler
+    return timer
+  }) as typeof setTimeout
+  globalThis.clearTimeout = ((value: ReturnType<typeof setTimeout>) => {
+    clearedTimer = value
+  }) as typeof clearTimeout
+  globalThis.fetch = ((_input: string | URL | Request, init?: RequestInit) => {
+    requestSignal = init?.signal ?? undefined
+    const body = new ReadableStream({
+      start(controller) {
+        requestSignal?.addEventListener('abort', () => controller.error(requestSignal?.reason), {
+          once: true,
+        })
+      },
+    })
+    return Promise.resolve(new Response(body, { status: 200 }))
+  }) as typeof fetch
+
+  try {
+    const pending = createLlmApi(options).complete({ system: 'system', user: 'user' })
+    await Promise.resolve()
+
+    assert.ok(abortRequest)
+    assert.equal(clearedTimer, undefined)
+    abortRequest()
+
+    await assert.rejects(
+      pending,
+      (error: unknown) => error instanceof DOMException && error.name === 'AbortError',
+    )
+    assert.equal(requestSignal?.aborted, true)
+    assert.equal(clearedTimer, timer)
+  } finally {
+    globalThis.fetch = originalFetch
+    globalThis.setTimeout = originalSetTimeout
+    globalThis.clearTimeout = originalClearTimeout
+  }
+})
+
 test('LLMのHTTPエラー詳細を従来どおり呼び出し元へ返す', async () => {
   const originalFetch = globalThis.fetch
   globalThis.fetch = (() =>

@@ -26,10 +26,9 @@ const MAX_PENDING_MENTIONS = 5
 export interface SensorOptions {
   client: MetatellClient
   botName: string
-  botSessionId: string | undefined
   allowBotPerception: boolean
-  /** Users allowed to trigger the kill switch. Empty = anyone (with a startup warning). */
-  operatorIds: string[]
+  /** Session IDs allowed to trigger the kill switch. Empty disables remote kills. */
+  operatorSessionIds: string[]
   speaker: SafeSpeaker
   onKill: (byName: string) => void
   log: (message: string) => void
@@ -42,31 +41,45 @@ export interface Sensors {
 }
 
 export function createSensors(options: SensorOptions): Sensors {
-  const { client, botName, botSessionId, allowBotPerception, operatorIds, speaker, log } = options
+  const { client, botName, allowBotPerception, operatorSessionIds, speaker, log } = options
   const recentChat: ChatLine[] = []
   const mentions: PendingMention[] = []
 
-  const isSelf = (user: RoomUser): boolean =>
-    botSessionId === undefined ? user.name === botName : user.id === botSessionId
+  const isSelf = (user: RoomUser): boolean => {
+    const currentSessionId = client.getSessionId()
+    return currentSessionId === null ? user.name === botName : user.id === currentSessionId
+  }
   const isPerceivable = (user: RoomUser): boolean =>
     !isSelf(user) && (allowBotPerception || user.isBot !== true)
+  const isPerceivableChat = (user: RoomUser): boolean => {
+    if (isSelf(user)) return false
+    if (allowBotPerception) return true
+
+    // chat event側のisBotはPresence同期前だとfalseになり得る。同期済み一覧で
+    // humanと確認できるまで捨て、bot同士の応答ループをfail-closedで防ぐ。
+    const presenceUser = client.getUsers().find((candidate) => candidate.id === user.id)
+    return presenceUser?.isBot === false
+  }
 
   client.chat.onMessage(({ from, text, mention, reply }) => {
     // キルスイッチはあらゆる知覚除外より先に判定する（ボット経由でも止められるように）
     if (text.trim() === KILL_COMMAND && !isSelf(from)) {
-      if (operatorIds.length === 0 || operatorIds.includes(from.id)) {
+      if (operatorSessionIds.includes(from.id)) {
         options.onKill(from.name ?? '(不明)')
         return
       }
-      log(`キルスイッチ: ${from.name}は運営（OPERATOR_IDS）ではないため無視しました`)
+      log(
+        `キルスイッチ: ${from.name}（session ID: ${from.id}）は運営（OPERATOR_SESSION_IDS）ではないため無視しました`,
+      )
       return
     }
-    if (!isPerceivable(from)) return
+    if (!isPerceivableChat(from)) return
 
     recentChat.push({ fromName: from.name ?? '(名無し)', text, atMs: Date.now() })
     if (recentChat.length > MAX_RECENT_CHAT) recentChat.shift()
 
-    if (mention && botSessionId !== undefined && mention.sessionId === botSessionId) {
+    const currentSessionId = client.getSessionId()
+    if (mention && currentSessionId !== null && mention.sessionId === currentSessionId) {
       if (mentions.length >= MAX_PENDING_MENTIONS) mentions.shift()
       mentions.push({
         fromName: from.name ?? '(名無し)',
