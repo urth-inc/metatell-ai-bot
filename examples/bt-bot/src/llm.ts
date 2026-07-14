@@ -1,10 +1,10 @@
 import type { JsonObject, JsonValue, LlmApi } from './engine/types.js'
 
 /**
- * Minimal client for an OpenAI-compatible chat completions endpoint.
- * Deployments typically point LLM_BASE_URL at an operator-managed proxy
- * (per-user keys, rate limits, logging) instead of handing out raw
- * vendor keys. Dependency-free via fetch.
+ * Minimal client for an OpenAI-compatible chat completions endpoint,
+ * e.g. Gemini's OpenAI-compatible API or a relay proxy. When keys are
+ * distributed to multiple users, prefer a relay proxy (per-user keys,
+ * rate limits, logging) over raw vendor keys. Dependency-free via fetch.
  */
 
 export interface LlmClientOptions {
