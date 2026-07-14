@@ -85,7 +85,8 @@ test('tree watcherは親directoryを監視しbasename一致だけをdebounceす�
         return watcher
       },
       scheduleTimer(callback) {
-        const timer = { id: (nextTimerId += 1) } as unknown as Timer
+        nextTimerId += 1
+        const timer = { id: nextTimerId } as unknown as Timer
         scheduled = { timer, callback }
         return timer
       },
