@@ -46,13 +46,13 @@ importers:
         version: 1.13.6
       typedoc:
         specifier: 0.28.20
-        version: 0.28.20(typescript@5.9.2)
+        version: 0.28.20(typescript@5.9.3)
       typedoc-plugin-missing-exports:
         specifier: 4.1.4
-        version: 4.1.4(typedoc@0.28.20(typescript@5.9.2))
+        version: 4.1.4(typedoc@0.28.20(typescript@5.9.3))
       typescript:
-        specifier: 5.9.2
-        version: 5.9.2
+        specifier: 5.9.3
+        version: 5.9.3
       vitest:
         specifier: 3.2.4
         version: 3.2.4(@types/node@22.19.1)(@vitest/ui@3.2.4)(happy-dom@20.8.9)(tsx@4.21.0)(yaml@2.9.0)
@@ -73,8 +73,8 @@ importers:
         specifier: 4.21.0
         version: 4.21.0
       typescript:
-        specifier: 5.9.2
-        version: 5.9.2
+        specifier: 5.9.3
+        version: 5.9.3
 
   packages/core:
     dependencies:
@@ -117,8 +117,8 @@ importers:
         specifier: 22.19.1
         version: 22.19.1
       typescript:
-        specifier: 5.9.2
-        version: 5.9.2
+        specifier: 5.9.3
+        version: 5.9.3
       vitest:
         specifier: 3.2.4
         version: 3.2.4(@types/node@22.19.1)(@vitest/ui@3.2.4)(happy-dom@20.8.9)(tsx@4.21.0)(yaml@2.9.0)
@@ -2066,8 +2066,8 @@ packages:
     peerDependencies:
       typescript: 5.0.x || 5.1.x || 5.2.x || 5.3.x || 5.4.x || 5.5.x || 5.6.x || 5.7.x || 5.8.x || 5.9.x || 6.0.x
 
-  typescript@5.9.2:
-    resolution: {integrity: sha512-CWBzXQrc/qOkhidw1OzBTQuYRbfyxDXJMVJ1XNwUHGROVmuaeiEm3OslpZ1RV96d7SKKjZKrSJu3+t/xlw3R9A==}
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -3997,20 +3997,20 @@ snapshots:
 
   type-fest@4.41.0: {}
 
-  typedoc-plugin-missing-exports@4.1.4(typedoc@0.28.20(typescript@5.9.2)):
+  typedoc-plugin-missing-exports@4.1.4(typedoc@0.28.20(typescript@5.9.3)):
     dependencies:
-      typedoc: 0.28.20(typescript@5.9.2)
+      typedoc: 0.28.20(typescript@5.9.3)
 
-  typedoc@0.28.20(typescript@5.9.2):
+  typedoc@0.28.20(typescript@5.9.3):
     dependencies:
       '@gerrit0/mini-shiki': 3.23.0
       lunr: 2.3.9
       markdown-it: 14.3.0
       minimatch: 10.2.5
-      typescript: 5.9.2
+      typescript: 5.9.3
       yaml: 2.9.0
 
-  typescript@5.9.2: {}
+  typescript@5.9.3: {}
 
   uc.micro@2.1.0: {}
 
