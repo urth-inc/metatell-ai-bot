@@ -97,7 +97,6 @@ const DEFAULT_FALLBACK_AVATAR_ID = 'default'
 export interface CreateClientOptions {
   serverUrl: string
   roomId: string
-  token?: string
   /** OIDC access token sent as hub join `auth_token`; authenticates the bot so it gains room-role permissions (e.g. text_chat). */
   authToken?: string
   username?: string
@@ -148,7 +147,6 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         displayName: options.username || 'MetatellBot',
         avatarId: options.avatarId || '', // Resolved from the organization avatar later.
       },
-      botAccessKey: options.token,
       authToken: options.authToken,
       debug: options.debug || false,
     })

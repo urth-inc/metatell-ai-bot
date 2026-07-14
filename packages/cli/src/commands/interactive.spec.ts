@@ -111,7 +111,7 @@ describe('startInteractiveMode', () => {
     vi.mocked(createMetatellClient).mockReturnValue(mockClient as MetatellClient)
 
     const url = 'https://metatell.app/test-room'
-    const options = { token: 'test-token', name: 'TestBot', debug: true }
+    const options = { name: 'TestBot', debug: true }
 
     await startInteractiveMode(url, options)
 
@@ -119,7 +119,6 @@ describe('startInteractiveMode', () => {
     expect(createMetatellClient).toHaveBeenCalledWith({
       serverUrl: 'wss://metatell.app',
       roomId: 'test-room',
-      token: 'test-token',
       username: 'TestBot',
       debug: true,
     })
@@ -471,18 +470,13 @@ describe('startInteractiveMode', () => {
 
     vi.mocked(createMetatellClient).mockReturnValue(mockClient as MetatellClient)
 
-    process.env.METATELL_TOKEN = 'env-token'
-
     await startInteractiveMode('https://metatell.app/test-room', {})
 
     expect(createMetatellClient).toHaveBeenCalledWith({
       serverUrl: 'wss://metatell.app',
       roomId: 'test-room',
-      token: 'env-token',
       username: 'MetatellCLI',
       debug: undefined,
     })
-
-    delete process.env.METATELL_TOKEN
   })
 })
