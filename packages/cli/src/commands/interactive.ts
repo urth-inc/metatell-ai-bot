@@ -17,7 +17,6 @@ export async function startInteractiveMode(url: string, options: CliOptions) {
     const client = createMetatellClient({
       serverUrl,
       roomId,
-      token: options.token || process.env.METATELL_TOKEN || '',
       username: options.name || 'MetatellCLI',
       debug: options.debug,
     })
