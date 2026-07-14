@@ -1,0 +1,79 @@
+{
+  "$schema": "../../schemas/tree.schema.json",
+  "root": {
+    "type": "selector",
+    "children": [
+      {
+        "type": "sequence",
+        "name": "呼ばれたら返事",
+        "children": [
+          { "type": "condition", "name": "mentioned" },
+          { "type": "action", "name": "llm_reply" }
+        ]
+      },
+      {
+        "type": "sequence",
+        "name": "ときどき気分が変わる",
+        "children": [
+          { "type": "condition", "name": "cooldown", "params": { "sec": 120, "key": "mood" } },
+          {
+            "type": "action",
+            "name": "llm_choose",
+            "params": {
+              "key": "mood",
+              "question": "いまの状況から、あなたの気分をひとつ選んでください",
+              "choices": ["げんき", "ねむい", "はらぺこ"]
+            }
+          }
+        ]
+      },
+      {
+        "type": "sequence",
+        "name": "げんきなときは踊る",
+        "children": [
+          {
+            "type": "condition",
+            "name": "blackboard_equals",
+            "params": { "key": "mood", "value": "げんき" }
+          },
+          { "type": "condition", "name": "cooldown", "params": { "sec": 45, "key": "act" } },
+          { "type": "action", "name": "emote", "params": { "animation": "dance" } },
+          { "type": "action", "name": "say", "params": { "text": "きょうは元気いっぱい！" } }
+        ]
+      },
+      {
+        "type": "sequence",
+        "name": "ねむいときはしゃがみこむ",
+        "children": [
+          {
+            "type": "condition",
+            "name": "blackboard_equals",
+            "params": { "key": "mood", "value": "ねむい" }
+          },
+          { "type": "condition", "name": "cooldown", "params": { "sec": 45, "key": "act" } },
+          { "type": "action", "name": "emote", "params": { "animation": "crouch" } },
+          { "type": "action", "name": "say", "params": { "text": "ふぁ…ちょっとねむいかも…" } }
+        ]
+      },
+      {
+        "type": "sequence",
+        "name": "はらぺこのときは購買を探す",
+        "children": [
+          {
+            "type": "condition",
+            "name": "blackboard_equals",
+            "params": { "key": "mood", "value": "はらぺこ" }
+          },
+          { "type": "condition", "name": "cooldown", "params": { "sec": 45, "key": "act" } },
+          {
+            "type": "action",
+            "name": "say",
+            "params": { "text": "おなかすいたなあ。この辺に購買ないかなあ" }
+          },
+          { "type": "action", "name": "patrol_next" }
+        ]
+      },
+      { "type": "action", "name": "patrol_next" }
+    ]
+  }
+}

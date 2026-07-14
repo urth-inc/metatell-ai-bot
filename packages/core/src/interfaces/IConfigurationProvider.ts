@@ -3,6 +3,8 @@ import { ServiceIdentifier } from '../ServiceIdentifier.js'
 export interface BotProfile {
   displayName: string
   avatarId: string
+  /** SDK-owned presence marker. Callers do not need to set this. */
+  isBot?: true
 }
 
 export interface BotContext {

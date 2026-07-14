@@ -1,0 +1,147 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "bt-bot tree.json",
+  "description": "bt-botのビヘイビアツリー定義。rootに1つのノードを書く。",
+  "type": "object",
+  "required": ["root"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "root": { "$ref": "#/definitions/node" }
+  },
+  "definitions": {
+    "node": {
+      "oneOf": [
+        { "$ref": "#/definitions/composite" },
+        { "$ref": "#/definitions/inverter" },
+        { "$ref": "#/definitions/cooldown" },
+        { "$ref": "#/definitions/repeat" },
+        { "$ref": "#/definitions/condition" },
+        { "$ref": "#/definitions/action" }
+      ]
+    },
+    "composite": {
+      "type": "object",
+      "required": ["type", "children"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": ["sequence", "selector"],
+          "description": "sequence: 子を順に全部実行。selector: 上から試して最初に成功した子で止まる"
+        },
+        "name": { "type": "string", "description": "表示用の名前（任意）" },
+        "children": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/node" }
+        }
+      }
+    },
+    "inverter": {
+      "type": "object",
+      "required": ["type", "child"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "inverter", "description": "子のSUCCESSとFAILUREを反転する" },
+        "name": { "type": "string" },
+        "child": { "$ref": "#/definitions/node" }
+      }
+    },
+    "cooldown": {
+      "type": "object",
+      "required": ["type", "params", "child"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "cooldown", "description": "前回成功から指定秒数の間、子を実行しない" },
+        "name": { "type": "string" },
+        "params": {
+          "type": "object",
+          "required": ["sec"],
+          "additionalProperties": false,
+          "properties": {
+            "sec": { "type": "number", "exclusiveMinimum": 0, "description": "間隔（秒）" }
+          }
+        },
+        "child": { "$ref": "#/definitions/node" }
+      }
+    },
+    "repeat": {
+      "type": "object",
+      "required": ["type", "params", "child"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "repeat", "description": "子を指定回数成功するまで繰り返す" },
+        "name": { "type": "string" },
+        "params": {
+          "type": "object",
+          "required": ["times"],
+          "additionalProperties": false,
+          "properties": {
+            "times": { "type": "integer", "minimum": 1, "description": "繰り返し回数" }
+          }
+        },
+        "child": { "$ref": "#/definitions/node" }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "required": ["type", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "condition" },
+        "name": {
+          "description": "条件ノード名。custom-nodes.tsで登録した名前も使える",
+          "anyOf": [
+            {
+              "enum": [
+                "mentioned",
+                "user_nearby",
+                "is_alone",
+                "anyone_in_room",
+                "user_count",
+                "chat_contains",
+                "cooldown",
+                "random_chance",
+                "blackboard_equals",
+                "time_elapsed"
+              ]
+            },
+            { "type": "string" }
+          ]
+        },
+        "params": { "type": "object" }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": ["type", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "action" },
+        "name": {
+          "description": "行動ノード名。custom-nodes.tsで登録した名前も使える",
+          "anyOf": [
+            {
+              "enum": [
+                "say",
+                "move_to",
+                "patrol_next",
+                "move_to_user",
+                "look_at_user",
+                "emote",
+                "wait",
+                "set_blackboard",
+                "report_users",
+                "llm_reply",
+                "llm_say",
+                "llm_choose"
+              ]
+            },
+            { "type": "string" }
+          ]
+        },
+        "params": { "type": "object" }
+      }
+    }
+  }
+}

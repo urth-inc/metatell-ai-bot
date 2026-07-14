@@ -34,11 +34,13 @@ export class PresenceManager implements IPresenceManager {
         this.presence?.list((id: string, data: unknown) => {
           const metaData = data as {
             metas?: Array<{
-              profile?: { displayName?: string; avatarId?: string }
+              profile?: { displayName?: string; avatarId?: string; isBot?: unknown }
               permissions?: Record<string, unknown>
               roles?: Record<string, unknown>
             }>
           }
+          const altData = data as Record<string, unknown>
+          const altProfile = altData.profile as Record<string, unknown> | undefined
 
           // Metatellの実際のデータ構造に対応: metasがない場合はdataから直接取得を試す
           let displayName = metaData.metas?.[0]?.profile?.displayName
@@ -46,20 +48,23 @@ export class PresenceManager implements IPresenceManager {
 
           // もしmetasが空またはundefinedなら、別の構造を試す
           if (!displayName) {
-            const altData = data as Record<string, unknown>
             displayName =
               (altData?.displayName as string) ||
-              ((altData?.profile as Record<string, unknown>)?.displayName as string) ||
+              (altProfile?.displayName as string) ||
               (altData?.name as string)
           }
 
           if (!avatarId) {
-            const altData = data as Record<string, unknown>
             avatarId =
               (altData?.avatarId as string) ||
-              ((altData?.profile as Record<string, unknown>)?.avatarId as string) ||
+              (altProfile?.avatarId as string) ||
               (altData?.avatar_id as string)
           }
+
+          const isBot =
+            metaData.metas?.[0]?.profile?.isBot === true ||
+            altProfile?.isBot === true ||
+            altData.isBot === true
 
           const user: PresenceUser = {
             id,
@@ -67,6 +72,7 @@ export class PresenceManager implements IPresenceManager {
               displayName: displayName,
               avatarId: avatarId,
             },
+            isBot,
             permissions: (metaData.metas?.[0]?.permissions || {}) as Record<string, boolean>,
             roles: (metaData.metas?.[0]?.roles || {}) as Record<string, boolean>,
           }

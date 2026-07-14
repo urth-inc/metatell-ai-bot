@@ -1,0 +1,28 @@
+{
+  "$schema": "../schemas/tree.schema.json",
+  "root": {
+    "type": "selector",
+    "children": [
+      {
+        "type": "sequence",
+        "name": "呼ばれたら返事",
+        "children": [
+          { "type": "condition", "name": "mentioned" },
+          { "type": "action", "name": "llm_reply" }
+        ]
+      },
+      {
+        "type": "sequence",
+        "name": "近くの人に挨拶",
+        "children": [
+          { "type": "condition", "name": "user_nearby", "params": { "range": 3 } },
+          { "type": "condition", "name": "cooldown", "params": { "sec": 30, "key": "greet" } },
+          { "type": "action", "name": "look_at_user" },
+          { "type": "action", "name": "emote", "params": { "animation": "wave" } },
+          { "type": "action", "name": "say", "params": { "text": "{greeting}" } }
+        ]
+      },
+      { "type": "action", "name": "patrol_next" }
+    ]
+  }
+}

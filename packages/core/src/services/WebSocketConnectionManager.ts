@@ -139,7 +139,10 @@ export class WebSocketConnectionManager implements IConnectionManager {
       // Note: Don't send auth_token/perms_token if they're null
       // The backend has issues handling null tokens
       const channelParams: Record<string, unknown> = {
-        profile: config.profile,
+        // This package only creates bot connections. The backend keeps the
+        // profile in Presence metadata, allowing other SDK clients to identify
+        // bots without guessing from display names.
+        profile: { ...config.profile, isBot: true },
         context: config.context || {},
       }
 

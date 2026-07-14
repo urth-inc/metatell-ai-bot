@@ -132,7 +132,7 @@ describe('WebSocketConnectionManager', () => {
       expect(Socket).toHaveBeenCalledWith('wss://test.app/socket', expect.any(Object))
       expect(mockSocket.connect).toHaveBeenCalled()
       expect(mockSocket.channel).toHaveBeenCalledWith('hub:test-hub', {
-        profile: { displayName: 'TestBot' },
+        profile: { displayName: 'TestBot', isBot: true },
         context: { mobile: false, embed: false, hmd: false },
       })
       expect(mockEventBus.emit).toHaveBeenCalledWith(SystemEvents.CONNECTION_ESTABLISHED)

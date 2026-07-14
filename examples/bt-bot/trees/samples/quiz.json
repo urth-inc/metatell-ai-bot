@@ -1,0 +1,76 @@
+{
+  "$schema": "../../schemas/tree.schema.json",
+  "root": {
+    "type": "selector",
+    "children": [
+      {
+        "type": "sequence",
+        "name": "近づいた人にクイズを出す",
+        "children": [
+          { "type": "condition", "name": "user_nearby", "params": { "range": 3 } },
+          { "type": "condition", "name": "cooldown", "params": { "sec": 90, "key": "quiz" } },
+          { "type": "action", "name": "look_at_user" },
+          {
+            "type": "selector",
+            "name": "問題をランダムに選ぶ",
+            "children": [
+              {
+                "type": "sequence",
+                "children": [
+                  { "type": "condition", "name": "random_chance", "params": { "p": 0.34 } },
+                  {
+                    "type": "action",
+                    "name": "say",
+                    "params": {
+                      "text": "クイズ！日本でいちばん高い山はどこでしょう？10秒後に答えを言うよ"
+                    }
+                  },
+                  { "type": "action", "name": "wait", "params": { "sec": 10 } },
+                  { "type": "action", "name": "say", "params": { "text": "正解は…富士山でした！" } }
+                ]
+              },
+              {
+                "type": "sequence",
+                "children": [
+                  { "type": "condition", "name": "random_chance", "params": { "p": 0.5 } },
+                  {
+                    "type": "action",
+                    "name": "say",
+                    "params": {
+                      "text": "クイズ！このボットの判断に使われている木の名前は？ヒントは「〇〇〇〇〇ツリー」"
+                    }
+                  },
+                  { "type": "action", "name": "wait", "params": { "sec": 10 } },
+                  {
+                    "type": "action",
+                    "name": "say",
+                    "params": { "text": "正解は…ビヘイビアツリーでした！" }
+                  }
+                ]
+              },
+              {
+                "type": "sequence",
+                "children": [
+                  {
+                    "type": "action",
+                    "name": "say",
+                    "params": {
+                      "text": "クイズ！メタバースの「メタ」の意味は？10秒後に答えを言うよ"
+                    }
+                  },
+                  { "type": "action", "name": "wait", "params": { "sec": 10 } },
+                  {
+                    "type": "action",
+                    "name": "say",
+                    "params": { "text": "正解は…「超える」でした！" }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      { "type": "action", "name": "patrol_next" }
+    ]
+  }
+}

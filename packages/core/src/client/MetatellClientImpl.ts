@@ -146,6 +146,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       profile: {
         displayName: options.username || 'MetatellBot',
         avatarId: options.avatarId || '', // Resolved from the organization avatar later.
+        isBot: true,
       },
       authToken: options.authToken,
       debug: options.debug || false,
@@ -245,7 +246,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
           from: {
             id: messageData.senderId || '',
             name: senderName,
-            isBot: false,
+            isBot: sender?.isBot === true,
           },
           text: parsed.text,
           mention: parsed.mention,
@@ -262,7 +263,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       const user: User = {
         id: presenceUser.id,
         name: presenceUser.profile?.displayName || presenceUser.id.split('#')[0] || presenceUser.id,
-        isBot: false,
+        isBot: presenceUser.isBot === true,
         position: avatar?.position,
         rotation: avatar?.rotation,
       }
@@ -280,7 +281,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       const user: User = {
         id: presenceUser.id,
         name: presenceUser.profile?.displayName || presenceUser.id.split('#')[0] || presenceUser.id,
-        isBot: false,
+        isBot: presenceUser.isBot === true,
         position: avatar?.position,
         rotation: avatar?.rotation,
       }
@@ -407,7 +408,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       return nearbyAvatars.map((avatar) => ({
         id: avatar.id,
         name: avatar.nickname || avatar.id.split('#')[0] || avatar.id,
-        isBot: false,
+        isBot: this.presenceManager.getUser(avatar.id)?.isBot === true,
         position: avatar.position,
         rotation: avatar.rotation,
       }))
@@ -447,7 +448,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
           const user: User = {
             id: messageData.senderId || '',
             name: senderName,
-            isBot: false,
+            isBot: sender?.isBot === true,
           }
 
           handler({
@@ -700,7 +701,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         return {
           id: u.id,
           name: u.profile?.displayName || u.id.split('#')[0] || u.id,
-          isBot: false,
+          isBot: u.isBot === true,
           position: avatarState?.position,
           rotation: avatarState?.rotation
             ? {
@@ -718,7 +719,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       return {
         id: u.id,
         name: u.profile?.displayName || u.id.split('#')[0] || u.id,
-        isBot: false,
+        isBot: u.isBot === true,
         position: avatar?.position,
         rotation: avatar?.rotation,
       }

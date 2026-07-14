@@ -1,0 +1,39 @@
+{
+  "$schema": "../../schemas/tree.schema.json",
+  "root": {
+    "type": "selector",
+    "children": [
+      {
+        "type": "sequence",
+        "name": "人が集まったら踊る",
+        "children": [
+          { "type": "condition", "name": "user_count", "params": { "min": 3 } },
+          { "type": "condition", "name": "cooldown", "params": { "sec": 60, "key": "dance" } },
+          {
+            "type": "action",
+            "name": "say",
+            "params": { "text": "みんな集まってるね！ぼくのダンスを見て！" }
+          },
+          { "type": "action", "name": "emote", "params": { "animation": "dance" } },
+          { "type": "action", "name": "wait", "params": { "sec": 8 } },
+          {
+            "type": "action",
+            "name": "say",
+            "params": { "text": "どうだった？よかったら拍手して！" }
+          }
+        ]
+      },
+      {
+        "type": "sequence",
+        "name": "ひとりずつには手を振る",
+        "children": [
+          { "type": "condition", "name": "user_nearby", "params": { "range": 3 } },
+          { "type": "condition", "name": "cooldown", "params": { "sec": 30, "key": "greet" } },
+          { "type": "action", "name": "emote", "params": { "animation": "wave" } },
+          { "type": "action", "name": "say", "params": { "text": "{greeting}" } }
+        ]
+      },
+      { "type": "action", "name": "patrol_next" }
+    ]
+  }
+}
