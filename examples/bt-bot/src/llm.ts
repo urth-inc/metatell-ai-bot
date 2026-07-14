@@ -27,6 +27,8 @@ const GUARD_PREAMBLE = [
   '- 返答は120文字以内の日本語。',
 ].join('\n')
 
+const LLM_REQUEST_TIMEOUT_MS = 30_000
+
 function isObject(value: JsonValue): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -55,20 +57,28 @@ async function requestChat(
   messages: { role: 'system' | 'user'; content: string }[],
   jsonMode: boolean,
 ): Promise<string> {
-  const response = await fetch(`${options.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${options.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: options.model,
-      messages,
-      temperature: 0.8,
-      max_tokens: 512,
-      ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
-    }),
-  })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), LLM_REQUEST_TIMEOUT_MS)
+  let response: Response
+  try {
+    response = await fetch(`${options.baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${options.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: options.model,
+        messages,
+        temperature: 0.8,
+        max_tokens: 512,
+        ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
+      }),
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
   if (!response.ok) {
     const detail = (await response.text()).slice(0, 200)
     throw new Error(`LLMリクエストが失敗しました（HTTP ${response.status}）: ${detail}`)

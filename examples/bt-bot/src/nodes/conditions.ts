@@ -11,6 +11,26 @@ function asNumber(value: JsonValue | undefined, fallback: number): number {
   return typeof value === 'number' ? value : fallback
 }
 
+function jsonEquals(left: JsonValue | undefined, right: JsonValue | undefined): boolean {
+  if (left === right) return true
+  if (left === null || right === null || left === undefined || right === undefined) return false
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return (
+      Array.isArray(left) &&
+      Array.isArray(right) &&
+      left.length === right.length &&
+      left.every((value, index) => jsonEquals(value, right[index]))
+    )
+  }
+  if (typeof left !== 'object' || typeof right !== 'object') return false
+  const leftKeys = Object.keys(left)
+  const rightKeys = Object.keys(right)
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every((key) => Object.hasOwn(right, key) && jsonEquals(left[key], right[key]))
+  )
+}
+
 // chat_containsが見る「最近」の範囲。tick間隔よりずっと長く、雑談全体よりは短く
 const RECENT_CHAT_WINDOW_MS = 15_000
 
@@ -95,7 +115,7 @@ export function registerBuiltinConditions(): void {
     'blackboard_equals',
     (ctx, params) => {
       const key = typeof params.key === 'string' ? params.key : ''
-      return ctx.bb.get(key) === params.value
+      return jsonEquals(ctx.bb.get(key), params.value)
     },
     {
       params: {

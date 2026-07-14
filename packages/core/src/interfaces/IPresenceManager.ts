@@ -6,6 +6,8 @@ export interface PresenceUser {
     displayName?: string
     avatarId?: string
   }
+  /** True only when the SDK bot marker is present in the user's profile. */
+  isBot?: boolean
   permissions?: Record<string, boolean>
   roles?: Record<string, boolean>
 }

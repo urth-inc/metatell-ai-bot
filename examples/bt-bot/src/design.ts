@@ -123,11 +123,13 @@ async function main(): Promise<void> {
       feedback = 'JSONとして解釈できませんでした。JSONオブジェクトだけを出力してください。'
       continue
     }
-    const errors = validateTreeDoc(doc).filter((issue) => issue.level === 'error')
+    const issues = validateTreeDoc(doc)
+    const errors = issues.filter((issue) => issue.level === 'error')
     if (errors.length > 0) {
       feedback = errors.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('\n')
       continue
     }
+    const warnings = issues.filter((issue) => issue.level === 'warning')
 
     const treePath = path.join(process.cwd(), 'my-bot', 'tree.json')
     if (fs.existsSync(treePath)) {
@@ -139,6 +141,11 @@ async function main(): Promise<void> {
         : doc
     fs.writeFileSync(treePath, `${JSON.stringify(output, null, 2)}\n`)
     console.log('検証を通過したツリーをmy-bot/tree.jsonに保存しました')
+    if (warnings.length > 0) {
+      console.warn(
+        `警告:\n${warnings.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('\n')}`,
+      )
+    }
     console.log('（元のツリーはmy-bot/tree.backup.jsonに退避しました）')
     console.log('ボットが起動中なら、数秒以内にホットリロードされます')
     return

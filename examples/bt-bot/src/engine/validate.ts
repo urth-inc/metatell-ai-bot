@@ -137,7 +137,7 @@ function validateNode(
         path: [...path, key],
         message:
           `「${key}」は${type}ノードでは使いません。${suggest(key, ALLOWED_KEYS[type])}`.trim(),
-        level: 'warning',
+        level: 'error',
       })
     }
   }
@@ -251,7 +251,7 @@ export function validateTreeDoc(doc: JsonValue): ValidationIssue[] {
       issues.push({
         path: [key],
         message: `「${key}」はtree.jsonの最上位では使いません`,
-        level: 'warning',
+        level: 'error',
       })
     }
   }

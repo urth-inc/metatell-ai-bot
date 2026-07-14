@@ -82,11 +82,30 @@ export function parseJsonWithLines(text: string): Located {
   const parseNumber = (): number => {
     const start = pos
     if (text[pos] === '-') advance()
-    while (pos < text.length && /[0-9.eE+-]/.test(text[pos])) advance()
+
+    if (text[pos] === '0') {
+      advance()
+    } else if (/[1-9]/.test(text[pos] ?? '')) {
+      while (/[0-9]/.test(text[pos] ?? '')) advance()
+    } else {
+      fail(`不正な数値「${text.slice(start, pos + 1)}」です`)
+    }
+
+    if (text[pos] === '.') {
+      advance()
+      if (!/[0-9]/.test(text[pos] ?? '')) fail('小数点の後には数字が必要です')
+      while (/[0-9]/.test(text[pos] ?? '')) advance()
+    }
+
+    if (text[pos] === 'e' || text[pos] === 'E') {
+      advance()
+      if (text[pos] === '+' || text[pos] === '-') advance()
+      if (!/[0-9]/.test(text[pos] ?? '')) fail('指数部には数字が必要です')
+      while (/[0-9]/.test(text[pos] ?? '')) advance()
+    }
+
     const raw = text.slice(start, pos)
-    const value = Number(raw)
-    if (raw === '' || Number.isNaN(value)) fail(`不正な数値「${raw}」です`)
-    return value
+    return Number(raw)
   }
 
   const parseValue = (): Located => {

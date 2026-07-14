@@ -32,12 +32,12 @@ export function registerLlmActions(): void {
   registerAction(
     'llm_reply',
     async (ctx): Promise<Status> => {
+      const mention = ctx.inbox.takeMention()
+      if (!mention) return 'FAILURE'
       if (!ctx.api.llm) {
         ctx.api.log('llm_reply: LLM_API_KEYが未設定のためスキップします')
         return 'FAILURE'
       }
-      const mention = ctx.inbox.takeMention()
-      if (!mention) return 'FAILURE'
       const answer = await ctx.api.llm.complete({
         system: `${ctx.api.persona}\n\nあなたの名前は${ctx.api.botName}です。メンションに1、2文で返事してください。`,
         user: `${mention.fromName}さんからのメッセージ: ${mention.text}\n\n${situationSnapshot(ctx)}`,

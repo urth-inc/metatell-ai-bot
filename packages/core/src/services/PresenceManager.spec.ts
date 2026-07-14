@@ -140,6 +140,7 @@ describe('PresenceManager', () => {
       expect(mockEventBus.emit).toHaveBeenCalledWith(SystemEvents.USER_JOINED, {
         id: 'user-123',
         profile: { displayName: 'TestUser', avatarId: 'avatar-123' },
+        isBot: false,
         permissions: { canChat: true },
         roles: { moderator: true },
       })
@@ -169,6 +170,7 @@ describe('PresenceManager', () => {
       expect(mockEventBus.emit).toHaveBeenCalledWith(SystemEvents.USER_LEFT, {
         id: 'user-123',
         profile: { displayName: 'TestUser', avatarId: 'avatar-123' },
+        isBot: false,
         permissions: {},
         roles: {},
       })
@@ -185,6 +187,7 @@ describe('PresenceManager', () => {
       expect(users[0]).toEqual({
         id: 'user-456',
         profile: { displayName: undefined, avatarId: undefined },
+        isBot: false,
         permissions: {},
         roles: {},
       })
@@ -207,8 +210,40 @@ describe('PresenceManager', () => {
       expect(user).toEqual({
         id: 'user-789',
         profile: { displayName: 'PartialUser', avatarId: undefined },
+        isBot: false,
         permissions: {},
         roles: {},
+      })
+    })
+
+    it('should preserve an SDK bot marker from presence profile metadata', () => {
+      mockPresence.list.mockImplementation((callback: PresenceListCallback) => {
+        callback('bot-123', {
+          metas: [{ profile: { displayName: 'Guide Bot', isBot: true } }],
+        })
+        callback('human-123', {
+          metas: [{ profile: { displayName: 'Human', isBot: 'true' } }],
+        })
+      })
+
+      onSyncCallback()
+
+      expect(presenceManager.getUser('bot-123')?.isBot).toBe(true)
+      expect(presenceManager.getUser('human-123')?.isBot).toBe(false)
+    })
+
+    it('should preserve an SDK bot marker from alternative profile metadata', () => {
+      mockPresence.list.mockImplementation((callback: PresenceListCallback) => {
+        callback('bot-alt', {
+          profile: { displayName: 'Alternative Bot', isBot: true },
+        })
+      })
+
+      onSyncCallback()
+
+      expect(presenceManager.getUser('bot-alt')).toMatchObject({
+        profile: { displayName: 'Alternative Bot' },
+        isBot: true,
       })
     })
   })
@@ -243,6 +278,7 @@ describe('PresenceManager', () => {
       expect(joinHandler).toHaveBeenCalledWith({
         id: 'user-123',
         profile: { displayName: 'TestUser', avatarId: undefined },
+        isBot: false,
         permissions: {},
         roles: {},
       })
@@ -267,6 +303,7 @@ describe('PresenceManager', () => {
       expect(leaveHandler).toHaveBeenCalledWith({
         id: 'user-123',
         profile: { displayName: 'TestUser', avatarId: undefined },
+        isBot: false,
         permissions: {},
         roles: {},
       })

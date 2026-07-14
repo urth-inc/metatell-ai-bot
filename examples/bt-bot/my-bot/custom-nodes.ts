@@ -39,7 +39,9 @@ registerAction(
   'bow',
   async (ctx): Promise<Status> => {
     ctx.api.emote('nod')
-    return (await ctx.api.say('{userName}さん、いらっしゃいませ！')) ? 'SUCCESS' : 'FAILURE'
+    return (await ctx.api.say(ctx.api.expand('{userName}さん、いらっしゃいませ！')))
+      ? 'SUCCESS'
+      : 'FAILURE'
   },
   {
     description: 'おじぎしてから挨拶する',

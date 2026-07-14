@@ -105,12 +105,12 @@ async function main(): Promise<void> {
     log('LLM_API_KEYとLLM_BASE_URLが未設定のため、llm_reply / llm_say / llm_chooseは動きません')
   }
 
-  const operators = envString('OPERATOR_NAMES')
+  const operatorIds = envString('OPERATOR_IDS')
     .split(',')
-    .map((name) => name.trim())
-    .filter((name) => name !== '')
-  if (operators.length === 0) {
-    log('OPERATOR_NAMESが未設定です。キルスイッチ（/killall）を全員が使える状態で起動します')
+    .map((id) => id.trim())
+    .filter((id) => id !== '')
+  if (operatorIds.length === 0) {
+    log('OPERATOR_IDSが未設定です。キルスイッチ（/killall）を全員が使える状態で起動します')
   }
 
   const client = createMetatellClient({
@@ -190,7 +190,7 @@ async function main(): Promise<void> {
     botName: config.name,
     botSessionId: botInfo.sessionId,
     allowBotPerception: envFlag('ALLOW_BOT_PERCEPTION'),
-    operators,
+    operatorIds,
     speaker,
     onKill: (byName) => void shutdown(`キルスイッチ（${byName}さんの${KILL_COMMAND}）`),
     log,

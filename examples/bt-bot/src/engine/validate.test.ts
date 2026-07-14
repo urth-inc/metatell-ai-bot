@@ -24,6 +24,25 @@ test('未知のノード種別にはもしかして候補が付く', () => {
   assert.ok(issues.some((issue) => issue.message.includes('selector')))
 })
 
+test('未知のトップレベルキーはschemaと同じくエラーになる', () => {
+  const issues = validateTreeDoc({
+    root: { type: 'action', name: 'patrol_next' },
+    rooot: {},
+  })
+
+  assert.ok(issues.some((issue) => issue.path.join('.') === 'rooot' && issue.level === 'error'))
+})
+
+test('未知のノードキーはschemaと同じくエラーになる', () => {
+  const issues = validateTreeDoc({
+    root: { type: 'action', name: 'patrol_next', parmas: {} },
+  })
+
+  assert.ok(
+    issues.some((issue) => issue.path.join('.') === 'root.parmas' && issue.level === 'error'),
+  )
+})
+
 test('タイプミスした条件名にはもしかして候補が付く', () => {
   const issues = validateTreeDoc({
     root: { type: 'condition', name: 'user_nearbyy' },
@@ -111,4 +130,25 @@ test('lineAtはパスからtree.json内の行番号を引ける', () => {
   )
   assert.equal(lineAt(located, ['root']), 2)
   assert.equal(lineAt(located, ['root', 'children', 0]), 5)
+})
+
+test('RFC 8259で有効な数値をJSON.parseと同じ値へ変換する', () => {
+  const validNumbers = ['0', '-0', '1', '-1', '10', '0.5', '-0.5', '1e2', '1E+2', '1e-2']
+
+  for (const raw of validNumbers) {
+    assert.deepEqual(parseJsonWithLines(raw).value, JSON.parse(raw), raw)
+  }
+})
+
+test('RFC 8259で無効な数値表記を拒否する', () => {
+  const invalidNumbers = ['01', '-01', '1.', '.1', '-.1', '1e', '1e+', '+1', '--1']
+
+  for (const raw of invalidNumbers) {
+    assert.throws(() => JSON.parse(raw), undefined, `JSON.parse should reject ${raw}`)
+    assert.throws(
+      () => parseJsonWithLines(raw),
+      (error: unknown) => error instanceof JsonSyntaxError,
+      raw,
+    )
+  }
 })

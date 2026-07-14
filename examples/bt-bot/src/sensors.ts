@@ -4,6 +4,7 @@ import { KILL_COMMAND, type SafeSpeaker, truncateSay } from './safety.js'
 
 // SDKのUser型のうちセンサー層が読む部分だけの構造型
 interface RoomUser {
+  id: string
   name: string | null
   isBot?: boolean
   position?: { x: number; y: number; z: number }
@@ -28,7 +29,7 @@ export interface SensorOptions {
   botSessionId: string | undefined
   allowBotPerception: boolean
   /** Users allowed to trigger the kill switch. Empty = anyone (with a startup warning). */
-  operators: string[]
+  operatorIds: string[]
   speaker: SafeSpeaker
   onKill: (byName: string) => void
   log: (message: string) => void
@@ -41,22 +42,23 @@ export interface Sensors {
 }
 
 export function createSensors(options: SensorOptions): Sensors {
-  const { client, botName, botSessionId, allowBotPerception, operators, speaker, log } = options
+  const { client, botName, botSessionId, allowBotPerception, operatorIds, speaker, log } = options
   const recentChat: ChatLine[] = []
   const mentions: PendingMention[] = []
 
-  const isSelf = (user: RoomUser): boolean => user.name === botName
+  const isSelf = (user: RoomUser): boolean =>
+    botSessionId === undefined ? user.name === botName : user.id === botSessionId
   const isPerceivable = (user: RoomUser): boolean =>
     !isSelf(user) && (allowBotPerception || user.isBot !== true)
 
   client.chat.onMessage(({ from, text, mention, reply }) => {
     // キルスイッチはあらゆる知覚除外より先に判定する（ボット経由でも止められるように）
     if (text.trim() === KILL_COMMAND && !isSelf(from)) {
-      if (operators.length === 0 || operators.includes(from.name ?? '')) {
+      if (operatorIds.length === 0 || operatorIds.includes(from.id)) {
         options.onKill(from.name ?? '(不明)')
         return
       }
-      log(`キルスイッチ: ${from.name}は運営（OPERATOR_NAMES）ではないため無視しました`)
+      log(`キルスイッチ: ${from.name}は運営（OPERATOR_IDS）ではないため無視しました`)
       return
     }
     if (!isPerceivable(from)) return
