@@ -26,13 +26,8 @@ export class WavVoiceBot {
   private isMoving = false
   private moveInterval?: NodeJS.Timeout
 
-  constructor(
-    serverUrl: string,
-    roomId: string,
-    username: string = 'WavPlayerBot',
-    token?: string,
-  ) {
-    this.client = createMetatellClient({ serverUrl, roomId, username, token })
+  constructor(serverUrl: string, roomId: string, username: string = 'WavPlayerBot') {
+    this.client = createMetatellClient({ serverUrl, roomId, username })
     this.wavPlayer = new WavPlayer()
   }
 

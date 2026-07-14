@@ -75,7 +75,7 @@ describe('inspectCommand', () => {
     vi.mocked(createMetatellClient).mockReturnValue(mockClient as MetatellClient)
 
     const url = 'https://metatell.app/test-room'
-    const options = { token: 'test-token' }
+    const options = {}
 
     const inspectPromise = inspectCommand(url, options)
 
@@ -96,7 +96,6 @@ describe('inspectCommand', () => {
     expect(createMetatellClient).toHaveBeenCalledWith({
       serverUrl: 'wss://metatell.app',
       roomId: 'test-room',
-      token: 'test-token',
       username: 'MetatellInspector',
       debug: false,
     })
@@ -218,40 +217,6 @@ describe('inspectCommand', () => {
     expect(mockConsole.log).toHaveBeenCalledWith('Humans: 0')
     expect(mockConsole.log).toHaveBeenCalledWith('Bots: 0')
     expect(mockConsole.log).not.toHaveBeenCalledWith('\nDetailed list:')
-  })
-
-  it('should use environment token when not provided', async () => {
-    const { createMetatellClient } = await import('@metatell/bot-sdk')
-    const { parseUrl } = await import('../utils/url.js')
-
-    vi.mocked(parseUrl).mockReturnValue({
-      serverUrl: 'wss://metatell.app',
-      roomId: 'test-room',
-    })
-
-    vi.mocked(createMetatellClient).mockReturnValue(mockClient as MetatellClient)
-
-    process.env.METATELL_TOKEN = 'env-token'
-
-    const url = 'https://metatell.app/test-room'
-    const options = {}
-
-    const inspectPromise = inspectCommand(url, options)
-
-    await vi.waitFor(() => {
-      expect(mockClient.connect).toHaveBeenCalled()
-    })
-
-    await vi.advanceTimersByTimeAsync(5000)
-    await inspectPromise
-
-    expect(createMetatellClient).toHaveBeenCalledWith(
-      expect.objectContaining({
-        token: 'env-token',
-      }),
-    )
-
-    delete process.env.METATELL_TOKEN
   })
 
   it('should handle connection errors', async () => {
