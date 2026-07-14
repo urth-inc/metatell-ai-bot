@@ -3,5 +3,12 @@
   "extends": ["config:best-practices", "customManagers:biomeVersions"],
   "ignorePresets": ["security:minimumReleaseAgeNpm"],
   "minimumReleaseAge": "7 days",
-  "internalChecksFilter": "strict"
+  "internalChecksFilter": "strict",
+  "packageRules": [
+    {
+      "description": "Skip minimum release age for unsupported pin updates",
+      "matchUpdateTypes": ["pin", "pinDigest"],
+      "minimumReleaseAge": null
+    }
+  ]
 }
