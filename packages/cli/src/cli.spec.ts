@@ -94,7 +94,6 @@ describe('CLI', () => {
 
     // Check option registrations
     const optionCalls = mockProgram.option.mock.calls
-    expect(optionCalls).toContainEqual(['-t, --token <token>', 'Authentication token'])
     expect(optionCalls).toContainEqual(['-d, --debug', 'Enable debug logging'])
     expect(optionCalls).toContainEqual(['-n, --name <name>', 'Bot display name', 'MetatellCLI'])
 
@@ -124,7 +123,7 @@ describe('CLI', () => {
     const connectHandler = mockProgram.action.mock.calls[0][0]
 
     const url = 'https://example.com/room'
-    const options = { token: 'test-token', debug: true }
+    const options = { debug: true }
 
     await connectHandler(url, options)
 
@@ -139,7 +138,7 @@ describe('CLI', () => {
     const inspectHandler = mockProgram.action.mock.calls[1][0]
 
     const url = 'https://example.com/room'
-    const options = { token: 'test-token' }
+    const options = {}
 
     await inspectHandler(url, options)
 
@@ -154,7 +153,7 @@ describe('CLI', () => {
     const interactiveHandler = mockProgram.action.mock.calls[2][0]
 
     const url = 'https://example.com/room'
-    const options = { token: 'test-token', name: 'TestBot', debug: false }
+    const options = { name: 'TestBot', debug: false }
 
     await interactiveHandler(url, options)
 
@@ -169,7 +168,7 @@ describe('CLI', () => {
     const defaultHandler = mockProgram.action.mock.calls[3][0]
 
     const url = 'https://example.com/room'
-    const options = { token: 'test-token', name: 'TestBot', debug: false }
+    const options = { name: 'TestBot', debug: false }
 
     await defaultHandler(url, options)
 

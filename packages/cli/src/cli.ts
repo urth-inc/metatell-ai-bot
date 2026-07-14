@@ -29,7 +29,6 @@ program
 program
   .command('connect <url>')
   .description('Connect to a Metatell room and show basic info')
-  .option('-t, --token <token>', 'Authentication token')
   .option('-d, --debug', 'Enable debug logging')
   .action(connectCommand)
 
@@ -37,7 +36,6 @@ program
 program
   .command('inspect <url>')
   .description('Inspect room state and user presence')
-  .option('-t, --token <token>', 'Authentication token')
   .action(inspectCommand)
 
 // Interactive mode (default)
@@ -45,7 +43,6 @@ program
   .command('interactive <url>')
   .alias('i')
   .description('Start interactive CLI mode')
-  .option('-t, --token <token>', 'Authentication token')
   .option('-n, --name <name>', 'Bot display name', 'MetatellCLI')
   .option('-d, --debug', 'Enable debug logging')
   .action(startInteractiveMode)
@@ -53,7 +50,6 @@ program
 // Default to interactive mode
 program
   .arguments('<url>')
-  .option('-t, --token <token>', 'Authentication token')
   .option('-n, --name <name>', 'Bot display name', 'MetatellCLI')
   .option('-d, --debug', 'Enable debug logging')
   .action((url, options) => {

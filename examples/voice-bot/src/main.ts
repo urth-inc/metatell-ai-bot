@@ -25,12 +25,7 @@ async function main() {
   const wavFilePath = process.argv[3] || './assets/3.wav'
 
   // ボットを作成
-  const bot = new WavVoiceBot(
-    serverUrl,
-    roomId,
-    process.env.METATELL_USERNAME || 'VoiceBot',
-    process.env.METATELL_TOKEN,
-  )
+  const bot = new WavVoiceBot(serverUrl, roomId, process.env.METATELL_USERNAME || 'VoiceBot')
 
   try {
     // 接続

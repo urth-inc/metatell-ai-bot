@@ -44,7 +44,6 @@ const client = createMetatellClient({
   serverUrl: 'wss://metatell.app',
   roomId: 'YOUR_ROOM_ID',
   username: 'GuideBot',
-  token: process.env.METATELL_TOKEN,
 })
 
 await client.connect()

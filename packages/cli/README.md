@@ -28,7 +28,6 @@ npm install --save-dev @metatell/bot-cli
 
 ```bash
 metatell-bot https://metatell.app/ROOM_ID
-metatell-bot https://metatell.app/ROOM_ID -t "your-auth-token"
 metatell-bot https://metatell.app/ROOM_ID -n "MyBot"
 metatell-bot https://metatell.app/ROOM_ID -d
 ```
@@ -78,13 +77,8 @@ metatell-bot inspect https://metatell.app/ROOM_ID [options]
 
 | Option | Alias | Description | Default |
 | --- | --- | --- | --- |
-| `--token` | `-t` | Optional access token. Falls back to `METATELL_TOKEN` when omitted. | None |
 | `--name` | `-n` | Bot display name. | `MetatellCLI` |
 | `--debug` | `-d` | Enable debug logs. | `false` |
-
-## Environment Variables
-
-- `METATELL_TOKEN`: fallback access token used when `--token` is not provided.
 
 ## Local Development
 
