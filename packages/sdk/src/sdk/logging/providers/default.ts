@@ -5,6 +5,18 @@
 import type { LogRecord, RingBufferLike } from '../index.js'
 import type { Logger, LoggerProvider, LogLevel, LogSink } from '../spi.js'
 
+function serializeError(error: Error): {
+  name: string
+  message: string
+  stack: string | undefined
+} {
+  return {
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
+  }
+}
+
 /**
  * Simple ring buffer implementation
  */
@@ -93,12 +105,27 @@ class DefaultLogger implements Logger {
   private log(level: LogLevel, message: string, meta?: unknown): void {
     if (!this.shouldLog(level)) return
 
+    const normalizedMeta =
+      meta instanceof Error
+        ? serializeError(meta)
+        : meta &&
+            typeof meta === 'object' &&
+            !Array.isArray(meta) &&
+            Object.getPrototypeOf(meta) === Object.prototype
+          ? Object.fromEntries(
+              Object.entries(meta).map(([key, value]) => [
+                key,
+                value instanceof Error ? serializeError(value) : value,
+              ]),
+            )
+          : meta
+
     const record: LogRecord = {
       ts: Date.now(),
       level,
       module: this.name,
       msg: message,
-      meta,
+      meta: normalizedMeta,
     }
 
     // Write to ring buffer
@@ -120,7 +147,7 @@ class DefaultLogger implements Logger {
     // Write to console if enabled
     if (globalConsoleEnabled) {
       const timestamp = new Date(record.ts).toISOString()
-      const metaStr = meta ? ` ${JSON.stringify(meta)}` : ''
+      const metaStr = normalizedMeta ? ` ${JSON.stringify(normalizedMeta)}` : ''
       const logMessage = `[${timestamp}] [${level.toUpperCase()}] [${this.name}] ${message}${metaStr}`
 
       switch (level) {

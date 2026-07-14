@@ -38,7 +38,7 @@ export interface Euler {
  * Animation specification
  */
 export interface Animation {
-  /** Animation ID (for preset animations) */
+  /** Preset ID or an ID returned by getAvailableAnimations() for the current avatar */
   id?: string
   /** Animation URL (for custom animations) */
   url?: string

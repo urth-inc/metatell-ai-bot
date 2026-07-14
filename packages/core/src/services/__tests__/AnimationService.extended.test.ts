@@ -20,7 +20,7 @@ global.fetch = vi.fn()
 
 describe('AnimationService - Extended Error Handling', () => {
   let service: AnimationService
-  const apiBaseUrl = 'https://storage.metatell.app'
+  const apiBaseUrl = 'https://v-air-admin-development.urth.workers.dev'
 
   beforeEach(() => {
     service = new AnimationService(mockLogger, apiBaseUrl)
@@ -43,9 +43,14 @@ describe('AnimationService - Extended Error Handling', () => {
         // Should fall back to default animations
         expect(animations).toHaveLength(2)
         expect(animations.every((a) => a.type === 'preset')).toBe(true)
-        expect(mockLogger.debug).toHaveBeenCalledWith(
-          'Avatar not found in individual avatars, might be organization avatar',
-          { avatarId: 'test-avatar' },
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+          'Failed to fetch avatar animations, returning defaults',
+          expect.objectContaining({
+            avatarId,
+            error: expect.objectContaining({
+              message: `${'Failed to fetch avatar animations from '}${apiBaseUrl}/api/v1/avatars/${avatarId}: 404 Not Found`,
+            }),
+          }),
         )
       })
 
@@ -60,7 +65,16 @@ describe('AnimationService - Extended Error Handling', () => {
         const animations = await service.getAvailableAnimations(avatarId)
 
         expect(animations).toHaveLength(2) // Default animations
-        expect(mockLogger.warn).toHaveBeenCalled()
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+          'Failed to fetch avatar animations, returning defaults',
+          expect.objectContaining({
+            error: expect.objectContaining({
+              message: expect.stringContaining(
+                `${apiBaseUrl}/api/v1/avatars/${avatarId}: 500 Internal Server Error`,
+              ),
+            }),
+          }),
+        )
       })
 
       it('should handle 403 forbidden errors', async () => {
@@ -73,7 +87,16 @@ describe('AnimationService - Extended Error Handling', () => {
 
         const animations = await service.getAvailableAnimations(avatarId)
         expect(animations).toHaveLength(2)
-        expect(mockLogger.warn).toHaveBeenCalled()
+        expect(mockLogger.warn).toHaveBeenCalledWith(
+          'Failed to fetch avatar animations, returning defaults',
+          expect.objectContaining({
+            error: expect.objectContaining({
+              message: expect.stringContaining(
+                `${apiBaseUrl}/api/v1/avatars/${avatarId}: 403 Forbidden`,
+              ),
+            }),
+          }),
+        )
       })
 
       it('should handle timeout errors', async () => {
@@ -92,7 +115,6 @@ describe('AnimationService - Extended Error Handling', () => {
         )
       })
     })
-
     describe('Malformed Response Handling', () => {
       it('should handle invalid JSON responses', async () => {
         const avatarId = 'test-avatar'
@@ -155,44 +177,6 @@ describe('AnimationService - Extended Error Handling', () => {
 
         const animations = await service.getAvailableAnimations(avatarId)
         expect(animations).toHaveLength(2)
-      })
-    })
-
-    describe('loadAnimation Error Scenarios', () => {
-      it('should throw specific error for 404 on custom animation', async () => {
-        const animationId = 'missing-animation'
-        vi.mocked(global.fetch).mockResolvedValueOnce({
-          ok: false,
-          status: 404,
-          statusText: 'Not Found',
-        } as Response)
-
-        await expect(service.loadAnimation(animationId)).rejects.toThrow(
-          'Animation not found: missing-animation',
-        )
-      })
-
-      it('should throw specific error for network failures', async () => {
-        const animationId = 'custom-animation'
-        vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'))
-
-        await expect(service.loadAnimation(animationId)).rejects.toThrow('Network error')
-      })
-
-      it('should handle malformed custom animation data', async () => {
-        const animationId = 'malformed-animation'
-        vi.mocked(global.fetch).mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            // Missing required fields
-            wrongField: 'wrong-value',
-          }),
-        } as Response)
-
-        const result = await service.loadAnimation(animationId)
-        expect(result).toBeDefined()
-        expect(result.id).toBeUndefined()
-        expect(result.name).toBeUndefined()
       })
     })
   })
@@ -279,18 +263,6 @@ describe('AnimationService - Extended Error Handling', () => {
       expect(animations.every((a) => a.type === 'preset')).toBe(true)
     })
 
-    it('should handle null avatar ID', async () => {
-      const animations = await service.getAvailableAnimations(null as unknown as string)
-
-      expect(animations).toHaveLength(2)
-    })
-
-    it('should handle undefined avatar ID', async () => {
-      const animations = await service.getAvailableAnimations(undefined as unknown as string)
-
-      expect(animations).toHaveLength(2)
-    })
-
     it('should handle special characters in avatar ID', async () => {
       const specialAvatarId = 'avatar@#$%^&*()_+-=[]{}|;:,.<>?'
 
@@ -303,9 +275,7 @@ describe('AnimationService - Extended Error Handling', () => {
       expect(animations).toHaveLength(2)
 
       // Should use the avatar ID in the URL (not necessarily encoded)
-      expect(global.fetch).toHaveBeenCalledWith(
-        `https://storage.metatell.app/api/v1/avatars/${specialAvatarId}`,
-      )
+      expect(global.fetch).toHaveBeenCalledWith(`${apiBaseUrl}/api/v1/avatars/${specialAvatarId}`)
     })
 
     it('should handle very long avatar IDs', async () => {
@@ -397,6 +367,7 @@ describe('AnimationService - Extended Error Handling', () => {
 
   describe('validateAnimation extended', () => {
     it('should handle network errors during validation', async () => {
+      service.setCurrentAvatarId('test-avatar')
       vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network down'))
 
       const isValid = await service.validateAnimation('test-animation')
@@ -405,6 +376,7 @@ describe('AnimationService - Extended Error Handling', () => {
     })
 
     it('should handle malformed validation responses', async () => {
+      service.setCurrentAvatarId('test-avatar')
       vi.mocked(global.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => {

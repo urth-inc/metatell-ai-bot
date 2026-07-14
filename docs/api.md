@@ -89,14 +89,14 @@ await client.avatar.select('avatar-asset-id')
 await client.avatar.moveTo({ x: 1, y: 1.6, z: -2 })
 await client.avatar.rotateTo({ x: 0, y: 180, z: 0 })
 await client.avatar.lookAt({ x: 0, y: 1.6, z: 0 })
-await client.avatar.play({ id: 'wave', loop: false })
-
 const assets = await client.avatar.getAvailableAssets()
 const animations = await client.avatar.getAvailableAnimations()
+await client.avatar.play({ id: 'walking', loop: false })
 ```
 
 Positions are expressed in room coordinates. Rotations are Euler angles in
-degrees.
+degrees. Only `idle` and `walking` are presets; avatar-specific animation IDs
+must come from `getAvailableAnimations()`.
 
 ### Events
 

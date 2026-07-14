@@ -179,6 +179,15 @@ describe('AvatarController - Core Functionality', () => {
       await avatarController.spawn('test-avatar', testPosition)
 
       expect(mockAnimationService.setCurrentAvatarId).toHaveBeenCalledWith('test-avatar')
+      const setAvatarCallOrder = vi.mocked(mockAnimationService.setCurrentAvatarId).mock
+        .invocationCallOrder[0]
+      const spawnedEventCall = vi
+        .mocked(mockEventBus.emit)
+        .mock.calls.findIndex((call) => call[0] === SystemEvents.AVATAR_SPAWNED)
+      const spawnedEventCallOrder = vi.mocked(mockEventBus.emit).mock.invocationCallOrder[
+        spawnedEventCall
+      ]
+      expect(setAvatarCallOrder).toBeLessThan(spawnedEventCallOrder)
     })
 
     it('should use default position when not provided', async () => {
@@ -347,6 +356,12 @@ describe('AvatarController - Core Functionality', () => {
 
       const state = avatarController.getState()
       expect(state?.avatarSrc).toBe('https://new-avatar-source.com/avatar.gltf')
+    })
+
+    it('should update animation context when the avatar ID changes', async () => {
+      await avatarController.updateState({ avatarId: 'new-avatar-id' })
+
+      expect(mockAnimationService.setCurrentAvatarId).toHaveBeenCalledWith('new-avatar-id')
     })
   })
 
