@@ -20,8 +20,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@metatell/bot-core": "workspace:*",
-    "@types/uuid": "11.0.0"
+    "@metatell/bot-core": "workspace:*"
   },
   "peerDependencies": {
     "@types/node": "*",
