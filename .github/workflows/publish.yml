@@ -2,6 +2,8 @@ name: Reusable Publish
 
 on:
   workflow_call:
+  # 手動再実行用。バージョンPRがマージ済みなのにpublishだけ失敗した場合に使う
+  workflow_dispatch:
 
 permissions:
   contents: write
