@@ -117,8 +117,31 @@ function findStructuredMention(body: string): StructuredMentionMatch | undefined
     }
 
     const sessionIdStart = nameEnd + 2
-    const sessionIdEnd = body.indexOf(')', sessionIdStart)
-    if (sessionIdEnd === -1) return undefined
+    let sessionIdEnd = sessionIdStart
+    let resumeAt: number | undefined
+
+    while (sessionIdEnd < body.length && body[sessionIdEnd] !== ')') {
+      const character = body[sessionIdEnd]
+
+      if (character === '\n' || character === '\r') {
+        resumeAt = sessionIdEnd + 1
+        break
+      }
+
+      if (character === '[' && body[sessionIdEnd + 1] === '@') {
+        resumeAt = sessionIdEnd
+        break
+      }
+
+      sessionIdEnd += 1
+    }
+
+    if (resumeAt !== undefined) {
+      cursor = resumeAt
+      continue
+    }
+
+    if (sessionIdEnd === body.length) return undefined
 
     if (sessionIdEnd === sessionIdStart) {
       cursor = sessionIdEnd + 1

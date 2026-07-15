@@ -230,6 +230,49 @@ describe('MetatellClientImpl chat mentions', () => {
     ])
   })
 
+  it('should not consume a valid mention inside a malformed session id', () => {
+    const { internals, received, sender } = setupChatReceiver()
+
+    internals.eventBus.emit(SystemEvents.MESSAGE_RECEIVED, {
+      type: 'chat',
+      body: '[@outer](prefix:[@Guide Bot](bot-session) suffix)',
+      senderId: sender.id,
+    })
+
+    expect(received).toEqual([
+      {
+        text: '[@outer](prefix: suffix)',
+        mention: { sessionId: 'bot-session', name: 'Guide Bot' },
+      },
+    ])
+  })
+
+  it('should skip mention candidates with line breaks in session ids', () => {
+    const { internals, received, sender } = setupChatReceiver()
+
+    internals.eventBus.emit(SystemEvents.MESSAGE_RECEIVED, {
+      type: 'chat',
+      body: '[@outer](broken\nstill-broken) prefix:[@Guide Bot](bot-session) suffix',
+      senderId: sender.id,
+    })
+    internals.eventBus.emit(SystemEvents.MESSAGE_RECEIVED, {
+      type: 'chat',
+      body: '[@outer](broken\r\nstill-broken) prefix:[@Guide Bot](bot-session) suffix',
+      senderId: sender.id,
+    })
+
+    expect(received).toEqual([
+      {
+        text: '[@outer](broken\nstill-broken) prefix: suffix',
+        mention: { sessionId: 'bot-session', name: 'Guide Bot' },
+      },
+      {
+        text: '[@outer](broken\r\nstill-broken) prefix: suffix',
+        mention: { sessionId: 'bot-session', name: 'Guide Bot' },
+      },
+    ])
+  })
+
   it('should handle a long malformed mention body without parsing it', () => {
     const { internals, received, sender } = setupChatReceiver()
     const body = '[@\\'.repeat(100_000)
@@ -241,6 +284,25 @@ describe('MetatellClientImpl chat mentions', () => {
     })
 
     expect(received).toEqual([{ text: body, mention: undefined }])
+  })
+
+  it('should handle nested mention candidates without rescanning input', () => {
+    const { internals, received, sender } = setupChatReceiver()
+    const candidate = '[@bot](x'
+    const prefix = candidate.repeat(100_000)
+
+    internals.eventBus.emit(SystemEvents.MESSAGE_RECEIVED, {
+      type: 'chat',
+      body: `${prefix})`,
+      senderId: sender.id,
+    })
+
+    expect(received).toEqual([
+      {
+        text: candidate.repeat(99_999),
+        mention: { sessionId: 'x', name: 'bot' },
+      },
+    ])
   })
 })
 
