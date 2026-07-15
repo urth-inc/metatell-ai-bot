@@ -18,8 +18,8 @@ importers:
         specifier: 24.13.3
         version: 24.13.3
       '@types/phoenix':
-        specifier: 1.6.6
-        version: 1.6.6
+        specifier: 1.6.7
+        version: 1.6.7
       '@types/ws':
         specifier: 8.18.1
         version: 8.18.1
@@ -110,8 +110,8 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       phoenix:
-        specifier: 1.8.1
-        version: 1.8.1
+        specifier: 1.8.9
+        version: 1.8.9
       uuid:
         specifier: 14.0.1
         version: 14.0.1
@@ -120,8 +120,8 @@ importers:
         version: 8.21.0
     devDependencies:
       '@types/phoenix':
-        specifier: 1.6.6
-        version: 1.6.6
+        specifier: 1.6.7
+        version: 1.6.7
 
   packages/realtime:
     dependencies:
@@ -161,8 +161,8 @@ importers:
         version: 1.3.0(three@0.185.1)
     devDependencies:
       '@types/phoenix':
-        specifier: 1.6.6
-        version: 1.6.6
+        specifier: 1.6.7
+        version: 1.6.7
       '@types/three':
         specifier: 0.185.0
         version: 0.185.0
@@ -955,8 +955,8 @@ packages:
   '@types/node@24.13.3':
     resolution: {integrity: sha512-Dh8vAsV36ig5wa9OX4pXvMc9D3Veibfw2wix0CUwYODLD8nkj9UsLjASr49nPg+2eKzxhBV+v7L8pXvT4e639Q==}
 
-  '@types/phoenix@1.6.6':
-    resolution: {integrity: sha512-PIzZZlEppgrpoT2QgbnDU+MMzuR6BbCjllj0bM70lWoejMeNJAxCchxnv7J3XFkI8MpygtRpzXrIlmWUBclP5A==}
+  '@types/phoenix@1.6.7':
+    resolution: {integrity: sha512-oN9ive//QSBkf19rfDv45M7eZPi0eEXylht2OLEXicu5b4KoQ1OzXIw+xDSGWxSxe1JmepRR/ZH283vsu518/Q==}
 
   '@types/request@2.48.13':
     resolution: {integrity: sha512-FGJ6udDNUCjd19pp0Q3iTiDkwhYup7J8hpMW9c4k53NrccQFFWKRho6hvtPPEhnXWKvukfwAlB6DbDz4yhH5Gg==}
@@ -1758,8 +1758,8 @@ packages:
     resolution: {integrity: sha512-//nshmD55c46FuFw26xV/xFAaB5HF9Xdap7HJBBnrKdAd6/GxDBaNA1870O79+9ueg61cZLSVc+OaFlfmObYVQ==}
     engines: {node: '>= 14.16'}
 
-  phoenix@1.8.1:
-    resolution: {integrity: sha512-7i2a5f5y0Qhzi2g/+iuaGr4TzRt5ucqI0JeV2Q9K0swqY8L2C7CLR66RcGCpcQKGOY73B5GLKMYEl13o/9l/Cg==}
+  phoenix@1.8.9:
+    resolution: {integrity: sha512-/2qzAZB3P2s08fFAYaG65lqaNFmVXUSlXdY4/JDdDKIC81y2cFWkPwI8gycy4VLpv197JwZ5PpBf3VhoG32yGA==}
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -2850,7 +2850,7 @@ snapshots:
     dependencies:
       undici-types: 7.18.2
 
-  '@types/phoenix@1.6.6': {}
+  '@types/phoenix@1.6.7': {}
 
   '@types/request@2.48.13':
     dependencies:
@@ -3707,7 +3707,7 @@ snapshots:
 
   pathval@2.0.1: {}
 
-  phoenix@1.8.1: {}
+  phoenix@1.8.9: {}
 
   picocolors@1.1.1: {}
 
