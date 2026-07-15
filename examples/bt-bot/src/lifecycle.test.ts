@@ -51,6 +51,32 @@ test('cleanupの例外があっても残りのcleanupとdisconnectとexitを実�
   assert.equal(events.filter((event) => event.startsWith('log:停止処理')).length, 1)
 })
 
+test('disconnectが完了しなくても期限後にexitする', async () => {
+  type Timer = ReturnType<typeof setTimeout>
+  const events: string[] = []
+  let timeout: (() => void) | undefined
+  const controller = createShutdownController({
+    disconnect: () => new Promise<void>(() => {}),
+    exit: () => events.push('exit'),
+    log: (message) => events.push(`log:${message}`),
+    disconnectTimeoutMs: 100,
+    scheduleTimer(callback) {
+      timeout = callback
+      return { id: 1 } as unknown as Timer
+    },
+    clearTimer: () => {},
+  })
+
+  const shutdown = controller.shutdown('test')
+  await Promise.resolve()
+  assert.ok(timeout)
+  timeout()
+  await shutdown
+
+  assert.ok(events.some((event) => event.includes('タイムアウト')))
+  assert.equal(events.at(-1), 'exit')
+})
+
 test('tree watcherは親directoryを監視しbasename一致だけをdebounceする', () => {
   type Timer = ReturnType<typeof setTimeout>
   type Listener = (eventType: string, filename: string | Buffer | null) => void

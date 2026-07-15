@@ -1,7 +1,7 @@
 {
   "$schema": "../schemas/tree.schema.json",
   "root": {
-    "type": "selector",
+    "type": "priority_selector",
     "children": [
       {
         "type": "sequence",
@@ -16,10 +16,19 @@
         "name": "近くの人に挨拶",
         "children": [
           { "type": "condition", "name": "user_nearby", "params": { "range": 3 } },
-          { "type": "condition", "name": "cooldown", "params": { "sec": 30, "key": "greet" } },
-          { "type": "action", "name": "look_at_user" },
-          { "type": "action", "name": "emote", "params": { "animation": "greet" } },
-          { "type": "action", "name": "say", "params": { "text": "{greeting}" } }
+          {
+            "type": "cooldown",
+            "name": "挨拶のクールダウン",
+            "params": { "sec": 30 },
+            "child": {
+              "type": "action",
+              "name": "greet_user",
+              "params": {
+                "repeatText": "また会ったね、{userName}さん！また会えてうれしいよ",
+                "animation": "greet"
+              }
+            }
+          }
         ]
       },
       { "type": "action", "name": "patrol_next" }

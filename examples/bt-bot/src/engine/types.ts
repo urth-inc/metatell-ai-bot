@@ -24,7 +24,7 @@ export interface NodeDef {
   /** Condition and action nodes reference a registered node implementation by name. */
   name?: string
   params?: JsonObject
-  /** Children of sequence / selector nodes. */
+  /** Children of sequence / selector / priority_selector nodes. */
   children?: NodeDef[]
   /** Child of decorator nodes (inverter / cooldown / repeat). */
   child?: NodeDef
@@ -119,6 +119,8 @@ export interface TickContext {
   now: number
   /** Per-tick trace used by the console visualizer. */
   trace: TraceEntry[]
+  /** Aborted when a higher-priority branch preempts this asynchronous action. */
+  signal?: AbortSignal
 }
 
 export interface TraceEntry {

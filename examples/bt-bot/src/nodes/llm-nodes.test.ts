@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createBlackboard } from '../engine/blackboard.js'
-import { getAction } from '../engine/registry.js'
-import type { BotApi, ChatInbox, PendingMention, TickContext } from '../engine/types.js'
+import { buildTree, tickTree } from '../engine/engine.js'
+import { getAction, registerAction, registerCondition } from '../engine/registry.js'
+import type { BotApi, ChatInbox, PendingMention, TickContext, TreeDef } from '../engine/types.js'
 import { registerLlmActions } from './llm-nodes.js'
 
 registerLlmActions()
+registerCondition('test_mention_pending', (ctx) => ctx.inbox.peekMention() !== undefined)
+registerAction('test_patrol_forever', () => 'RUNNING')
 
 function createContext(options: {
   mentions: PendingMention[]
@@ -37,12 +40,16 @@ function createContext(options: {
   }
 }
 
-test('LLM未設定でもmentionを一度消費して次tickへ残さない', async () => {
+test('LLM未設定でもmentionを一度消費し、固定メッセージで返信する', async () => {
   const logs: string[] = []
+  const replies: string[] = []
   const mention: PendingMention = {
     fromName: 'Visitor',
     text: 'hello',
-    reply: async () => true,
+    reply: async (text) => {
+      replies.push(text)
+      return true
+    },
   }
   const ctx = createContext({
     mentions: [mention],
@@ -54,9 +61,10 @@ test('LLM未設定でもmentionを一度消費して次tickへ残さない', asy
   const first = await llmReply.fn(ctx, {})
   const second = await llmReply.fn(ctx, {})
 
-  assert.equal(first, 'FAILURE')
+  assert.equal(first, 'SUCCESS')
   assert.equal(second, 'FAILURE')
   assert.equal(ctx.inbox.peekMention(), undefined)
+  assert.deepEqual(replies, ['Visitorさん、呼んでくれてありがとう。ちゃんと聞こえています。'])
   assert.equal(logs.length, 1)
 })
 
@@ -88,4 +96,89 @@ test('LLM設定時は消費したmentionへ生成結果を返信する', async (
   assert.equal(result, 'SUCCESS')
   assert.deepEqual(replies, ['Hello!'])
   assert.equal(ctx.inbox.peekMention(), undefined)
+})
+
+test('LLM生成に失敗してもmentionへ固定メッセージを返信する', async () => {
+  const replies: string[] = []
+  const logs: string[] = []
+  const ctx = createContext({
+    mentions: [
+      {
+        fromName: 'Visitor',
+        text: 'hello',
+        reply: async (text) => {
+          replies.push(text)
+          return true
+        },
+      },
+    ],
+    api: {
+      llm: {
+        complete: async () => {
+          throw new Error('temporary error')
+        },
+        choose: async () => 0,
+      },
+      log: (message) => logs.push(message),
+    },
+  })
+  const llmReply = getAction('llm_reply')
+  assert.ok(llmReply)
+
+  assert.equal(await llmReply.fn(ctx, {}), 'SUCCESS')
+  assert.deepEqual(replies, ['Visitorさん、呼んでくれてありがとう。ちゃんと聞こえています。'])
+  assert.ok(logs.some((message) => message.includes('temporary error')))
+})
+
+test('巡回がRUNNINGでもメンションは次tickで割り込み返信する', async () => {
+  const mentions: PendingMention[] = []
+  const replies: string[] = []
+  const ctx = createContext({
+    mentions,
+    api: {
+      llm: {
+        complete: async () => '呼んだ？',
+        choose: async () => 0,
+      },
+      log: () => {},
+    },
+  })
+  const tree: TreeDef = {
+    root: {
+      type: 'priority_selector',
+      children: [
+        {
+          type: 'sequence',
+          children: [
+            { type: 'condition', name: 'test_mention_pending' },
+            { type: 'action', name: 'llm_reply' },
+          ],
+        },
+        { type: 'action', name: 'test_patrol_forever' },
+      ],
+    },
+  }
+  const root = buildTree(tree)
+
+  assert.equal(tickTree(root, ctx), 'RUNNING')
+  mentions.push({
+    fromName: 'Visitor',
+    text: 'こんにちは',
+    reply: async (text) => {
+      replies.push(text)
+      return true
+    },
+  })
+  ctx.now = 500
+  ctx.trace = []
+
+  assert.equal(tickTree(root, ctx), 'RUNNING')
+  assert.ok(ctx.trace.some((entry) => entry.label === 'action:llm_reply'))
+  assert.ok(!ctx.trace.some((entry) => entry.label === 'action:test_patrol_forever'))
+  await new Promise((resolve) => setImmediate(resolve))
+
+  ctx.now = 1_000
+  ctx.trace = []
+  assert.equal(tickTree(root, ctx), 'SUCCESS')
+  assert.deepEqual(replies, ['呼んだ？'])
 })

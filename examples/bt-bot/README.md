@@ -2,7 +2,7 @@
 
 ビヘイビアツリー（BT）とLLMで、自分で考えて動き続けるボットを作るテンプレートです。
 
-- **体**: `@metatell/bot-sdk`（歩く、見る、話す、踊る）
+- **体**: `@metatell/bot-sdk`（歩く、見る、チャットと音声で話す、踊る）
 - **神経系**: ビヘイビアツリー（「今なにをすべきか」を優先順位つきで決め続ける）
 - **頭脳**: LLM（セリフの生成と、分岐の意思決定）
 
@@ -17,8 +17,14 @@ LLMが手足を直接動かすのではなく、検証済みのエンジンが�
 pnpm install
 cd examples/bt-bot
 cp .env.example .env
-# .envに認証トークンとLLMキーを貼る
+# .envに認証トークン、LLMキー、Google Cloud認証情報を設定する
 ```
+
+音声発話には、Text-to-Speech APIを有効にしたGoogle Cloudサービスアカウントが必要です。
+`.env`の`GOOGLE_APPLICATION_CREDENTIALS`へJSON鍵のパスを設定してください。
+標準の`metatell.app`以外の環境では、その環境に対応する
+`METATELL_REALTIME_URL`（LiveKit URL）も設定します。認証情報が未設定、または音声の
+初期化に失敗した場合も、ボットはチャットのみで動作を続けます。
 
 ## 起動
 
@@ -29,6 +35,8 @@ pnpm dev -- https://metatell.app/YOUR_ROOM_ID
 ルームURLは`.env`の`METATELL_ROOM_URL`でも指定できます。
 起動するとコンソールに、いま実行中のツリーの経路が色つきで表示されます
 （黄=RUNNING、緑=SUCCESS、灰=FAILURE）。
+`say`、`llm_say`、`llm_reply`などの発言はチャットへ表示され、同じ内容がルーム内で
+音声再生されます。音声は前の発言が終わってから順番に再生されるため、重なりません。
 
 ## 編集するファイル（3段階）
 
@@ -46,7 +54,7 @@ pnpm dev -- https://metatell.app/YOUR_ROOM_ID
 ```json
 {
   "root": {
-    "type": "selector",
+    "type": "priority_selector",
     "children": [
       { "type": "sequence", "children": [
         { "type": "condition", "name": "mentioned" },
@@ -57,7 +65,8 @@ pnpm dev -- https://metatell.app/YOUR_ROOM_ID
 }
 ```
 
-- **selector**: 子を上から試して、最初に成功したものを採用する（優先順位）。
+- **selector**: 子を上から試し、RUNNINGになった子を完了まで続ける。
+- **priority_selector**: RUNNING中も上位の子を再評価する。メンションなど、割り込ませたい分岐に使う。
 - **sequence**: 子を順番に全部実行する。途中で失敗したら止まる。
 - **inverter / cooldown / repeat**: 子を1つ持つ飾りノード。cooldownは「前回成功から`sec`秒間は実行しない」。
 - **condition / action**: `name`で組み込みノードか自作ノードを指定する。
@@ -91,7 +100,8 @@ pnpm check
 
 | name | params | 意味 |
 |---|---|---|
-| say | text | 発言する。`{userName}` `{botName}` `{greeting}`が使える |
+| say | text | チャットと音声で発言する。`{userName}` `{botName}` `{greeting}`が使える |
+| greet_user | repeatText, animation | 対象を向いて演出し、初対面は`greeting`、2回目以降は`repeatText`で挨拶する |
 | move_to | x, y, z | 指定座標へ歩く（到着でSUCCESS） |
 | patrol_next | - | bot.config.jsonの巡回地点を1つ進む |
 | move_to_user | - | いちばん近くの人のそばへ歩く |
@@ -99,7 +109,13 @@ pnpm check
 | emote | animation | アニメーション再生。emotesの別名か、起動時ログに出るID/名前を指定 |
 | wait | sec | 指定秒数待つ |
 | set_blackboard | key, value | blackboardに値を書く |
-| report_users | - | ルームにいる人の名前を発言する |
+| report_users | - | ルームにいる人の名前をチャットと音声で発言する |
+
+標準ツリーの挨拶は、発言に成功したユーザーのセッションIDを起動中のblackboardへ記憶します。
+同じユーザーへの2回目以降の挨拶は`greet_user`の`repeatText`へ切り替わります。
+挨拶の30秒クールダウンは、演出と発言が成功した時点から始まります。
+記憶は最大1,000人分で、上限を超えると古い記録から削除されます。
+再接続でセッションIDが変わった場合やボットを再起動した場合は、初対面として扱います。
 
 LLMノード（`"type": "action"`）:
 
@@ -151,12 +167,15 @@ LLMがtree.jsonを生成し、検証を通過したものだけを保存しま�
 
 ## 安全装置（設定では外せません）
 
-- 発言の最小間隔は5秒。連投は自動で抑制される。
+- チャット・音声発言の最小間隔は5秒。自発的な連投は抑制し、メンション返信は間隔を待って送る。
 - ほかのボットの発言は知覚しない（ボット同士の無限ループ防止）。
 - 移動座標はルーム境界内にクランプ、移動速度は秒速2mまで。
 - `OPERATOR_SESSION_IDS`で指定した運営が`/killall`とチャットすると即時に停止する。
   未設定ならリモート停止は無効になる。
 - 自作ノードの例外はFAILUREになるだけで、ボットは落ちない。
+
+`priority_selector`で非同期の自作アクションが割り込まれた場合、`ctx.signal.aborted`が
+`true`になります。`await`の後で確認し、発言などの副作用を続けず`FAILURE`を返してください。
 
 `OPERATOR_SESSION_IDS`には恒久的なアカウントIDではなく、現在の接続session IDを
 カンマ区切りで設定します。まず未設定のまま運営が`/killall`を送り、ボットのログに

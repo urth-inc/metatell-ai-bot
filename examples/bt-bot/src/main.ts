@@ -10,15 +10,11 @@ import { asTreeDef, validateTreeDoc } from './engine/validate.js'
 import { envFlag, envString, loadDotEnv } from './env.js'
 import { createShutdownController, watchFileChanges } from './lifecycle.js'
 import { createLlmApi } from './llm.js'
+import { SmoothMovementController } from './movement.js'
 import { registerBuiltins } from './nodes/index.js'
-import {
-  clampToBounds,
-  createSafeSpeaker,
-  KILL_COMMAND,
-  stepTowards,
-  truncateSay,
-} from './safety.js'
+import { clampToBounds, createSafeSpeaker, KILL_COMMAND, truncateSay } from './safety.js'
 import { createSensors } from './sensors.js'
+import { createRoomVoiceSpeaker, type RoomVoiceSpeaker } from './voice.js'
 
 const ROOT_DIR = process.cwd()
 const MY_BOT_DIR = path.join(ROOT_DIR, 'my-bot')
@@ -125,6 +121,54 @@ async function main(): Promise<void> {
   await client.connect()
   log(`接続しました: ルーム=${roomId} 名前=${config.name}`)
 
+  let voice: RoomVoiceSpeaker | null = null
+  // Register chat perception before optional TTS/animation initialization, which can take seconds.
+  // Messages received during startup stay in the inbox until the first behavior-tree tick.
+  const speaker = createSafeSpeaker(log, async (text, priority) => {
+    await voice?.speak(truncateSay(text), priority)
+  })
+  const bb = createBlackboard()
+  bb.set('startedAtMs', Date.now())
+  const shutdownController = createShutdownController({
+    disconnect: async () => {
+      const results = await Promise.allSettled([voice?.close(), client.disconnect()])
+      const rejected = results.find(
+        (result): result is PromiseRejectedResult => result.status === 'rejected',
+      )
+      if (rejected) {
+        throw rejected.reason
+      }
+    },
+    exit: (code) => process.exit(code),
+    log,
+  })
+  shutdownController.addCleanup(() => root.reset())
+  const sensors = createSensors({
+    client,
+    botName: config.name,
+    allowBotPerception: envFlag('ALLOW_BOT_PERCEPTION'),
+    operatorSessionIds,
+    speaker,
+    onKill: (byName) =>
+      void shutdownController.shutdown(`キルスイッチ（${byName}さんの${KILL_COMMAND}）`),
+    log,
+  })
+
+  if (envString('GOOGLE_APPLICATION_CREDENTIALS') === '') {
+    log('GOOGLE_APPLICATION_CREDENTIALSが未設定のため、発言はチャットのみです')
+  } else {
+    try {
+      log('Google TTSとLiveKit音声を初期化しています')
+      voice = await createRoomVoiceSpeaker(client, {
+        languageCode: envString('TTS_LANGUAGE_CODE', 'ja-JP'),
+        voiceName: envString('TTS_VOICE_NAME', 'ja-JP-Chirp3-HD-Zephyr'),
+      })
+      log('音声発話の準備ができました')
+    } catch (error) {
+      log(`音声発話を初期化できないため、チャットのみで続行します: ${String(error)}`)
+    }
+  }
+
   // 使えるアニメーションはアバターごとに違うため、実機の一覧を取得して照合する
   let animations: Awaited<ReturnType<typeof client.avatar.getAvailableAnimations>> = []
   try {
@@ -140,15 +184,6 @@ async function main(): Promise<void> {
     log(`アニメーション一覧を取得できませんでした: ${String(error)}`)
   }
 
-  const speaker = createSafeSpeaker(log)
-  const bb = createBlackboard()
-  bb.set('startedAtMs', Date.now())
-  const shutdownController = createShutdownController({
-    disconnect: () => client.disconnect(),
-    exit: (code) => process.exit(code),
-    log,
-  })
-
   // BotApi: ノードが世界に触る唯一の窓口。安全装置はこの内側にある
   let walking = false
   // 未割り当てのemoteの案内はtickごとに繰り返さず1回だけ出す
@@ -159,26 +194,20 @@ async function main(): Promise<void> {
     client.avatar.play({ id: next ? 'walking' : 'idle', loop: true }).catch(() => {})
   }
 
+  const movement = new SmoothMovementController({
+    avatar: client.avatar,
+    setWalking,
+    log,
+  })
+  shutdownController.addCleanup(() => movement.close())
+
   const api: BotApi = {
     botName: config.name,
     persona,
     llm,
     log,
     say: (text) => speaker.trySend(() => client.chat.send(truncateSay(text)), text),
-    moveTowards(target) {
-      const from = client.avatar.getPosition()
-      if (!from) return 'moving'
-      const clamped = clampToBounds(target)
-      const { next, arrived } = stepTowards(from, clamped, config.tickMs)
-      if (arrived) {
-        setWalking(false)
-        return 'arrived'
-      }
-      setWalking(true)
-      client.avatar.lookAt(clamped).catch(() => {})
-      client.avatar.moveTo(next).catch((error) => log(`moveToに失敗: ${String(error)}`))
-      return 'moving'
-    },
+    moveTowards: (target) => movement.moveTowards(target),
     lookAt(target) {
       client.avatar.lookAt(clampToBounds(target)).catch(() => {})
     },
@@ -217,17 +246,6 @@ async function main(): Promise<void> {
     },
   }
 
-  const sensors = createSensors({
-    client,
-    botName: config.name,
-    allowBotPerception: envFlag('ALLOW_BOT_PERCEPTION'),
-    operatorSessionIds,
-    speaker,
-    onKill: (byName) =>
-      void shutdownController.shutdown(`キルスイッチ（${byName}さんの${KILL_COMMAND}）`),
-    log,
-  })
-
   // tree.jsonのホットリロード: 検証を通過したときだけ差し替える
   const treeWatcher = watchFileChanges(
     TREE_PATH,
@@ -237,7 +255,9 @@ async function main(): Promise<void> {
         log('tree.jsonの変更にエラーがあるため、直前のツリーで動き続けます')
         return
       }
-      root = buildTree(asTreeDef(doc))
+      const nextRoot = buildTree(asTreeDef(doc))
+      root.reset()
+      root = nextRoot
       log('tree.jsonを再読み込みしました')
     },
     (error) => log(`tree.jsonの監視に失敗しました: ${String(error)}`),
@@ -247,17 +267,22 @@ async function main(): Promise<void> {
   const traceEnabled = process.env.BT_TRACE !== '0'
   let lastTraceText = ''
   const tickTimer = setInterval(() => {
-    const now = Date.now()
-    sensors.snapshot(bb, now)
-    const ctx: TickContext = { bb, inbox: sensors.inbox, api, now, trace: [] }
-    tickTree(root, ctx)
-    if (traceEnabled) {
-      const traceText = formatTrace(ctx.trace)
-      // 毎tick出すと洪水になるため、実行経路が変わったときだけ表示する
-      if (traceText !== lastTraceText) {
-        lastTraceText = traceText
-        console.log(`\n--- tick ---\n${traceText}`)
+    movement.beginBehaviorTick()
+    try {
+      const now = Date.now()
+      sensors.snapshot(bb, now)
+      const ctx: TickContext = { bb, inbox: sensors.inbox, api, now, trace: [] }
+      tickTree(root, ctx)
+      if (traceEnabled) {
+        const traceText = formatTrace(ctx.trace)
+        // 毎tick出すと洪水になるため、実行経路が変わったときだけ表示する
+        if (traceText !== lastTraceText) {
+          lastTraceText = traceText
+          console.log(`\n--- tick ---\n${traceText}`)
+        }
       }
+    } finally {
+      movement.endBehaviorTick()
     }
   }, config.tickMs)
   shutdownController.addCleanup(() => clearInterval(tickTimer))

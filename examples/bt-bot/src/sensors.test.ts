@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { MetatellClient, User } from '@metatell/bot-sdk'
 import { createBlackboard } from './engine/blackboard.js'
-import type { SafeSpeaker } from './safety.js'
+import { createSafeSpeaker, type SafeSpeaker } from './safety.js'
 import { createSensors } from './sensors.js'
 
 type ChatHandler = Parameters<MetatellClient['chat']['onMessage']>[0]
@@ -58,6 +58,10 @@ function createClientFake(
 
 const speaker: SafeSpeaker = {
   async trySend(send) {
+    await send()
+    return true
+  },
+  async sendWhenReady(send) {
     await send()
     return true
   },
@@ -125,6 +129,43 @@ test('ALLOW_BOT_PERCEPTION相当の設定では他botを知覚できる', () => 
     ['supervised bot message'],
   )
   assert.equal(bb.get('userCount'), 1)
+})
+
+test('最寄りユーザーのsession IDを記録し、対象がいなくなったら削除する', () => {
+  const first: User = {
+    id: 'human-near',
+    name: 'Visitor',
+    isBot: false,
+    position: { x: 1, y: 0, z: 0 },
+  }
+  const second: User = {
+    id: 'human-far',
+    name: 'Visitor',
+    isBot: false,
+    position: { x: 4, y: 0, z: 0 },
+  }
+  const fake = createClientFake([second, first])
+  const sensors = createSensors({
+    client: fake.client,
+    botName: 'My Bot',
+    allowBotPerception: false,
+    operatorSessionIds: [],
+    speaker,
+    onKill: () => {},
+    log: () => {},
+  })
+  const bb = createBlackboard()
+
+  sensors.snapshot(bb, 1_000)
+  assert.equal(bb.get('nearestUserId'), first.id)
+
+  fake.setUsers([second])
+  sensors.snapshot(bb, 2_000)
+  assert.equal(bb.get('nearestUserId'), second.id)
+
+  fake.setUsers([])
+  sensors.snapshot(bb, 3_000)
+  assert.equal(bb.get('nearestUserId'), undefined)
 })
 
 test('キルスイッチは表示名ではなく接続session IDで運営を認可する', () => {
@@ -244,4 +285,46 @@ test('メンション先は再接続後のsession IDを動的に参照する', (
   })
 
   assert.equal(sensors.inbox.peekMention()?.text, 'new mention')
+})
+
+test('メンション返信も共通speakerを通ってチャットと音声へ送られる', async () => {
+  const human: User = { id: 'human-id', name: 'Visitor', isBot: false }
+  const fake = createClientFake([human])
+  const replies: string[] = []
+  const voices: string[] = []
+  let currentMs = 1_000
+  const mentionSpeaker = createSafeSpeaker(
+    () => {},
+    async (text) => {
+      voices.push(text)
+    },
+    () => currentMs,
+    async (ms) => {
+      currentMs += ms
+    },
+  )
+  const sensors = createSensors({
+    client: fake.client,
+    botName: 'My Bot',
+    allowBotPerception: false,
+    operatorSessionIds: [],
+    speaker: mentionSpeaker,
+    onKill: () => {},
+    log: () => {},
+  })
+
+  await mentionSpeaker.trySend(async () => {}, '直前の挨拶')
+
+  fake.emitChat({
+    from: human,
+    text: 'hello',
+    mention: { sessionId: 'self', name: 'My Bot' },
+    reply: async (text) => {
+      replies.push(text)
+    },
+  })
+
+  assert.equal(await sensors.inbox.takeMention()?.reply('こんにちは'), true)
+  assert.deepEqual(replies, ['こんにちは'])
+  assert.deepEqual(voices, ['直前の挨拶', 'こんにちは'])
 })

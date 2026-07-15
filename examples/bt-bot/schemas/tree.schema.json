@@ -26,8 +26,8 @@
       "additionalProperties": false,
       "properties": {
         "type": {
-          "enum": ["sequence", "selector"],
-          "description": "sequence: 子を順に全部実行。selector: 上から試して最初に成功した子で止まる"
+          "enum": ["sequence", "selector", "priority_selector"],
+          "description": "sequence: 子を順に全部実行。selector: RUNNINGの子を続行。priority_selector: RUNNING中も上位の子を再評価して割り込む"
         },
         "name": { "type": "string", "description": "表示用の名前（任意）" },
         "children": {
@@ -124,6 +124,7 @@
             {
               "enum": [
                 "say",
+                "greet_user",
                 "move_to",
                 "patrol_next",
                 "move_to_user",

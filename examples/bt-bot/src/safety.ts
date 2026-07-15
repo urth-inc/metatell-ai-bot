@@ -27,30 +27,85 @@ export const ROOM_BOUNDS = {
 /** Chat command that stops the bot immediately (operator kill switch). */
 export const KILL_COMMAND = '/killall'
 
+export type SpeechPriority = 'normal' | 'reply'
+
 export interface SafeSpeaker {
-  /** Sends unless within the minimum interval. Returns whether it was sent. */
+  /** Sends unless within the minimum interval. Queued human replies take priority. */
   trySend(send: () => Promise<void>, text: string): Promise<boolean>
+  /** Waits for the minimum interval and sends exactly once instead of dropping a human reply. */
+  sendWhenReady(send: () => Promise<void>, text: string): Promise<boolean>
 }
 
 /**
  * One shared clock for every way the bot can speak (say / reply / report).
- * Suppressed messages are dropped, not queued, so a broken tree cannot
- * build up a backlog of messages.
+ * Spontaneous messages are dropped instead of queued, so a broken tree cannot
+ * build up a backlog. Direct human replies may use the serialized waiting path.
+ * The post-send voice hook is started in the background so playback duration
+ * never blocks the behavior tree from perceiving the next event.
  */
-export function createSafeSpeaker(log: (message: string) => void): SafeSpeaker {
+export function createSafeSpeaker(
+  log: (message: string) => void,
+  afterSend?: (text: string, priority: SpeechPriority) => Promise<void>,
+  now: () => number = Date.now,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+): SafeSpeaker {
   let lastSentMs = Number.NEGATIVE_INFINITY
+  let guaranteedTail = Promise.resolve()
+  let guaranteedCount = 0
+
+  const runAfterSend = (text: string, priority: SpeechPriority): void => {
+    if (!afterSend) return
+    try {
+      void afterSend(text, priority).catch((error) => {
+        // Voice is an enhancement to chat. A TTS/LiveKit failure must not make the BT retry
+        // a chat message that was already sent successfully.
+        log(`音声発話に失敗しました（チャット送信は成功）: ${String(error)}`)
+      })
+    } catch (error) {
+      log(`音声発話に失敗しました（チャット送信は成功）: ${String(error)}`)
+    }
+  }
+
   return {
     async trySend(send, text) {
-      const now = Date.now()
-      if (now - lastSentMs < MIN_SAY_INTERVAL_MS) {
+      const currentMs = now()
+      if (guaranteedCount > 0 || currentMs - lastSentMs < MIN_SAY_INTERVAL_MS) {
         log(
           `発言間隔ガード: 「${text.slice(0, 30)}」を抑制しました（最短${MIN_SAY_INTERVAL_MS / 1000}秒間隔）`,
         )
         return false
       }
-      lastSentMs = now
+      lastSentMs = currentMs
       await send()
+      runAfterSend(text, 'normal')
       return true
+    },
+
+    sendWhenReady(send, text) {
+      guaranteedCount += 1
+      const queued = guaranteedTail.then(async () => {
+        let remainingMs = MIN_SAY_INTERVAL_MS - (now() - lastSentMs)
+        if (remainingMs > 0) {
+          log(
+            `発言間隔ガード: メンション返信「${text.slice(0, 30)}」を${Math.ceil(remainingMs / 1000)}秒以内に送ります`,
+          )
+        }
+        while (remainingMs > 0) {
+          await sleep(remainingMs)
+          remainingMs = MIN_SAY_INTERVAL_MS - (now() - lastSentMs)
+        }
+        lastSentMs = now()
+        await send()
+        runAfterSend(text, 'reply')
+        return true
+      })
+      guaranteedTail = queued.then(
+        () => {},
+        () => {},
+      )
+      return queued.finally(() => {
+        guaranteedCount -= 1
+      })
     },
   }
 }

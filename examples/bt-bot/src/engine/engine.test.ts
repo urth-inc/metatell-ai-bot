@@ -48,11 +48,25 @@ registerAction('test_running_until', (_ctx, params) => {
   return counters[key] >= Number(params.calls) ? 'SUCCESS' : 'RUNNING'
 })
 registerAction('test_fail', () => 'FAILURE')
+registerAction('test_fail_count', (_ctx, params) => {
+  const key = String(params.key)
+  counters[key] = (counters[key] ?? 0) + 1
+  return 'FAILURE'
+})
 registerAction('test_throw', () => {
   throw new Error('boom')
 })
 registerAction('test_async', async () => {
   await new Promise((resolve) => setTimeout(resolve, 5))
+  return 'SUCCESS'
+})
+let releaseCancellableAction: (() => void) | undefined
+registerAction('test_cancellable_action', async (ctx) => {
+  await new Promise<void>((resolve) => {
+    releaseCancellableAction = resolve
+  })
+  if (ctx.signal?.aborted) return 'FAILURE'
+  counters['cancelled-side-effect'] = (counters['cancelled-side-effect'] ?? 0) + 1
   return 'SUCCESS'
 })
 
@@ -135,6 +149,65 @@ test('RUNNINGの子を記憶し、前の兄弟条件を再評価せずに再開�
   assert.equal(counters.fallback ?? 0, 0)
 })
 
+test('priority_selectorはRUNNING中も上位条件を再評価して割り込む', () => {
+  const tree: TreeDef = {
+    root: {
+      type: 'priority_selector',
+      children: [
+        {
+          type: 'sequence',
+          children: [
+            { type: 'condition', name: 'test_flag', params: { key: 'urgent' } },
+            { type: 'action', name: 'test_count', params: { key: 'reply' } },
+          ],
+        },
+        { type: 'action', name: 'test_running_until', params: { key: 'patrol', calls: 99 } },
+      ],
+    },
+  }
+  const root = buildTree(tree)
+  const bb = createBlackboard()
+
+  flags.urgent = false
+  assert.equal(tickTree(root, makeCtx(bb, 0)), 'RUNNING')
+  assert.equal(counters.patrol, 1)
+
+  flags.urgent = true
+  assert.equal(tickTree(root, makeCtx(bb, 500)), 'SUCCESS')
+  assert.equal(counters.reply, 1)
+  assert.equal(counters.patrol, 1)
+})
+
+test('priority_selectorは割り込んだ非同期actionへabortを通知する', async () => {
+  const tree: TreeDef = {
+    root: {
+      type: 'priority_selector',
+      children: [
+        {
+          type: 'sequence',
+          children: [
+            { type: 'condition', name: 'test_flag', params: { key: 'urgent' } },
+            { type: 'action', name: 'test_count', params: { key: 'urgent-work' } },
+          ],
+        },
+        { type: 'action', name: 'test_cancellable_action' },
+      ],
+    },
+  }
+  const root = buildTree(tree)
+  const bb = createBlackboard()
+
+  flags.urgent = false
+  assert.equal(tickTree(root, makeCtx(bb, 0)), 'RUNNING')
+  flags.urgent = true
+  assert.equal(tickTree(root, makeCtx(bb, 500)), 'SUCCESS')
+  releaseCancellableAction?.()
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(counters['urgent-work'], 1)
+  assert.equal(counters['cancelled-side-effect'] ?? 0, 0)
+})
+
 test('cooldownデコレータはツリー完了後も時計を保持する', () => {
   const tree: TreeDef = {
     root: {
@@ -150,6 +223,22 @@ test('cooldownデコレータはツリー完了後も時計を保持する', () 
   assert.equal(counters.c, 1)
   assert.equal(tickTree(root, makeCtx(bb, 31_000)), 'SUCCESS')
   assert.equal(counters.c, 2)
+})
+
+test('cooldownデコレータは子が失敗した場合に時計を進めない', () => {
+  const tree: TreeDef = {
+    root: {
+      type: 'cooldown',
+      params: { sec: 30 },
+      child: { type: 'action', name: 'test_fail_count', params: { key: 'failed-greeting' } },
+    },
+  }
+  const root = buildTree(tree)
+  const bb = createBlackboard()
+
+  assert.equal(tickTree(root, makeCtx(bb, 0)), 'FAILURE')
+  assert.equal(tickTree(root, makeCtx(bb, 1_000)), 'FAILURE')
+  assert.equal(counters['failed-greeting'], 2)
 })
 
 test('inverterはSUCCESSとFAILUREを反転する', () => {
