@@ -1,5 +1,18 @@
 # @metatell/bot-core
 
+## 1.0.2
+
+### Patch Changes
+
+- - Merge pull request #167 from urth-inc/codex/fix-sdk-chat-mention-parsing
+  - fix(core): skip malformed mention session ids
+  - fix(core): keep mention parsing linear on malformed input
+  - fix(core): parse multiline mentions without dropping surrounding text
+  - Merge pull request #166 from urth-inc/chore/examples-sdk-1
+  - Merge pull request #162 from urth-inc/fix/bt-bot-animations
+  - chore(examples): bump @metatell/bot-sdk to ^1.0.1
+  - fix(bt-bot): resolve emotes from the avatar's real animation list
+
 ## 1.0.1
 
 ### Patch Changes
