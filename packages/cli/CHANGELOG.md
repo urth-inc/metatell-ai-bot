@@ -1,5 +1,21 @@
 # @metatell/bot-cli
 
+## 2.0.0
+
+### Minor Changes
+
+- - Merge pull request #172 from urth-inc/codex/navigation-sdk
+  - feat(navigation): add GLB navigation runtime
+  - Merge pull request #168 from urth-inc/renovate/actions-setup-node-6.x
+  - Merge pull request #171 from urth-inc/codex/bt-bot-interactions
+  - feat(bt-bot): add voice and responsive interactions
+  - chore(deps): update actions/setup-node action to v6
+
+### Patch Changes
+
+- Updated dependencies
+  - @metatell/bot-sdk@2.0.0
+
 ## 1.0.2
 
 ### Patch Changes
