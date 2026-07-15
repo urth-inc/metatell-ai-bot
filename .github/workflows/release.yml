@@ -1,29 +1,25 @@
-name: Create Release
+name: Release
 
 on:
+  push:
+    branches:
+      - develop
   workflow_dispatch:
-    inputs:
-      bump:
-        description: "Semver bump type"
-        type: choice
-        options: [patch, minor, major]
-        default: patch
 
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.ref_name }}
+  group: release-develop
   cancel-in-progress: false
 
 jobs:
   release:
-    name: Create & merge version PR
+    name: Version or publish packages
     if: ${{ github.ref_name == 'develop' }}
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Checkout
@@ -40,77 +36,22 @@ jobs:
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: '.node-version'
+          registry-url: https://registry.npmjs.org
           cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Changeset from commit subjects
-        env:
-          BUMP: ${{ inputs.bump }}
-        run: node ./.github/scripts/create-changeset.mjs
+      - name: Update npm
+        run: npm install -g npm@latest
 
-      - name: Create version PR (Changesets)
-        id: version_pr
+      - name: Create version PR or publish packages
         uses: changesets/action@v1
         with:
-          version: node ./.github/scripts/version-with-root.mjs
+          publish: pnpm run release
           commit: "chore(release): Version Packages"
           title: "chore(release): Version Packages"
+          createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
-
-      - name: Find the version PR number
-        id: find_pr
-        shell: bash
-        run: |
-          # changesets/actionが作成したPRを最新のものから確実に取得
-          # ブランチ名で特定（changeset-release/develop）することで一意性を保証
-          PR_DATA=$(gh pr list --state open --base develop \
-                    --head changeset-release/develop \
-                    --json number,title,author,headRefName,createdAt \
-                    --limit 1)
-          
-          if [ -z "$PR_DATA" ] || [ "$PR_DATA" == "[]" ]; then
-            echo "No open version PR found. Either no changesets or action didn't create a PR."
-            exit 1
-          fi
-          
-          PR=$(echo "$PR_DATA" | jq -r '.[0].number')
-          
-          echo "Found PR #$PR (branch: changeset-release/develop)"
-          echo "pr_number=$PR" >> "$GITHUB_OUTPUT"
-
-      - name: Enable auto-merge (--merge)
-        run: gh pr merge ${{ steps.find_pr.outputs.pr_number }} --auto --merge
-
-      - name: Wait until the PR is merged (max 10 min)
-        timeout-minutes: 10
-        shell: bash
-        run: |
-          for i in $(seq 1 60); do
-            STATE=$(gh pr view ${{ steps.find_pr.outputs.pr_number }} --json state,mergedAt --jq '.state')
-            if [ "$STATE" = "MERGED" ]; then
-              echo "PR merged."
-              exit 0
-            fi
-            echo "Waiting... (state=$STATE)"
-            sleep 10
-          done
-          echo "Timed out waiting for PR merge."
-          exit 1
-
-      - name: Fetch latest develop after merge
-        run: |
-          echo "Fetching latest develop branch..."
-          git fetch origin develop:develop --force
-          echo "Latest develop commit: $(git rev-parse origin/develop)"
-
-  publish:
-    name: Publish via reusable workflow
-    needs: release
-    permissions:
-      contents: write      # GitHub Release作成に必要
-      id-token: write      # npm OIDC認証に必要
-    uses: ./.github/workflows/publish.yml
-    secrets: inherit
+          NPM_CONFIG_PROVENANCE: true
