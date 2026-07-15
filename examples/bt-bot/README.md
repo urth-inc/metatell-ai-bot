@@ -34,7 +34,7 @@ pnpm dev -- https://metatell.app/YOUR_ROOM_ID
 
 | 段階 | 編集対象 | やること |
 |---|---|---|
-| 初級 | `.env`と`my-bot/bot.config.json` | 名前、挨拶、巡回地点を自分のものに書き換える |
+| 初級 | `.env`と`my-bot/bot.config.json` | 名前、挨拶、巡回地点、アニメーション割り当てを書き換える |
 | 中級 | `my-bot/tree.json`と`my-bot/persona.md` | 行動の分岐を設計する。LLMノードのキャラを作り込む |
 | 上級 | `my-bot/custom-nodes.ts` | registerAction / registerConditionで独自ノードを作る |
 
@@ -96,7 +96,7 @@ pnpm check
 | patrol_next | - | bot.config.jsonの巡回地点を1つ進む |
 | move_to_user | - | いちばん近くの人のそばへ歩く |
 | look_at_user | - | いちばん近くの人の方を向く |
-| emote | animation | アニメーション再生（wave, dance, nod, jumping, crouchなど） |
+| emote | animation | アニメーション再生。emotesの別名か、起動時ログに出るID/名前を指定 |
 | wait | sec | 指定秒数待つ |
 | set_blackboard | key, value | blackboardに値を書く |
 | report_users | - | ルームにいる人の名前を発言する |
@@ -108,6 +108,23 @@ LLMノード（`"type": "action"`）:
 | llm_reply | - | メンションにペルソナで返事する |
 | llm_say | topic | 状況を見て自発的にひとこと話す。必ずcooldownの中に置く |
 | llm_choose | choices, key, question | 選択肢から選ばせ、blackboardに書く |
+
+### アニメーションの割り当て
+
+使えるアニメーションはアバターごとに違います。起動すると
+「利用可能なアニメーション: ...」がログに出るので、そのIDを
+`bot.config.json`の`emotes`に割り当ててください。
+
+```json
+"emotes": {
+  "greet": "＜挨拶に使うアニメーションのID＞",
+  "dance": "＜ダンスに使うアニメーションのID＞"
+}
+```
+
+ツリーからは`emote`の`animation`に別名（`greet`など）を書きます。
+未割り当ての別名はその回だけスキップされ、ボットは止まりません。
+`idle`と`walking`はどのアバターでも使えます（歩行時は自動で切り替わります）。
 
 ## レシピ集
 

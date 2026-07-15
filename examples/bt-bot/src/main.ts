@@ -125,6 +125,21 @@ async function main(): Promise<void> {
   await client.connect()
   log(`接続しました: ルーム=${roomId} 名前=${config.name}`)
 
+  // 使えるアニメーションはアバターごとに違うため、実機の一覧を取得して照合する
+  let animations: Awaited<ReturnType<typeof client.avatar.getAvailableAnimations>> = []
+  try {
+    animations = await client.avatar.getAvailableAnimations()
+    log(
+      `利用可能なアニメーション: ${animations
+        .map((entry) =>
+          entry.name && entry.name !== entry.id ? `${entry.name}(${entry.id})` : entry.id,
+        )
+        .join(', ')}`,
+    )
+  } catch (error) {
+    log(`アニメーション一覧を取得できませんでした: ${String(error)}`)
+  }
+
   const speaker = createSafeSpeaker(log)
   const bb = createBlackboard()
   bb.set('startedAtMs', Date.now())
@@ -136,6 +151,8 @@ async function main(): Promise<void> {
 
   // BotApi: ノードが世界に触る唯一の窓口。安全装置はこの内側にある
   let walking = false
+  // 未割り当てのemoteの案内はtickごとに繰り返さず1回だけ出す
+  const warnedEmotes = new Set<string>()
   const setWalking = (next: boolean): void => {
     if (walking === next) return
     walking = next
@@ -165,11 +182,29 @@ async function main(): Promise<void> {
     lookAt(target) {
       client.avatar.lookAt(clampToBounds(target)).catch(() => {})
     },
-    emote(animation) {
+    async emote(animation) {
+      const target = config.emotes[animation] ?? animation
+      const found = animations.find((entry) => entry.id === target || entry.name === target)
+      // 一覧が取れなかった環境でも、SDK標準のidle/walkingは通す
+      const id = found?.id ?? (target === 'idle' || target === 'walking' ? target : undefined)
+      if (id === undefined) {
+        if (!warnedEmotes.has(animation)) {
+          warnedEmotes.add(animation)
+          log(
+            `emote「${animation}」に対応するアニメーションがないためスキップします。` +
+              'bot.config.jsonの「emotes」に、起動時ログに出た利用可能なIDを割り当ててください',
+          )
+        }
+        return 'skipped'
+      }
       walking = false
-      client.avatar
-        .play({ id: animation, loop: false })
-        .catch(() => log(`アニメーション「${animation}」を再生できませんでした`))
+      try {
+        await client.avatar.play({ id, loop: false })
+        return 'played'
+      } catch (error) {
+        log(`アニメーション「${animation}」(${id})を再生できませんでした: ${String(error)}`)
+        return 'failed'
+      }
     },
     patrolTarget: (index) => config.patrol[index],
     patrolLength: () => config.patrol.length,

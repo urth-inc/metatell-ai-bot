@@ -110,21 +110,21 @@ export function registerBuiltinActions(): void {
 
   registerAction(
     'emote',
-    (ctx, params) => {
+    async (ctx, params): Promise<Status> => {
       const animation = typeof params.animation === 'string' ? params.animation : ''
       if (animation === '') return 'FAILURE'
-      ctx.api.emote(animation)
-      return 'SUCCESS'
+      return (await ctx.api.emote(animation)) === 'failed' ? 'FAILURE' : 'SUCCESS'
     },
     {
       params: {
         animation: {
           type: 'string',
           required: true,
-          description: 'アニメーション名（wave, dance, nod, jumping など）',
+          description:
+            'bot.config.jsonのemotesで割り当てた別名、または起動時ログに出る利用可能なアニメーションのID/名前',
         },
       },
-      description: 'アバターのアニメーションを再生する',
+      description: 'アバターのアニメーションを再生する（未割り当ての別名はスキップして成功扱い）',
     },
   )
 

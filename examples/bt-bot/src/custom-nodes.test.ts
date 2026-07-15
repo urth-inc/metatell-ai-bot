@@ -25,7 +25,10 @@ test('bowアクションは挨拶テンプレートを展開してから発言�
     },
     moveTowards: () => 'arrived',
     lookAt: () => {},
-    emote: (animation) => emotes.push(animation),
+    emote: async (animation) => {
+      emotes.push(animation)
+      return 'played'
+    },
     patrolTarget: () => undefined,
     patrolLength: () => 0,
     expand: (text) => text.replaceAll('{userName}', 'Visitor'),
@@ -43,6 +46,6 @@ test('bowアクションは挨拶テンプレートを展開してから発言�
   const result = await bow.fn(ctx, {})
 
   assert.equal(result, 'SUCCESS')
-  assert.deepEqual(emotes, ['nod'])
+  assert.deepEqual(emotes, ['greet'])
   assert.deepEqual(spoken, ['Visitorさん、いらっしゃいませ！'])
 })
