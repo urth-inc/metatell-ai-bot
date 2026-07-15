@@ -18,7 +18,7 @@
     "@metatell/bot-sdk": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "22.19.1",
+    "@types/node": "24.13.3",
     "tsx": "4.21.0",
     "typescript": "5.9.3"
   }
