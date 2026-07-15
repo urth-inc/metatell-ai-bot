@@ -14,7 +14,7 @@
     "@google-cloud/text-to-speech": "^5.5.0",
     "@google/genai": "^1.19.0",
     "@metatell/bot-realtime": "^0.0.10",
-    "@metatell/bot-sdk": "^0.0.10",
+    "@metatell/bot-sdk": "^1.0.1",
     "dotenv": "^16.3.1",
     "webrtcvad": "^1.0.1"
   },

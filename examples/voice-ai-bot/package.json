@@ -11,7 +11,7 @@
   "dependencies": {
     "@google/genai": "^1.19.0",
     "@metatell/bot-realtime": "^0.0.10",
-    "@metatell/bot-sdk": "^0.0.10",
+    "@metatell/bot-sdk": "^1.0.1",
     "mime": "^4.0.7"
   },
   "devDependencies": {
