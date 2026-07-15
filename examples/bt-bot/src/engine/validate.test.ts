@@ -19,6 +19,16 @@ test('childrenのないselectorはエラーになる', () => {
   assert.ok(issues.some((issue) => issue.level === 'error' && issue.message.includes('children')))
 })
 
+test('priority_selectorもchildrenを持つ正しい複合ノードとして検証できる', () => {
+  const issues = validateTreeDoc({
+    root: {
+      type: 'priority_selector',
+      children: [{ type: 'action', name: 'patrol_next' }],
+    },
+  })
+  assert.deepEqual(issues, [])
+})
+
 test('未知のノード種別にはもしかして候補が付く', () => {
   const issues = validateTreeDoc({ root: { type: 'selecter', children: [] } })
   assert.ok(issues.some((issue) => issue.message.includes('selector')))

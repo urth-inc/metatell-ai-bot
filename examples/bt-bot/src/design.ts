@@ -42,24 +42,25 @@ function catalogText(): string {
 
 const STRUCTURE_RULES = `ツリーの構造ルール:
 - 出力は {"root": <ノード>} のJSONオブジェクトのみ。説明文は書かない。
-- ノード種別: sequence / selector（"children": [...]が必要）、
+- ノード種別: sequence / selector / priority_selector（"children": [...]が必要）、
   inverter / cooldown / repeat（"child": {...}が必要）、
   condition / action（"name"と任意の"params"が必要）。
-- selectorは上の子から順に試し、最初にSUCCESSした子で止まる。優先度の高い行動を上に書く。
+- selectorはRUNNINGの子を完了まで続ける。
+- priority_selectorはRUNNING中も上の子を再評価する。メンションなど、割り込みたい行動を上に書く。
 - sequenceは子を順に全部実行し、どれかがFAILUREなら止まる。
 - 繰り返し発言する分岐には必ずcooldown（"params": {"sec": 秒}）をかける。
 - llm_sayは必ずcooldownの中に置く。`
 
 const FEW_SHOT = `例: 「近づいた人に手を振って挨拶して、呼ばれたら返事して、暇なときは巡回して」
-{"root": {"type": "selector", "children": [
+{"root": {"type": "priority_selector", "children": [
   {"type": "sequence", "children": [
     {"type": "condition", "name": "mentioned"},
     {"type": "action", "name": "llm_reply"}]},
   {"type": "sequence", "children": [
     {"type": "condition", "name": "user_nearby", "params": {"range": 3}},
-    {"type": "condition", "name": "cooldown", "params": {"sec": 30, "key": "greet"}},
-    {"type": "action", "name": "emote", "params": {"animation": "wave"}},
-    {"type": "action", "name": "say", "params": {"text": "{greeting}"}}]},
+    {"type": "cooldown", "params": {"sec": 30}, "child": {
+      "type": "action", "name": "greet_user", "params": {
+        "repeatText": "また会ったね、{userName}さん！", "animation": "wave"}}}]},
   {"type": "action", "name": "patrol_next"}]}}`
 
 async function main(): Promise<void> {

@@ -60,7 +60,6 @@ export function createSensors(options: SensorOptions): Sensors {
     const presenceUser = client.getUsers().find((candidate) => candidate.id === user.id)
     return presenceUser?.isBot === false
   }
-
   client.chat.onMessage(({ from, text, mention, reply }) => {
     // キルスイッチはあらゆる知覚除外より先に判定する（ボット経由でも止められるように）
     if (text.trim() === KILL_COMMAND && !isSelf(from)) {
@@ -84,8 +83,8 @@ export function createSensors(options: SensorOptions): Sensors {
       mentions.push({
         fromName: from.name ?? '(名無し)',
         text,
-        // 返信も発言間隔ガードを通す。ガードを迂回する発言経路を作らない
-        reply: (answer) => speaker.trySend(() => reply(truncateSay(answer)), answer),
+        // 人が明示的に呼んだ返信は間隔内でも捨てず、安全な時刻まで待って1回送る。
+        reply: (answer) => speaker.sendWhenReady(() => reply(truncateSay(answer)), answer),
       })
     }
   })
@@ -119,7 +118,14 @@ export function createSensors(options: SensorOptions): Sensors {
       )
 
       // 自分から最も近いユーザーを条件・行動ノード用に切り出す
-      let nearest: { name: string; x: number; y: number; z: number; distance: number } | null = null
+      let nearest: {
+        id: string
+        name: string
+        x: number
+        y: number
+        z: number
+        distance: number
+      } | null = null
       if (self) {
         for (const user of users) {
           if (!user.position) continue
@@ -129,6 +135,7 @@ export function createSensors(options: SensorOptions): Sensors {
           const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
           if (!nearest || distance < nearest.distance) {
             nearest = {
+              id: user.id,
               name: user.name ?? '(名無し)',
               x: user.position.x,
               y: user.position.y,
@@ -140,10 +147,12 @@ export function createSensors(options: SensorOptions): Sensors {
       }
       if (nearest) {
         bb.set('nearestUser', { name: nearest.name, x: nearest.x, y: nearest.y, z: nearest.z })
+        bb.set('nearestUserId', nearest.id)
         bb.set('nearestUserName', nearest.name)
         bb.set('nearestUserDistance', nearest.distance)
       } else {
         bb.delete('nearestUser')
+        bb.delete('nearestUserId')
         bb.delete('nearestUserName')
         bb.delete('nearestUserDistance')
       }

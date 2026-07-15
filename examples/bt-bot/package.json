@@ -10,9 +10,11 @@
     "typecheck": "tsc --noEmit",
     "check": "tsx src/check.ts",
     "design": "tsx src/design.ts",
-    "test": "tsx --test src/custom-nodes.test.ts src/engine/engine.test.ts src/engine/validate.test.ts src/lifecycle.test.ts src/llm.test.ts src/nodes/conditions.test.ts src/nodes/llm-nodes.test.ts src/sensors.test.ts"
+    "test": "tsx --test src/custom-nodes.test.ts src/engine/engine.test.ts src/engine/validate.test.ts src/lifecycle.test.ts src/llm.test.ts src/movement.test.ts src/nodes/conditions.test.ts src/nodes/llm-nodes.test.ts src/safety.test.ts src/sensors.test.ts src/voice.test.ts"
   },
   "dependencies": {
+    "@google-cloud/text-to-speech": "5.8.1",
+    "@metatell/bot-realtime": "workspace:*",
     "@metatell/bot-sdk": "workspace:*"
   },
   "devDependencies": {

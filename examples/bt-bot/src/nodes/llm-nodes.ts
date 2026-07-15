@@ -11,6 +11,10 @@ import type { JsonValue, Status, TickContext } from '../engine/types.js'
 // llm_sayの内部下限。cooldownを忘れたツリーでも連続自発発話はここで止まる
 const LLM_SAY_FLOOR_MS = 30_000
 
+function mentionFallback(fromName: string): string {
+  return `${fromName}さん、呼んでくれてありがとう。ちゃんと聞こえています。`
+}
+
 function situationSnapshot(ctx: TickContext): string {
   const nearestName = ctx.bb.get('nearestUserName')
   const userCount = ctx.bb.get('userCount')
@@ -34,14 +38,24 @@ export function registerLlmActions(): void {
     async (ctx): Promise<Status> => {
       const mention = ctx.inbox.takeMention()
       if (!mention) return 'FAILURE'
+      let answer: string
       if (!ctx.api.llm) {
-        ctx.api.log('llm_reply: LLM_API_KEYが未設定のためスキップします')
-        return 'FAILURE'
+        ctx.api.log('llm_reply: LLMが未設定のため固定メッセージで返信します')
+        answer = mentionFallback(mention.fromName)
+      } else {
+        try {
+          answer = await ctx.api.llm.complete({
+            system: `${ctx.api.persona}\n\nあなたの名前は${ctx.api.botName}です。メンションに1、2文で返事してください。`,
+            user: `${mention.fromName}さんからのメッセージ: ${mention.text}\n\n${situationSnapshot(ctx)}`,
+          })
+        } catch (error) {
+          ctx.api.log(
+            `llm_reply: LLM生成に失敗したため固定メッセージで返信します: ${String(error)}`,
+          )
+          answer = mentionFallback(mention.fromName)
+        }
       }
-      const answer = await ctx.api.llm.complete({
-        system: `${ctx.api.persona}\n\nあなたの名前は${ctx.api.botName}です。メンションに1、2文で返事してください。`,
-        user: `${mention.fromName}さんからのメッセージ: ${mention.text}\n\n${situationSnapshot(ctx)}`,
-      })
+      if (ctx.signal?.aborted) return 'FAILURE'
       return (await mention.reply(answer)) ? 'SUCCESS' : 'FAILURE'
     },
     {
@@ -65,6 +79,7 @@ export function registerLlmActions(): void {
         system: `${ctx.api.persona}\n\nあなたの名前は${ctx.api.botName}です。いまの状況を見て、自発的なひとことを1文だけ発してください。`,
         user: `${situationSnapshot(ctx)}${topic}`,
       })
+      if (ctx.signal?.aborted) return 'FAILURE'
       return (await ctx.api.say(utterance)) ? 'SUCCESS' : 'FAILURE'
     },
     {
@@ -98,6 +113,7 @@ export function registerLlmActions(): void {
         user: `${question}\n\n${situationSnapshot(ctx)}`,
         choices,
       })
+      if (ctx.signal?.aborted) return 'FAILURE'
       ctx.bb.set(key, choices[index])
       ctx.api.log(`llm_choose: 「${choices[index]}」を選びました（blackboard.${key}）`)
       return 'SUCCESS'

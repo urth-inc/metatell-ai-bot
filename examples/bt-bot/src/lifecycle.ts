@@ -77,12 +77,20 @@ interface ShutdownOptions {
   disconnect: () => Promise<void>
   exit: (code: number) => void
   log: (message: string) => void
+  disconnectTimeoutMs?: number
+  scheduleTimer?: (callback: () => void, delayMs: number) => Timer
+  clearTimer?: (timer: Timer) => void
 }
+
+const DEFAULT_DISCONNECT_TIMEOUT_MS = 5_000
 
 /** Creates a single-flight shutdown that always runs cleanup and exits. */
 export function createShutdownController(options: ShutdownOptions): ShutdownController {
   const cleanups: Array<() => void> = []
   let shutdownPromise: Promise<void> | null = null
+  const scheduleTimer =
+    options.scheduleTimer ?? ((callback, delayMs) => setTimeout(callback, delayMs))
+  const clearTimer = options.clearTimer ?? ((timer) => clearTimeout(timer))
 
   const safeLog = (message: string): void => {
     try {
@@ -97,6 +105,35 @@ export function createShutdownController(options: ShutdownOptions): ShutdownCont
       cleanup()
     } catch (error) {
       safeLog(`停止処理のクリーンアップに失敗しました: ${String(error)}`)
+    }
+  }
+
+  const disconnectBeforeDeadline = async (): Promise<void> => {
+    type DisconnectResult =
+      | { status: 'completed' }
+      | { status: 'failed'; error: unknown }
+      | { status: 'timed-out' }
+
+    const disconnectResult = Promise.resolve()
+      .then(options.disconnect)
+      .then<DisconnectResult, DisconnectResult>(
+        () => ({ status: 'completed' }),
+        (error: unknown) => ({ status: 'failed', error }),
+      )
+    let timer: Timer | null = null
+    const timeoutResult = new Promise<DisconnectResult>((resolve) => {
+      timer = scheduleTimer(
+        () => resolve({ status: 'timed-out' }),
+        options.disconnectTimeoutMs ?? DEFAULT_DISCONNECT_TIMEOUT_MS,
+      )
+    })
+    const result = await Promise.race([disconnectResult, timeoutResult])
+    if (timer !== null) clearTimer(timer)
+
+    if (result.status === 'failed') {
+      safeLog(`切断に失敗しました: ${String(result.error)}`)
+    } else if (result.status === 'timed-out') {
+      safeLog('切断処理がタイムアウトしたため、終了を続行します')
     }
   }
 
@@ -118,11 +155,7 @@ export function createShutdownController(options: ShutdownOptions): ShutdownCont
         try {
           safeLog(`停止します: ${reason}`)
           for (const cleanup of cleanups.splice(0).reverse()) runCleanup(cleanup)
-          try {
-            await options.disconnect()
-          } catch (error) {
-            safeLog(`切断に失敗しました: ${String(error)}`)
-          }
+          await disconnectBeforeDeadline()
         } finally {
           options.exit(0)
         }

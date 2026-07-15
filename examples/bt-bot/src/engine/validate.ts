@@ -15,7 +15,7 @@ export interface ValidationIssue {
   level: 'error' | 'warning'
 }
 
-const COMPOSITE_TYPES = ['sequence', 'selector']
+const COMPOSITE_TYPES = ['sequence', 'selector', 'priority_selector']
 const DECORATOR_TYPES = ['inverter', 'cooldown', 'repeat']
 const LEAF_TYPES = ['condition', 'action']
 const ALL_TYPES = [...COMPOSITE_TYPES, ...DECORATOR_TYPES, ...LEAF_TYPES]
@@ -23,6 +23,7 @@ const ALL_TYPES = [...COMPOSITE_TYPES, ...DECORATOR_TYPES, ...LEAF_TYPES]
 const ALLOWED_KEYS: { [type: string]: string[] } = {
   sequence: ['type', 'name', 'children'],
   selector: ['type', 'name', 'children'],
+  priority_selector: ['type', 'name', 'children'],
   inverter: ['type', 'name', 'child'],
   cooldown: ['type', 'name', 'params', 'child'],
   repeat: ['type', 'name', 'params', 'child'],
@@ -117,7 +118,8 @@ function validateNode(
   if (typeof type !== 'string') {
     issues.push({
       path,
-      message: '「type」が必要です（sequence / selector / condition / actionなど）',
+      message:
+        '「type」が必要です（sequence / selector / priority_selector / condition / actionなど）',
       level: 'error',
     })
     return

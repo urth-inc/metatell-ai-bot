@@ -7,8 +7,9 @@ import type { BTNode, NodeDef, Status, TickContext, TreeDef } from './types.js'
  * - Tick-driven: the runtime calls tickTree() on a fixed interval.
  * - Three states: SUCCESS / FAILURE / RUNNING.
  * - Sequence / selector remember a RUNNING child and resume from it
- *   on the next tick (memory semantics). Earlier siblings are not
- *   re-evaluated until the running child completes.
+ *   on the next tick (memory semantics).
+ * - priority_selector also remembers its RUNNING child, but checks earlier
+ *   siblings on every tick so urgent behavior can preempt background work.
  * - reset() clears execution state only. Cooldown timestamps survive a
  *   reset on purpose: a finished tree must not re-arm its cooldowns.
  */
@@ -56,6 +57,48 @@ function makeComposite(kind: 'sequence' | 'selector', def: NodeDef, depth: numbe
     },
     reset() {
       runningIndex = 0
+      for (const child of children) child.reset()
+    },
+  }
+}
+
+function makePrioritySelector(def: NodeDef, depth: number): BTNode {
+  const children = (def.children ?? []).map((child) => makeNode(child, depth + 1))
+  const label = def.name ?? 'priority_selector'
+  let runningIndex: number | null = null
+  return {
+    label,
+    tick(ctx) {
+      return traced(ctx, depth, label, () => {
+        // Start from the highest priority on every tick. A sequence that is
+        // already RUNNING retains its own child index, so its completed gate
+        // condition is not consumed or re-evaluated while the action runs.
+        for (let index = 0; index < children.length; index += 1) {
+          const child = children[index]
+          const status = child.tick(ctx)
+          if (status === 'FAILURE') {
+            child.reset()
+            if (runningIndex === index) runningIndex = null
+            continue
+          }
+
+          if (runningIndex !== null && runningIndex !== index) {
+            children[runningIndex].reset()
+          }
+          if (status === 'RUNNING') {
+            runningIndex = index
+            return 'RUNNING'
+          }
+
+          this.reset()
+          return 'SUCCESS'
+        }
+        this.reset()
+        return 'FAILURE'
+      })
+    },
+    reset() {
+      runningIndex = null
       for (const child of children) child.reset()
     },
   }
@@ -163,6 +206,7 @@ function makeAction(def: NodeDef, depth: number): BTNode {
   let generation = 0
   let inflight = false
   let settled: Status | null = null
+  let abortController: AbortController | null = null
   return {
     label,
     tick(ctx) {
@@ -174,20 +218,24 @@ function makeAction(def: NodeDef, depth: number): BTNode {
           return result
         }
         return guard(ctx, label, () => {
-          const result = registered.fn(ctx, params)
+          const controller = new AbortController()
+          const result = registered.fn({ ...ctx, signal: controller.signal }, params)
           if (result === 'SUCCESS' || result === 'FAILURE' || result === 'RUNNING') {
             return result
           }
           const startedGeneration = generation
+          abortController = controller
           inflight = true
           result
             .then((status) => {
               if (generation !== startedGeneration) return
+              abortController = null
               inflight = false
               settled = status
             })
             .catch((error) => {
               if (generation !== startedGeneration) return
+              abortController = null
               inflight = false
               settled = 'FAILURE'
               ctx.api.log(
@@ -199,6 +247,8 @@ function makeAction(def: NodeDef, depth: number): BTNode {
       })
     },
     reset() {
+      abortController?.abort()
+      abortController = null
       generation += 1
       inflight = false
       settled = null
@@ -211,6 +261,8 @@ function makeNode(def: NodeDef, depth: number): BTNode {
     case 'sequence':
     case 'selector':
       return makeComposite(def.type, def, depth)
+    case 'priority_selector':
+      return makePrioritySelector(def, depth)
     case 'inverter':
       return makeInverter(def, depth)
     case 'cooldown':
