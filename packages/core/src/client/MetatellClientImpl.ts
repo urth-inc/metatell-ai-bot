@@ -89,6 +89,53 @@ interface MessageEventData {
   senderId?: string
 }
 
+interface StructuredMentionMatch {
+  start: number
+  end: number
+  name: string
+  sessionId: string
+}
+
+/**
+ * Find the first `[@name](session-id)` token without rescanning rejected input.
+ * Advancing past each inspected delimiter keeps malformed chat bodies linear in length.
+ */
+function findStructuredMention(body: string): StructuredMentionMatch | undefined {
+  let cursor = 0
+
+  while (cursor < body.length) {
+    const start = body.indexOf('[@', cursor)
+    if (start === -1) return undefined
+
+    const nameStart = start + 2
+    const nameEnd = body.indexOf(']', nameStart)
+    if (nameEnd === -1) return undefined
+
+    if (nameEnd === nameStart || body[nameEnd + 1] !== '(') {
+      cursor = nameEnd + 1
+      continue
+    }
+
+    const sessionIdStart = nameEnd + 2
+    const sessionIdEnd = body.indexOf(')', sessionIdStart)
+    if (sessionIdEnd === -1) return undefined
+
+    if (sessionIdEnd === sessionIdStart) {
+      cursor = sessionIdEnd + 1
+      continue
+    }
+
+    return {
+      start,
+      end: sessionIdEnd + 1,
+      name: body.slice(nameStart, nameEnd),
+      sessionId: body.slice(sessionIdStart, sessionIdEnd),
+    }
+  }
+
+  return undefined
+}
+
 // Fallback used when neither an organization avatar nor avatarId can be resolved.
 // Because this is not a UUID, spawn treats it as a personal avatar from storage and keeps the connection alive.
 const DEFAULT_FALLBACK_AVATAR_ID = 'default'
@@ -192,17 +239,17 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       name: string
     }
   } {
-    const mentionPattern = /\[@([^\]]+)\]\(([^)]+)\)/
-    const match = body.match(mentionPattern)
+    const match = findStructuredMention(body)
 
     if (match) {
-      const mentionStart = match.index ?? 0
-      const text = `${body.slice(0, mentionStart)}${body.slice(mentionStart + match[0].length)}`
+      const prefix = body.slice(0, match.start)
+      const suffix = body.slice(match.end)
+      const textSuffix = match.start === 0 && suffix.startsWith(' ') ? suffix.slice(1) : suffix
       return {
-        text: text.trim(),
+        text: `${prefix}${textSuffix}`,
         mention: {
-          name: match[1],
-          sessionId: match[2],
+          name: match.name,
+          sessionId: match.sessionId,
         },
       }
     }
