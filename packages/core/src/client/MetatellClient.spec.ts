@@ -167,6 +167,47 @@ describe('MetatellClientImpl user bot markers', () => {
   })
 })
 
+describe('MetatellClientImpl chat mentions', () => {
+  it('should parse a structured mention with a multiline message body', () => {
+    const client = createMetatellClient(clientOptions)
+    const internals = client as unknown as ClientInternals
+    const sender: PresenceUser = {
+      id: 'human-123',
+      profile: { displayName: 'Visitor' },
+      isBot: false,
+    }
+    vi.spyOn(internals.presenceManager, 'getUsers').mockReturnValue([sender])
+
+    const received: Array<{
+      text: string
+      mention?: { sessionId: string; name: string }
+    }> = []
+    client.chat.onMessage(({ text, mention }) => received.push({ text, mention }))
+
+    internals.eventBus.emit(SystemEvents.MESSAGE_RECEIVED, {
+      type: 'chat',
+      body: '[@Guide Bot](bot-session) first line\nsecond line',
+      senderId: sender.id,
+    })
+    internals.eventBus.emit(SystemEvents.MESSAGE_RECEIVED, {
+      type: 'chat',
+      body: 'prefix:[@Guide Bot](bot-session) suffix',
+      senderId: sender.id,
+    })
+
+    expect(received).toEqual([
+      {
+        text: 'first line\nsecond line',
+        mention: { sessionId: 'bot-session', name: 'Guide Bot' },
+      },
+      {
+        text: 'prefix: suffix',
+        mention: { sessionId: 'bot-session', name: 'Guide Bot' },
+      },
+    ])
+  })
+})
+
 describe('muteVoice', () => {
   const options = clientOptions
 

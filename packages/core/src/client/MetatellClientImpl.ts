@@ -192,12 +192,14 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       name: string
     }
   } {
-    const mentionPattern = /\[@([^\]]+)\]\(([^)]+)\)\s*(.*)$/
+    const mentionPattern = /\[@([^\]]+)\]\(([^)]+)\)/
     const match = body.match(mentionPattern)
 
     if (match) {
+      const mentionStart = match.index ?? 0
+      const text = `${body.slice(0, mentionStart)}${body.slice(mentionStart + match[0].length)}`
       return {
-        text: match[3].trim(),
+        text: text.trim(),
         mention: {
           name: match[1],
           sessionId: match[2],
