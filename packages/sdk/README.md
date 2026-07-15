@@ -70,6 +70,7 @@ main().catch((error) => {
   format failures.
 - Logging provider hooks.
 - Optional realtime voice integration through `enableVoice()`.
+- GLB scene preparation and navmesh pathfinding for non-browser runtimes.
 
 ## Connection
 
@@ -117,6 +118,49 @@ const nearby = await client.room.getNearbyUsers(10)
 const cached = client.getUsers()
 ```
 
+## Scene navigation
+
+Join without spawning an avatar, then let the SDK fetch and parse the room GLB:
+
+```ts
+import { createMetatellClient } from '@metatell/bot-sdk'
+import { createNavigationRuntime } from '@metatell/bot-sdk/navigation'
+
+const client = createMetatellClient({ serverUrl, roomId, authToken })
+await client.connect({ mode: 'join-only' })
+
+const scene = client.room.getSceneInfo()
+const result = await client.room.prepareNavigation({
+  // Custom-domain assets must be added as exact HTTPS origins.
+  additionalAllowedOrigins: ['https://assets.example.com'],
+})
+if (result.status !== 'prepared') throw new Error('A cached snapshot is required for 304')
+
+const runtime = createNavigationRuntime(result.snapshot)
+const cursor = runtime.samplePoint(Math.random)
+await client.disconnect()
+
+const avatar = createMetatellClient({ serverUrl, roomId, authToken })
+await avatar.connect({
+  initialPosition: cursor.position,
+  expectedSceneIdentity: result.snapshot.sceneIdentity,
+})
+```
+
+`prepareNavigation()` supports self-contained GLB scenes and extracts Hubs
+`spawn-point`/spawnable `waypoint` components plus exactly one `character`
+`nav-mesh`. It does not fall back to a rectangular boundary when the GLB,
+navmesh, or spawn data is invalid. Conditional requests can reuse a caller-owned
+snapshot by passing its `PreviousNavigation` validator.
+
+Subscribe to `room-scene-changed` and stop work that depends on the old snapshot.
+Passing `expectedSceneIdentity` also prevents a reconnect or avatar entry from
+using a snapshot prepared for a different scene.
+
+The navigation runtime exposes `samplePoint()`, `projectPoint()`, `findPath()`,
+and `clampStep()`. Keep one runtime per worker and a separate cursor per virtual
+user or agent.
+
 ## Events
 
 ```ts
@@ -126,6 +170,7 @@ client.on('chat-message', (message) => {})
 client.on('user-join', (user) => {})
 client.on('user-leave', (user) => {})
 client.on('voice:mute-changed', ({ muted }) => {})
+client.on('room-scene-changed', ({ previousIdentity, current }) => {})
 ```
 
 ## Voice

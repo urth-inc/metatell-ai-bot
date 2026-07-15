@@ -12,7 +12,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
     "build": "tsc --build",
@@ -20,9 +21,13 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@gltf-transform/core": "4.4.1",
+    "@gltf-transform/extensions": "4.4.1",
+    "draco3dgltf": "1.5.7",
+    "meshoptimizer": "1.2.0",
     "phoenix": "1.8.1",
-    "uuid": "13.0.0",
-    "ws": "8.18.3"
+    "uuid": "14.0.1",
+    "ws": "8.21.0"
   },
   "peerDependencies": {
     "@types/node": "*",

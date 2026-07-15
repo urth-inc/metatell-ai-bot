@@ -15,16 +15,27 @@ if (typeof global !== 'undefined') {
 }
 
 import { type Channel, Socket } from 'phoenix'
+import { NavigationError } from '../errors.js'
 import type { IAppSettings } from '../interfaces/IAppSettings.js'
 import type { IConfigurationProvider } from '../interfaces/IConfigurationProvider.js'
 import type { ConnectionConfig, IConnectionManager } from '../interfaces/IConnectionManager.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import { getLogger } from '../logging/index.js'
+import type { RoomJoinInfo, RoomSceneChangedEvent } from '../types/navigation.js'
+import { normalizeRoomSceneInfo } from '../utils/roomSceneInfo.js'
+
+const SCENE_STALE_FIELDS = new Set([
+  'scene',
+  'scene_listing',
+  'default_environment_gltf_bundle_url',
+])
 
 export class WebSocketConnectionManager implements IConnectionManager {
   private socket: Socket | null = null
   private hubChannel: Channel | null = null
   private sessionId: string | null = null
+  private roomJoinInfo: RoomJoinInfo | null = null
+  private currentConfig: ConnectionConfig | null = null
   private logger = getLogger('WebSocketConnectionManager')
 
   constructor(
@@ -39,6 +50,7 @@ export class WebSocketConnectionManager implements IConnectionManager {
 
   async connect(config: ConnectionConfig): Promise<void> {
     try {
+      this.currentConfig = config
       // Create Phoenix socket (no authentication here, just connect)
       const socketUrl = new URL(config.serverUrl)
       socketUrl.pathname = '/socket'
@@ -152,14 +164,33 @@ export class WebSocketConnectionManager implements IConnectionManager {
         channelParams.auth_token = config.authToken
       }
 
-      this.logger.debug('Attempting to join hub with:', {
+      this.logger.debug('Attempting to join hub', {
         channel: `hub:${hubId}`,
-        params: channelParams,
+        authenticated: Boolean(config.authToken),
       })
 
       this.hubChannel = this.socket?.channel(`hub:${hubId}`, channelParams) || null
 
       if (this.hubChannel) {
+        this.hubChannel.on?.('hub_refresh', (payload: unknown) => {
+          const staleFields = (payload as { stale_fields?: unknown })?.stale_fields
+          if (
+            !Array.isArray(staleFields) ||
+            !staleFields.some((field) => typeof field === 'string' && SCENE_STALE_FIELDS.has(field))
+          ) {
+            return
+          }
+
+          const previousIdentity = this.roomJoinInfo?.scene?.identity ?? null
+          const config = this.currentConfig
+          const current = config
+            ? normalizeRoomSceneInfo(payload, config.serverUrl, config.hubId).scene
+            : null
+          this.roomJoinInfo = { sessionId: this.sessionId, scene: current }
+          const event: RoomSceneChangedEvent = { previousIdentity, current }
+          this.eventBus.emit(SystemEvents.ROOM_SCENE_CHANGED, event)
+        })
+
         // Watch key events in debug mode.
         if (this.appSettings.debugMode) {
           // Phoenix channels can register listeners only for specific events.
@@ -178,7 +209,6 @@ export class WebSocketConnectionManager implements IConnectionManager {
             'events:left',
             'hub:member_update',
             'hub:avatar_update',
-            'hub:scene_update',
           ]
 
           debugEvents.forEach((event) => {
@@ -191,14 +221,39 @@ export class WebSocketConnectionManager implements IConnectionManager {
         this.hubChannel
           .join()
           .receive('ok', (response: unknown) => {
-            this.logger.debug('Joined hub channel:', { response })
+            const config = this.currentConfig
+            const joinInfo = normalizeRoomSceneInfo(
+              response,
+              config?.serverUrl ?? '',
+              config?.hubId ?? hubId,
+            )
+            this.sessionId = joinInfo.sessionId
+            this.roomJoinInfo = joinInfo
 
-            // Look for session_id or sessionId.
-            const sessionResponse = response as Record<string, unknown>
-            this.sessionId =
-              ((sessionResponse.session_id ||
-                sessionResponse.sessionId ||
-                sessionResponse.id) as string) || null
+            if (
+              config?.expectedSceneIdentity &&
+              joinInfo.scene?.identity !== config.expectedSceneIdentity
+            ) {
+              const error = new NavigationError(
+                'SCENE_CHANGED',
+                'The room scene changed before the avatar entered.',
+                false,
+              )
+              const event: RoomSceneChangedEvent = {
+                previousIdentity: config.expectedSceneIdentity,
+                current: joinInfo.scene,
+              }
+              this.eventBus.emit(SystemEvents.ROOM_SCENE_CHANGED, event)
+              this.hubChannel?.leave()
+              this.socket?.disconnect()
+              reject(error)
+              return
+            }
+
+            this.logger.debug('Joined hub channel', {
+              sessionId: this.sessionId,
+              sceneIdentity: joinInfo.scene?.identity ?? null,
+            })
 
             this.eventBus.emit(SystemEvents.ROOM_JOINED, response)
             resolve()
@@ -229,6 +284,8 @@ export class WebSocketConnectionManager implements IConnectionManager {
     }
 
     this.sessionId = null
+    this.roomJoinInfo = null
+    this.currentConfig = null
     this.eventBus.emit(SystemEvents.CONNECTION_LOST)
   }
 
@@ -261,5 +318,13 @@ export class WebSocketConnectionManager implements IConnectionManager {
 
   getSessionId(): string | null {
     return this.sessionId
+  }
+
+  getRoomJoinInfo(): RoomJoinInfo | null {
+    if (!this.roomJoinInfo) return null
+    return {
+      sessionId: this.roomJoinInfo.sessionId,
+      scene: this.roomJoinInfo.scene ? { ...this.roomJoinInfo.scene } : null,
+    }
   }
 }
