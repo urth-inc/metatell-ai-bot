@@ -22,6 +22,7 @@ export enum SystemEvents {
   // Room events
   ROOM_JOINED = 'room:joined',
   ROOM_LEFT = 'room:left',
+  ROOM_SCENE_CHANGED = 'room:scene-changed',
   USER_JOINED = 'user:joined',
   USER_LEFT = 'user:left',
 

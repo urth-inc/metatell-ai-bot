@@ -1,5 +1,12 @@
 import { EventEmitter } from 'node:events'
 import { CoreServiceFactory } from '../CoreServiceFactory.js'
+import {
+  AuthenticationError,
+  NavigationError,
+  ProtocolError,
+  MetatellError as PublicMetatellError,
+  TransportError,
+} from '../errors.js'
 import { AnimationService, type IAnimationService } from '../interfaces/IAnimationService.js'
 import { AppSettings } from '../interfaces/IAppSettings.js'
 import { AvatarController, type IAvatarController } from '../interfaces/IAvatarController.js'
@@ -30,6 +37,13 @@ import type {
   User,
   Vec3,
 } from '../types/client.js'
+import type {
+  ConnectOptions,
+  PrepareNavigationOptions,
+  PrepareNavigationResult,
+  RoomSceneChangedEvent,
+  RoomSceneInfo,
+} from '../types/navigation.js'
 
 // Rate limiting classes (these might need to be moved to core too)
 class RateLimitedQueue {
@@ -49,33 +63,32 @@ class RateLimitedQueue {
   }
 }
 
-// Error types
-export class MetatellError extends Error {
+// Legacy facade errors remain subclasses of the SDK's single public error hierarchy.
+class ClientOperationError extends PublicMetatellError {
   constructor(
-    public code: string,
+    readonly code: string,
     message: string,
-    public cause?: unknown,
+    cause?: unknown,
   ) {
-    super(message)
-    this.name = 'MetatellError'
+    super(message, cause)
   }
 }
 
-export class AuthError extends MetatellError {
+export class AuthError extends ClientOperationError {
   constructor(code: string, message: string, cause?: unknown) {
     super(code, message, cause)
     this.name = 'AuthError'
   }
 }
 
-export class NetworkError extends MetatellError {
+export class NetworkError extends ClientOperationError {
   constructor(code: string, message: string, cause?: unknown) {
     super(code, message, cause)
     this.name = 'NetworkError'
   }
 }
 
-export class NotFoundError extends MetatellError {
+export class NotFoundError extends ClientOperationError {
   constructor(code: string, message: string, cause?: unknown) {
     super(code, message, cause)
     this.name = 'NotFoundError'
@@ -196,6 +209,9 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
   private logger: Logger
   private orgAvatarUrlCache = new Map<string, string>()
   private voiceMuted = false
+  private connectMode: 'enter' | 'join-only' = 'enter'
+  private entered = false
+  private respawning = false
 
   constructor(private options: CreateClientOptions) {
     super()
@@ -290,6 +306,14 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       this.emit('disconnected')
     })
 
+    this.eventBus.on(SystemEvents.ROOM_SCENE_CHANGED, (event: unknown) => {
+      this.emit('room-scene-changed', event as RoomSceneChangedEvent)
+    })
+
+    this.eventBus.on(SystemEvents.ROOM_JOINED, () => {
+      if (this.entered && this.connectMode === 'enter') void this.respawnAfterReconnect()
+    })
+
     this.eventBus.on(SystemEvents.MESSAGE_RECEIVED, (data: unknown) => {
       const messageData = data as MessageEventData
       this.emit('message', messageData)
@@ -373,12 +397,54 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     }
   }
 
-  async connect(): Promise<void> {
+  private async respawnAfterReconnect(): Promise<void> {
+    if (this.respawning) return
+    const state = this.avatarController.getState()
+    if (!state) return
+
+    this.respawning = true
+    try {
+      await this.avatarController.spawn(state.avatarId, state.position, state.avatarSrc)
+      this.sendEnteredEvents()
+    } catch (error) {
+      this.logger.error('Failed to restore avatar after reconnect', { error })
+      await this.connectionManager.disconnect()
+    } finally {
+      this.respawning = false
+    }
+  }
+
+  private sendEnteredEvents(): void {
+    const hubChannel = this.connectionManager.getHubChannel()
+    if (!hubChannel) return
+    hubChannel.push('events:entering', {})
+    hubChannel.push('events:entered', {
+      initialOccupantCount: 0,
+      isNewDaily: true,
+      isNewMonthly: true,
+      isNewDayWindow: true,
+      isNewMonthWindow: true,
+      entryDisplayType: 'Bot',
+      userAgent: 'MetatellBot/1.1',
+    })
+  }
+
+  async connect(options: ConnectOptions = {}): Promise<void> {
+    const mode = options.mode ?? 'enter'
+    if (mode === 'join-only' && options.initialPosition) {
+      throw new ProtocolError('initialPosition cannot be used with join-only mode.')
+    }
+    this.connectMode = mode
+    this.entered = false
+
     try {
       await this.connectionManager.connect({
         serverUrl: this.options.serverUrl,
         hubId: this.options.roomId,
+        expectedSceneIdentity: options.expectedSceneIdentity,
       })
+
+      if (mode === 'join-only') return
 
       // Fetch organization information.
       const orgInfo = await this.organizationService.getOrganizationInfo(
@@ -430,37 +496,47 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
           config.organizationAvatarUrl = avatarUrl
         }
 
-        await this.avatarController.spawn(avatarId, undefined, avatarUrl)
+        await this.avatarController.spawn(avatarId, options.initialPosition, avatarUrl)
       }
 
-      // Move from the lobby into the room.
-      const hubChannel = this.connectionManager.getHubChannel()
-      if (hubChannel) {
-        hubChannel.push('events:entering', {})
-        hubChannel.push('events:entered', {
-          initialOccupantCount: 0,
-          isNewDaily: true,
-          isNewMonthly: true,
-          isNewDayWindow: true,
-          isNewMonthWindow: true,
-          entryDisplayType: 'Bot',
-          userAgent: 'MetatellBot/1.0',
-        })
-      }
+      this.sendEnteredEvents()
+      this.entered = true
     } catch (error) {
+      if (
+        error instanceof NavigationError ||
+        (error instanceof Error && error.name === 'AbortError')
+      ) {
+        throw error
+      }
       // Convert the error to the appropriate type.
       if (error instanceof Error && error.message.includes('auth')) {
-        throw new AuthError('AUTH_FAILED', 'Authentication failed', error)
+        throw new AuthenticationError('Authentication failed', undefined)
       }
-      throw new NetworkError('CONNECTION_FAILED', 'Failed to connect', error)
+      throw new TransportError(
+        'Failed to connect',
+        error instanceof Error ? error.message : undefined,
+      )
     }
   }
 
   async disconnect(): Promise<void> {
+    this.entered = false
     await this.connectionManager.disconnect()
   }
 
   readonly room = {
+    getSceneInfo: (): RoomSceneInfo | null => {
+      const scene = this.connectionManager.getRoomJoinInfo()?.scene
+      return scene ? { ...scene } : null
+    },
+
+    prepareNavigation: async (
+      options?: PrepareNavigationOptions,
+    ): Promise<PrepareNavigationResult> => {
+      const { prepareNavigation } = await import('../navigation/prepareNavigation.js')
+      return prepareNavigation(this.room.getSceneInfo(), this.options.serverUrl, options)
+    },
+
     getUsers: async (): Promise<User[]> => {
       return this.buildUserList()
     },
@@ -657,7 +733,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
         // Get the current position.
         const state = this.avatarController.getState()
         if (!state) {
-          throw new MetatellError('AVATAR_NOT_SPAWNED', 'Avatar is not spawned')
+          throw new ClientOperationError('AVATAR_NOT_SPAWNED', 'Avatar is not spawned')
         }
 
         // Calculate the direction vector to the target.
@@ -869,12 +945,12 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
  * Create MetatellClient instance
  * @param options Client configuration
  * @returns MetatellClient instance
- * @throws {MetatellError} If configuration is invalid
+ * @throws {ProtocolError} If configuration is invalid
  */
 export function createMetatellClient(options: CreateClientOptions): MetatellClient {
   // Validate configuration.
   if (!options.serverUrl || !options.roomId) {
-    throw new MetatellError('INVALID_CONFIG', 'serverUrl and roomId are required')
+    throw new ProtocolError('serverUrl and roomId are required')
   }
 
   return new MetatellClientImpl(options)

@@ -5,10 +5,34 @@
 export abstract class MetatellError extends Error {
   abstract readonly code: string
   readonly timestamp = new Date()
+  readonly cause?: unknown
 
-  constructor(message: string) {
-    super(message)
+  constructor(message: string, cause?: unknown) {
+    super(message, cause === undefined ? undefined : { cause })
     this.name = this.constructor.name
+    this.cause = cause
+  }
+}
+
+export type NavigationErrorCode =
+  | 'SCENE_UNAVAILABLE'
+  | 'SCENE_FETCH_FAILED'
+  | 'SCENE_TOO_LARGE'
+  | 'SCENE_FORMAT_UNSUPPORTED'
+  | 'SCENE_CHANGED'
+  | 'NAV_MESH_NOT_FOUND'
+  | 'NAV_MESH_UNSUPPORTED'
+  | 'NAV_MESH_TOO_LARGE'
+  | 'NAV_MESH_INVALID'
+
+export class NavigationError extends MetatellError {
+  constructor(
+    readonly code: NavigationErrorCode,
+    message: string,
+    readonly retryable: boolean,
+    cause?: unknown,
+  ) {
+    super(message, cause)
   }
 }
 
@@ -75,6 +99,7 @@ export function isRetryableError(error: unknown): boolean {
   if (!isMetatellError(error)) return false
 
   return (
+    (error instanceof NavigationError && error.retryable) ||
     error instanceof TransportError ||
     error instanceof TimeoutError ||
     (error instanceof RateLimitedError && error.retryAfterMs !== undefined)

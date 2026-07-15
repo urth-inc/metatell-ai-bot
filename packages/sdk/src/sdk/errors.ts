@@ -7,6 +7,8 @@ export {
   isMetatellError,
   isRetryableError,
   MetatellError,
+  NavigationError,
+  type NavigationErrorCode,
   ProtocolError,
   RateLimitedError,
   TimeoutError,

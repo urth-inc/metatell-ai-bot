@@ -25,6 +25,8 @@ export {
   isMetatellError,
   isRetryableError,
   MetatellError,
+  NavigationError,
+  type NavigationErrorCode,
   ProtocolError,
   RateLimitedError,
   TimeoutError,
@@ -130,5 +132,20 @@ export {
   isNAFRemoveMessage,
   isTypedNAFMessage,
 } from './types/naf.js'
+export type {
+  ConnectOptions,
+  NavigationCursor,
+  NavigationRuntime,
+  NavigationSnapshot,
+  NavigationSpawnPoint,
+  NavigationStepResult,
+  NavigationValidator,
+  PrepareNavigationOptions,
+  PrepareNavigationResult,
+  PreviousNavigation,
+  RoomJoinInfo,
+  RoomSceneChangedEvent,
+  RoomSceneInfo,
+} from './types/navigation.js'
 // Voice types
 export type { VoiceCapableClient } from './types/voice.js'

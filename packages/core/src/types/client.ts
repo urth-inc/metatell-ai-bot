@@ -1,3 +1,10 @@
+import type {
+  ConnectOptions,
+  PrepareNavigationOptions,
+  PrepareNavigationResult,
+  RoomSceneChangedEvent,
+  RoomSceneInfo,
+} from './navigation.js'
 import type { VoiceCapableClient } from './voice.js'
 
 /**
@@ -110,6 +117,7 @@ export interface MetatellClientEvents {
   }) => void
   message: (data: unknown) => void
   'voice:mute-changed': (event: { muted: boolean }) => void
+  'room-scene-changed': (event: RoomSceneChangedEvent) => void
 }
 
 /**
@@ -122,7 +130,7 @@ export interface MetatellClient extends VoiceCapableClient {
    * @throws {AuthError} If authentication token is invalid
    * @throws {NetworkError} If network connection fails
    */
-  connect(): Promise<void>
+  connect(options?: ConnectOptions): Promise<void>
 
   /**
    * Disconnect from the server
@@ -131,6 +139,12 @@ export interface MetatellClient extends VoiceCapableClient {
 
   /** Room-related operations */
   readonly room: {
+    /** Scene information retained from the authenticated room join response. */
+    getSceneInfo(): RoomSceneInfo | null
+
+    /** Fetch and parse the scene's spawn points and character nav mesh. */
+    prepareNavigation(options?: PrepareNavigationOptions): Promise<PrepareNavigationResult>
+
     /** Get list of users currently in the room */
     getUsers(): Promise<User[]>
 
