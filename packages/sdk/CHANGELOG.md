@@ -1,5 +1,13 @@
 # @metatell/bot-sdk
 
+## 2.0.2
+
+### Patch Changes
+
+- 04ff0d5: Fetch protected scene GLBs with room-scoped CloudFront signed cookies during navigation preparation.
+- Updated dependencies [04ff0d5]
+  - @metatell/bot-core@2.0.2
+
 ## 2.0.1
 
 ### Patch Changes
