@@ -4,8 +4,10 @@ import { createBlackboard } from '../engine/blackboard.js'
 import { buildTree, tickTree } from '../engine/engine.js'
 import { getAction, registerAction, registerCondition } from '../engine/registry.js'
 import type { BotApi, ChatInbox, PendingMention, TickContext, TreeDef } from '../engine/types.js'
+import { registerBuiltinActions } from './actions.js'
 import { registerLlmActions } from './llm-nodes.js'
 
+registerBuiltinActions()
 registerLlmActions()
 registerCondition('test_mention_pending', (ctx) => ctx.inbox.peekMention() !== undefined)
 registerAction('test_patrol_forever', () => 'RUNNING')
@@ -238,4 +240,50 @@ test('返信の音声再生が終わるまでllm_replyをRUNNINGに保ち巡回�
   ctx.trace = []
   assert.equal(tickTree(root, ctx), 'RUNNING')
   assert.ok(ctx.trace.some((entry) => entry.label === 'action:test_patrol_forever'))
+})
+
+test('llm_chooseの選択結果をblackboard経由でemoteへ渡す', async () => {
+  const emotes: string[] = []
+  const ctx = createContext({
+    mentions: [],
+    api: {
+      llm: {
+        complete: async () => '',
+        choose: async () => 1,
+      },
+      log: () => {},
+    },
+  })
+  ctx.api.emote = async (animation) => {
+    emotes.push(animation)
+    return 'played'
+  }
+  const root = buildTree({
+    root: {
+      type: 'sequence',
+      children: [
+        {
+          type: 'action',
+          name: 'llm_choose',
+          params: {
+            choices: ['wave', 'clap'],
+            key: 'selectedAnimation',
+          },
+        },
+        {
+          type: 'action',
+          name: 'emote_from_blackboard',
+          params: { key: 'selectedAnimation' },
+        },
+      ],
+    },
+  })
+
+  assert.equal(tickTree(root, ctx), 'RUNNING')
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(tickTree(root, ctx), 'RUNNING')
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(tickTree(root, ctx), 'SUCCESS')
+  assert.equal(ctx.bb.get('selectedAnimation'), 'clap')
+  assert.deepEqual(emotes, ['clap'])
 })

@@ -130,6 +130,7 @@
                 "move_to_user",
                 "look_at_user",
                 "emote",
+                "emote_from_blackboard",
                 "wait",
                 "set_blackboard",
                 "report_users",
