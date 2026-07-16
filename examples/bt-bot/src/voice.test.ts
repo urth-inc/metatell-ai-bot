@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { AgentVoiceConfig, MetatellClient } from '@metatell/bot-sdk'
+import type { SpeechRecognizer } from './speech-recognizer.js'
 import {
   createRoomVoiceSpeaker,
   decodePcm16,
@@ -277,4 +278,129 @@ test('publisher開始失敗後のdetachが停止しても初期化エラーを�
     /publisherを開始できませんでした/,
   )
   assert.equal(synthesizerClosed, true)
+})
+
+test('許可された参加者のPCMだけを同じ音声接続から認識器へ渡す', async () => {
+  const accepted: Array<{ pcm: Int16Array; fromIdentity: string }> = []
+  let recognizerInitialized = 0
+  let recognizerClosed = 0
+  let synthesizerClosed = 0
+  let detached = false
+  let voiceConfig: AgentVoiceConfig | undefined
+  const recognizer: SpeechRecognizer = {
+    async initialize() {
+      recognizerInitialized++
+    },
+    accept(pcm, fromIdentity) {
+      accepted.push({ pcm, fromIdentity })
+    },
+    async close() {
+      recognizerClosed++
+    },
+  }
+  const synthesizer: SpeechSynthesizer = {
+    async initialize() {},
+    async synthesize() {
+      return new Int16Array()
+    },
+    async close() {
+      synthesizerClosed++
+    },
+  }
+
+  const speaker = await createRoomVoiceSpeaker(
+    {} as MetatellClient,
+    {
+      languageCode: 'ja-JP',
+      voiceName: 'test-voice',
+      recognition: {
+        languageCode: 'ja-JP',
+        shouldTranscribe: (fromIdentity) => fromIdentity === 'human',
+        onTranscript: () => {},
+        log: () => {},
+      },
+    },
+    {
+      synthesizer,
+      recognizer,
+      enableVoice: async (_client, config) => {
+        voiceConfig = config
+        config.handlers.getLocalPcmStream?.()
+        return {
+          async detach() {
+            detached = true
+          },
+        }
+      },
+    },
+  )
+
+  const humanPcm = Int16Array.from([123])
+  await voiceConfig?.handlers.onRemotePcm?.(Int16Array.from([999]), {
+    fromIdentity: 'bot',
+  })
+  await voiceConfig?.handlers.onRemotePcm?.(humanPcm, { fromIdentity: 'human' })
+  await voiceConfig?.handlers.onRemotePcm?.(Int16Array.from([456]), {})
+
+  assert.equal(recognizerInitialized, 1)
+  assert.deepEqual(accepted, [{ pcm: humanPcm, fromIdentity: 'human' }])
+
+  await speaker.close()
+  assert.equal(detached, true)
+  assert.equal(synthesizerClosed, 1)
+  assert.equal(recognizerClosed, 1)
+})
+
+test('音声認識の初期化失敗時はTTSだけで続行し、認識器を閉じる', async () => {
+  const logs: string[] = []
+  let recognizerClosed = 0
+  let voiceConfig: AgentVoiceConfig | undefined
+  const recognizer: SpeechRecognizer = {
+    async initialize() {
+      throw new Error('Speech API is disabled')
+    },
+    accept() {
+      assert.fail('初期化に失敗した認識器へPCMを渡してはいけません')
+    },
+    async close() {
+      recognizerClosed++
+    },
+  }
+  const synthesizer: SpeechSynthesizer = {
+    async initialize() {},
+    async synthesize() {
+      return new Int16Array()
+    },
+    async close() {},
+  }
+
+  const speaker = await createRoomVoiceSpeaker(
+    {} as MetatellClient,
+    {
+      languageCode: 'ja-JP',
+      voiceName: 'test-voice',
+      recognition: {
+        languageCode: 'ja-JP',
+        shouldTranscribe: () => true,
+        onTranscript: () => {},
+        log: (message) => logs.push(message),
+      },
+    },
+    {
+      synthesizer,
+      recognizer,
+      enableVoice: async (_client, config) => {
+        voiceConfig = config
+        config.handlers.getLocalPcmStream?.()
+        return { async detach() {} }
+      },
+    },
+  )
+
+  assert.equal(voiceConfig?.handlers.onRemotePcm, undefined)
+  assert.equal(recognizerClosed, 1)
+  assert.ok(logs.some((message) => message.includes('音声入力は無効')))
+
+  await speaker.close()
+  assert.equal(recognizerClosed, 1)
 })

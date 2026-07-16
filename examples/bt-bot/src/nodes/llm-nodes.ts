@@ -11,8 +11,8 @@ import type { JsonValue, Status, TickContext } from '../engine/types.js'
 // llm_sayの内部下限。cooldownを忘れたツリーでも連続自発発話はここで止まる
 const LLM_SAY_FLOOR_MS = 30_000
 
-function mentionFallback(fromName: string): string {
-  return `${fromName}さん、呼んでくれてありがとう。ちゃんと聞こえています。`
+function replyFallback(fromName: string): string {
+  return `${fromName}さん、話しかけてくれてありがとう。ちゃんと聞こえています。`
 }
 
 function situationSnapshot(ctx: TickContext): string {
@@ -41,18 +41,18 @@ export function registerLlmActions(): void {
       let answer: string
       if (!ctx.api.llm) {
         ctx.api.log('llm_reply: LLMが未設定のため固定メッセージで返信します')
-        answer = mentionFallback(mention.fromName)
+        answer = replyFallback(mention.fromName)
       } else {
         try {
           answer = await ctx.api.llm.complete({
-            system: `${ctx.api.persona}\n\nあなたの名前は${ctx.api.botName}です。メンションに1、2文で返事してください。`,
-            user: `${mention.fromName}さんからのメッセージ: ${mention.text}\n\n${situationSnapshot(ctx)}`,
+            system: `${ctx.api.persona}\n\nあなたの名前は${ctx.api.botName}です。チャットメンションまたは音声入力に1、2文で返事してください。`,
+            user: `${mention.fromName}さんからの入力: ${mention.text}\n\n${situationSnapshot(ctx)}`,
           })
         } catch (error) {
           ctx.api.log(
             `llm_reply: LLM生成に失敗したため固定メッセージで返信します: ${String(error)}`,
           )
-          answer = mentionFallback(mention.fromName)
+          answer = replyFallback(mention.fromName)
         }
       }
       if (ctx.signal?.aborted) return 'FAILURE'
@@ -60,7 +60,7 @@ export function registerLlmActions(): void {
     },
     {
       description:
-        'ボット宛てメンションにペルソナに沿った返事をする（mentioned条件とセットで使う）',
+        'チャットメンションまたは認識音声にペルソナに沿って返事する（mentioned条件とセットで使う）',
     },
   )
 

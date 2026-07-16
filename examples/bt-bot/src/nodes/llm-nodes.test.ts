@@ -64,7 +64,7 @@ test('LLM未設定でもmentionを一度消費し、固定メッセージで返�
   assert.equal(first, 'SUCCESS')
   assert.equal(second, 'FAILURE')
   assert.equal(ctx.inbox.peekMention(), undefined)
-  assert.deepEqual(replies, ['Visitorさん、呼んでくれてありがとう。ちゃんと聞こえています。'])
+  assert.deepEqual(replies, ['Visitorさん、話しかけてくれてありがとう。ちゃんと聞こえています。'])
   assert.equal(logs.length, 1)
 })
 
@@ -126,7 +126,7 @@ test('LLM生成に失敗してもmentionへ固定メッセージを返信する'
   assert.ok(llmReply)
 
   assert.equal(await llmReply.fn(ctx, {}), 'SUCCESS')
-  assert.deepEqual(replies, ['Visitorさん、呼んでくれてありがとう。ちゃんと聞こえています。'])
+  assert.deepEqual(replies, ['Visitorさん、話しかけてくれてありがとう。ちゃんと聞こえています。'])
   assert.ok(logs.some((message) => message.includes('temporary error')))
 })
 

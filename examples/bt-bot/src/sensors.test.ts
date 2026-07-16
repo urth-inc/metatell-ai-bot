@@ -13,6 +13,7 @@ function createClientFake(
   initialSessionId = 'self',
 ): {
   client: MetatellClient
+  sentChats: string[]
   emitChat(event: ChatEvent): void
   emitUserJoin(user: User): void
   setSessionId(sessionId: string | null): void
@@ -22,12 +23,16 @@ function createClientFake(
   let userJoinHandler: ((user: User) => void) | undefined
   let sessionId: string | null = initialSessionId
   let users = initialUsers
+  const sentChats: string[] = []
 
   const client = {
     avatar: { getPosition: () => ({ x: 0, y: 0, z: 0 }) },
     chat: {
       onMessage(handler: ChatHandler) {
         chatHandler = handler
+      },
+      async send(text: string) {
+        sentChats.push(text)
       },
     },
     getSessionId: () => sessionId,
@@ -39,6 +44,7 @@ function createClientFake(
 
   return {
     client,
+    sentChats,
     emitChat(event) {
       assert.ok(chatHandler, 'chat handler should be registered')
       chatHandler(event)
@@ -122,11 +128,13 @@ test('ALLOW_BOT_PERCEPTION相当の設定では他botを知覚できる', () => 
     reply: async () => {},
   })
   const bb = createBlackboard()
+  assert.equal(sensors.canPerceiveSpeech(otherBot.id), true)
+  sensors.acceptSpeech(otherBot.id, 'supervised bot speech')
   sensors.snapshot(bb, 1_000)
 
   assert.deepEqual(
     sensors.inbox.recentChat().map((line) => line.text),
-    ['supervised bot message'],
+    ['supervised bot message', 'supervised bot speech'],
   )
   assert.equal(bb.get('userCount'), 1)
 })
@@ -327,4 +335,54 @@ test('メンション返信も共通speakerを通ってチャットと音声へ�
   assert.equal(await sensors.inbox.takeMention()?.reply('こんにちは'), true)
   assert.deepEqual(replies, ['こんにちは'])
   assert.deepEqual(voices, ['直前の挨拶', 'こんにちは'])
+})
+
+test('人の認識音声をwake wordなしでBT入力へ追加して返信する', async () => {
+  const self: User = { id: 'self', name: 'My Bot', isBot: true }
+  const otherBot: User = { id: 'bot-2', name: 'Other Bot', isBot: true }
+  const human: User = { id: 'human-1', name: 'Visitor', isBot: false }
+  const fake = createClientFake([self, otherBot, human])
+  const voices: string[] = []
+  const killedBy: string[] = []
+  const logs: string[] = []
+  const speechSpeaker = createSafeSpeaker(
+    () => {},
+    async (text) => {
+      voices.push(text)
+    },
+  )
+  const sensors = createSensors({
+    client: fake.client,
+    botName: self.name,
+    allowBotPerception: false,
+    operatorSessionIds: [human.id],
+    speaker: speechSpeaker,
+    onKill: (name) => killedBy.push(name),
+    log: (message) => logs.push(message),
+  })
+
+  assert.equal(sensors.canPerceiveSpeech(human.id), true)
+  assert.equal(sensors.canPerceiveSpeech(self.id), false)
+  assert.equal(sensors.canPerceiveSpeech(otherBot.id), false)
+  assert.equal(sensors.canPerceiveSpeech('unknown'), false)
+
+  sensors.acceptSpeech(self.id, 'My Bot 自分の音声')
+  sensors.acceptSpeech(otherBot.id, 'My Bot botの音声')
+  sensors.acceptSpeech('unknown', 'My Bot 未同期の音声')
+  sensors.acceptSpeech(human.id, 'こんにちは メタルちゃん')
+
+  assert.deepEqual(
+    sensors.inbox.recentChat().map((line) => line.text),
+    ['こんにちは メタルちゃん'],
+  )
+  assert.equal(sensors.inbox.peekMention()?.fromName, human.name)
+  assert.equal(sensors.inbox.peekMention()?.text, 'こんにちは メタルちゃん')
+  assert.equal(await sensors.inbox.takeMention()?.reply('こんにちは'), true)
+  assert.deepEqual(fake.sentChats, ['こんにちは'])
+  assert.deepEqual(voices, ['こんにちは'])
+  assert.ok(logs.some((message) => message.includes('音声認識（BT入力へ追加）: Visitor')))
+
+  sensors.acceptSpeech(human.id, '/killall')
+  assert.deepEqual(killedBy, [])
+  assert.equal(sensors.inbox.peekMention()?.text, '/killall')
 })

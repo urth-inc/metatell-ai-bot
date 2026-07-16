@@ -36,7 +36,7 @@ const RECENT_CHAT_WINDOW_MS = 15_000
 
 export function registerBuiltinConditions(): void {
   registerCondition('mentioned', (ctx) => ctx.inbox.peekMention() !== undefined, {
-    description: 'ボット宛てのメンションが届いている',
+    description: 'ボット宛てのチャットメンションまたは認識音声が届いている',
   })
 
   registerCondition(

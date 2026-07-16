@@ -155,17 +155,24 @@ async function main(): Promise<void> {
   })
 
   if (envString('GOOGLE_APPLICATION_CREDENTIALS') === '') {
-    log('GOOGLE_APPLICATION_CREDENTIALSが未設定のため、発言はチャットのみです')
+    log('GOOGLE_APPLICATION_CREDENTIALSが未設定のため、音声入出力は無効です')
   } else {
     try {
-      log('Google TTSとLiveKit音声を初期化しています')
+      log('Google音声認識・音声合成とLiveKit音声を初期化しています')
       voice = await createRoomVoiceSpeaker(client, {
         languageCode: envString('TTS_LANGUAGE_CODE', 'ja-JP'),
         voiceName: envString('TTS_VOICE_NAME', 'ja-JP-Chirp3-HD-Zephyr'),
+        recognition: {
+          languageCode: envString('STT_LANGUAGE_CODE', 'ja-JP'),
+          phrases: [config.name],
+          shouldTranscribe: sensors.canPerceiveSpeech,
+          onTranscript: ({ fromIdentity, text }) => sensors.acceptSpeech(fromIdentity, text),
+          log,
+        },
       })
-      log('音声発話の準備ができました')
+      log('音声接続と音声発話の準備ができました')
     } catch (error) {
-      log(`音声発話を初期化できないため、チャットのみで続行します: ${String(error)}`)
+      log(`音声入出力を初期化できないため、チャットのみで続行します: ${String(error)}`)
     }
   }
 

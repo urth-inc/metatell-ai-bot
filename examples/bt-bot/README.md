@@ -20,7 +20,8 @@ cp .env.example .env
 # .envに認証トークン、LLMキー、Google Cloud認証情報を設定する
 ```
 
-音声発話には、Text-to-Speech APIを有効にしたGoogle Cloudサービスアカウントが必要です。
+音声認識と音声発話には、Speech-to-Text APIとText-to-Speech APIを有効にした
+Google Cloudサービスアカウントが必要です。
 `.env`の`GOOGLE_APPLICATION_CREDENTIALS`へJSON鍵のパスを設定してください。
 標準の`metatell.app`以外の環境では、その環境に対応する
 `METATELL_REALTIME_URL`（LiveKit URL）も設定します。認証情報が未設定、または音声の
@@ -37,6 +38,12 @@ pnpm dev -- https://metatell.app/YOUR_ROOM_ID
 （黄=RUNNING、緑=SUCCESS、灰=FAILURE）。
 `say`、`llm_say`、`llm_reply`などの発言はチャットへ表示され、同じ内容がルーム内で
 音声再生されます。音声は前の発言が終わってから順番に再生されるため、重なりません。
+
+ルーム内の人の発話はSpeech-to-Textで認識され、直近の会話としてBTから参照できます。
+認識された発話は、チャットのメンションと同じ`mentioned` / `llm_reply`経路へ入り、
+チャットと音声で返事をします。ほかのボット、自分自身、在室確認前の参加者の音声は
+Google Cloudへ送りません。音声認識された`/killall`では停止せず、キルスイッチは
+従来どおり認可済み運営のチャットだけを受け付けます。
 
 ## 編集するファイル（3段階）
 
@@ -85,7 +92,7 @@ pnpm check
 
 | name | params | 意味 |
 |---|---|---|
-| mentioned | - | ボット宛てのメンションが届いている |
+| mentioned | - | ボット宛てのチャットメンションまたは認識音声が届いている |
 | user_nearby | range | 指定距離（m）以内にユーザーがいる |
 | is_alone | - | 自分以外に誰もいない |
 | anyone_in_room | - | 自分以外に誰かいる |
@@ -121,7 +128,7 @@ LLMノード（`"type": "action"`）:
 
 | name | params | 意味 |
 |---|---|---|
-| llm_reply | - | メンションにペルソナで返事する |
+| llm_reply | - | チャットメンションまたは認識音声にペルソナで返事する |
 | llm_say | topic | 状況を見て自発的にひとこと話す。必ずcooldownの中に置く |
 | llm_choose | choices, key, question | 選択肢から選ばせ、blackboardに書く |
 
