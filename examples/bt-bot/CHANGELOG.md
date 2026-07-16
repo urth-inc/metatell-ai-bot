@@ -1,5 +1,12 @@
 # metatell-bt-bot-example
 
+## 0.0.6
+
+### Patch Changes
+
+- @metatell/bot-realtime@2.0.1
+- @metatell/bot-sdk@2.0.1
+
 ## 0.0.5
 
 ### Patch Changes

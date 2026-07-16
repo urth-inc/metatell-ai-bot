@@ -1,5 +1,12 @@
 # @metatell/bot-sdk
 
+## 2.0.1
+
+### Patch Changes
+
+- Updated dependencies [dfb335c]
+  - @metatell/bot-core@2.0.1
+
 ## 2.0.0
 
 ### Minor Changes
