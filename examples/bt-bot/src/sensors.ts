@@ -36,6 +36,10 @@ export interface SensorOptions {
 
 export interface Sensors {
   inbox: ChatInbox
+  /** Fail-closed gate checked before room audio is sent to Speech-to-Text. */
+  canPerceiveSpeech(fromIdentity: string): boolean
+  /** Adds one final Speech-to-Text result to the existing chat/mention perception queues. */
+  acceptSpeech(fromIdentity: string, text: string): void
   /** Writes the perception snapshot for this tick into the blackboard. */
   snapshot(bb: Blackboard, now: number): void
 }
@@ -60,6 +64,18 @@ export function createSensors(options: SensorOptions): Sensors {
     const presenceUser = client.getUsers().find((candidate) => candidate.id === user.id)
     return presenceUser?.isBot === false
   }
+  const perceivableSpeechUser = (fromIdentity: string): RoomUser | null => {
+    const user = client.getUsers().find((candidate) => candidate.id === fromIdentity)
+    return user && isPerceivableChat(user) ? user : null
+  }
+  const appendRecentChat = (fromName: string, text: string): void => {
+    recentChat.push({ fromName, text, atMs: Date.now() })
+    if (recentChat.length > MAX_RECENT_CHAT) recentChat.shift()
+  }
+  const appendMention = (mention: PendingMention): void => {
+    if (mentions.length >= MAX_PENDING_MENTIONS) mentions.shift()
+    mentions.push(mention)
+  }
   client.chat.onMessage(({ from, text, mention, reply }) => {
     // キルスイッチはあらゆる知覚除外より先に判定する（ボット経由でも止められるように）
     if (text.trim() === KILL_COMMAND && !isSelf(from)) {
@@ -74,13 +90,11 @@ export function createSensors(options: SensorOptions): Sensors {
     }
     if (!isPerceivableChat(from)) return
 
-    recentChat.push({ fromName: from.name ?? '(名無し)', text, atMs: Date.now() })
-    if (recentChat.length > MAX_RECENT_CHAT) recentChat.shift()
+    appendRecentChat(from.name ?? '(名無し)', text)
 
     const currentSessionId = client.getSessionId()
     if (mention && currentSessionId !== null && mention.sessionId === currentSessionId) {
-      if (mentions.length >= MAX_PENDING_MENTIONS) mentions.shift()
-      mentions.push({
+      appendMention({
         fromName: from.name ?? '(名無し)',
         text,
         // 人が明示的に呼んだ返信は間隔内でも捨てず、安全な時刻まで待って1回送る。
@@ -99,6 +113,26 @@ export function createSensors(options: SensorOptions): Sensors {
       peekMention: () => mentions[0],
       takeMention: () => mentions.shift(),
       recentChat: () => [...recentChat],
+    },
+
+    canPerceiveSpeech: (fromIdentity) => perceivableSpeechUser(fromIdentity) !== null,
+
+    acceptSpeech(fromIdentity, text) {
+      const user = perceivableSpeechUser(fromIdentity)
+      const transcript = text.trim()
+      if (!user || transcript === '') return
+
+      const fromName = user.name ?? '(名無し)'
+      appendRecentChat(fromName, transcript)
+      log(`音声認識（BT入力へ追加）: ${fromName}: ${transcript}`)
+
+      appendMention({
+        fromName,
+        text: transcript,
+        // 音声にはchat reply threadがないため、通常送信を共通speakerで音声付き返信にする。
+        reply: (answer) =>
+          speaker.sendWhenReady(() => client.chat.send(truncateSay(answer)), answer),
+      })
     },
 
     snapshot(bb, now) {

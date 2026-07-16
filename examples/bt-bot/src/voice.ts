@@ -2,6 +2,11 @@ import textToSpeech from '@google-cloud/text-to-speech'
 import type { AgentVoiceConfig, MetatellClient } from '@metatell/bot-sdk'
 import { enableVoice } from '@metatell/bot-sdk'
 import type { SpeechPriority } from './safety.js'
+import {
+  GoogleSpeechRecognizer,
+  type RecognizedSpeech,
+  type SpeechRecognizer,
+} from './speech-recognizer.js'
 
 const SAMPLE_RATE_HZ = 48_000
 const FRAME_DURATION_MS = 20
@@ -37,6 +42,7 @@ type VoiceEnabler = (client: MetatellClient, config: AgentVoiceConfig) => Promis
 
 export interface RoomVoiceDependencies {
   synthesizer?: SpeechSynthesizer
+  recognizer?: SpeechRecognizer
   enableVoice?: VoiceEnabler
   sleep?: Sleep
   playbackGraceMs?: number
@@ -49,6 +55,13 @@ export interface RoomVoiceDependencies {
 export interface GoogleSpeechOptions {
   languageCode: string
   voiceName: string
+  recognition?: {
+    languageCode: string
+    phrases?: string[]
+    shouldTranscribe(fromIdentity: string): boolean
+    onTranscript(result: RecognizedSpeech): void
+    log(message: string): void
+  }
 }
 
 /** Convert Google TTS LINEAR16 output (WAV) or raw little-endian PCM into samples. */
@@ -282,6 +295,15 @@ export async function createRoomVoiceSpeaker(
   dependencies: RoomVoiceDependencies = {},
 ): Promise<RoomVoiceSpeaker> {
   const synthesizer = dependencies.synthesizer ?? new GoogleSpeechSynthesizer(options)
+  let recognizer = options.recognition
+    ? (dependencies.recognizer ??
+      new GoogleSpeechRecognizer({
+        languageCode: options.recognition.languageCode,
+        phrases: options.recognition.phrases,
+        onTranscript: options.recognition.onTranscript,
+        log: options.recognition.log,
+      }))
+    : null
   const playback = new PcmPlaybackQueue({
     sleep: dependencies.sleep,
     playbackGraceMs: dependencies.playbackGraceMs,
@@ -302,10 +324,37 @@ export async function createRoomVoiceSpeaker(
   let attachment: VoiceAttachment | null = null
   try {
     await synthesizer.initialize()
+    if (recognizer) {
+      try {
+        await recognizer.initialize()
+      } catch (error) {
+        options.recognition?.log(
+          `音声認識を初期化できないため、音声入力は無効です: ${String(error)}`,
+        )
+        const failedRecognizer = recognizer
+        recognizer = null
+        await failedRecognizer.close().catch((closeError) => {
+          options.recognition?.log(`音声認識の後片付けに失敗しました: ${String(closeError)}`)
+        })
+      }
+    }
+    const remotePcmHandler =
+      recognizer && options.recognition
+        ? (pcm: Int16Array, meta: { fromIdentity?: string }): void => {
+            const fromIdentity = meta.fromIdentity
+            if (!fromIdentity || !options.recognition?.shouldTranscribe(fromIdentity)) return
+            try {
+              recognizer?.accept(pcm, fromIdentity)
+            } catch (error) {
+              options.recognition?.log(`音声入力の処理に失敗しました: ${String(error)}`)
+            }
+          }
+        : undefined
     attachment = await attachVoice(client, {
       transport: { type: 'livekit' },
       loggerTag: 'BtBot',
       handlers: {
+        ...(remotePcmHandler ? { onRemotePcm: remotePcmHandler } : {}),
         getLocalPcmStream: () => {
           markPublisherReady?.()
           markPublisherReady = null
@@ -334,6 +383,7 @@ export async function createRoomVoiceSpeaker(
       [
         Promise.resolve().then(() => attachment?.detach()),
         Promise.resolve().then(() => synthesizer.close()),
+        Promise.resolve().then(() => recognizer?.close()),
       ],
       dependencies.initializationCleanupTimeoutMs ?? INITIALIZATION_CLEANUP_TIMEOUT_MS,
       scheduleTimeout,
@@ -410,14 +460,16 @@ export async function createRoomVoiceSpeaker(
       const error = new Error('音声発話は停止済みです')
       for (const utterance of utterances.splice(0)) utterance.reject(error)
       playback.close()
-      closePromise = Promise.allSettled([attachment.detach(), synthesizer.close()]).then(
-        (results) => {
-          const rejected = results.find(
-            (result): result is PromiseRejectedResult => result.status === 'rejected',
-          )
-          if (rejected) throw rejected.reason
-        },
-      )
+      closePromise = Promise.allSettled([
+        attachment.detach(),
+        synthesizer.close(),
+        recognizer?.close(),
+      ]).then((results) => {
+        const rejected = results.find(
+          (result): result is PromiseRejectedResult => result.status === 'rejected',
+        )
+        if (rejected) throw rejected.reason
+      })
       return closePromise
     },
   }
