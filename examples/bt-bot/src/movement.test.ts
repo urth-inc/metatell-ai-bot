@@ -162,3 +162,119 @@ test('到着範囲へ入ると更新を止めてarrivedを返す', async () => {
   assert.equal(walking.at(-1), false)
   controller.close()
 })
+
+test('位置保持中は対象を向いて停止し、最後の解放後の次tickから移動を再開する', async () => {
+  const { controller, moves, looks, walking } = createHarness()
+  controller.moveTowards({ x: 10, y: 0, z: 0 })
+  controller.update()
+  await flushMoves()
+  assert.equal(moves.length, 1)
+
+  const releaseFirst = await controller.holdPositionAndLookAt({ x: 0, y: 0, z: 10 })
+  const releaseSecond = await controller.holdPositionAndLookAt({ x: -10, y: 0, z: 0 })
+
+  controller.beginBehaviorTick()
+  assert.equal(controller.moveTowards({ x: 10, y: 0, z: 0 }), 'moving')
+  controller.endBehaviorTick()
+  controller.update()
+  await flushMoves()
+  assert.equal(moves.length, 1)
+  assert.equal(walking.at(-1), false)
+  assert.deepEqual(looks.slice(-2), [
+    { x: 0, y: 0, z: 10 },
+    { x: -10, y: 0, z: 0 },
+  ])
+
+  controller.lookAt({ x: 5, y: 0, z: 5 })
+  await flushMoves()
+  assert.deepEqual(looks.at(-1), { x: -10, y: 0, z: 0 })
+
+  releaseFirst()
+  releaseFirst()
+  controller.beginBehaviorTick()
+  assert.equal(controller.moveTowards({ x: 10, y: 0, z: 0 }), 'moving')
+  controller.endBehaviorTick()
+  controller.update()
+  await flushMoves()
+  assert.equal(moves.length, 1)
+
+  releaseSecond()
+  controller.lookAt({ x: 5, y: 0, z: 5 })
+  await flushMoves()
+  assert.deepEqual(looks.at(-1), { x: 5, y: 0, z: 5 })
+  controller.beginBehaviorTick()
+  assert.equal(controller.moveTowards({ x: 10, y: 0, z: 0 }), 'moving')
+  controller.endBehaviorTick()
+  controller.update()
+  await flushMoves()
+  assert.equal(moves.length, 2)
+  assert.equal(walking.at(-1), true)
+  controller.close()
+})
+
+test('位置保持のlookAtが失敗しても保持を開始し、解放できる', async () => {
+  const logs: string[] = []
+  const walking: boolean[] = []
+  const controller = new SmoothMovementController({
+    autoStart: false,
+    avatar: {
+      getPosition: () => ({ x: 0, y: 0, z: 0 }),
+      async moveTo() {},
+      async lookAt() {
+        throw new Error('temporary failure')
+      },
+    },
+    setWalking: (value) => walking.push(value),
+    log: (message) => logs.push(message),
+  })
+
+  const release = await controller.holdPositionAndLookAt({ x: 1, y: 0, z: 0 })
+  assert.equal(walking.at(-1), false)
+  assert.deepEqual(logs, ['lookAtに失敗: Error: temporary failure'])
+
+  release()
+  controller.moveTowards({ x: 10, y: 0, z: 0 })
+  controller.update()
+  await flushMoves()
+  assert.equal(walking.at(-1), true)
+  controller.close()
+})
+
+test('送信済みの移動が完了してから位置保持の対象を向く', async () => {
+  let releaseMove: (() => void) | undefined
+  const looks: Vec3[] = []
+  const walking: boolean[] = []
+  const controller = new SmoothMovementController({
+    autoStart: false,
+    avatar: {
+      getPosition: () => ({ x: 0, y: 0, z: 0 }),
+      moveTo: () =>
+        new Promise<void>((resolve) => {
+          releaseMove = resolve
+        }),
+      async lookAt(target) {
+        looks.push(target)
+      },
+    },
+    setWalking: (value) => walking.push(value),
+    log: () => {},
+  })
+
+  controller.moveTowards({ x: 10, y: 0, z: 0 })
+  controller.update()
+  const hold = controller.holdPositionAndLookAt({ x: 0, y: 0, z: 10 })
+  await flushMoves()
+
+  assert.deepEqual(looks, [{ x: 10, y: 0, z: 0 }])
+  assert.equal(walking.at(-1), false)
+
+  releaseMove?.()
+  const release = await hold
+  assert.deepEqual(looks, [
+    { x: 10, y: 0, z: 0 },
+    { x: 0, y: 0, z: 10 },
+  ])
+
+  release()
+  controller.close()
+})

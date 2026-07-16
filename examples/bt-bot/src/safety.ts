@@ -29,23 +29,28 @@ export const KILL_COMMAND = '/killall'
 
 export type SpeechPriority = 'normal' | 'reply'
 
+/** Optional metadata used to coordinate directed voice playback. */
+export interface SpeechContext {
+  targetSessionId?: string
+}
+
 export interface SafeSpeaker {
   /** Sends unless within the minimum interval. Queued human replies take priority. */
-  trySend(send: () => Promise<void>, text: string): Promise<boolean>
+  trySend(send: () => Promise<void>, text: string, context?: SpeechContext): Promise<boolean>
   /** Waits for the minimum interval and sends exactly once instead of dropping a human reply. */
-  sendWhenReady(send: () => Promise<void>, text: string): Promise<boolean>
+  sendWhenReady(send: () => Promise<void>, text: string, context?: SpeechContext): Promise<boolean>
 }
 
 /**
  * One shared clock for every way the bot can speak (say / reply / report).
  * Spontaneous messages are dropped instead of queued, so a broken tree cannot
  * build up a backlog. Direct human replies may use the serialized waiting path.
- * The post-send voice hook is started in the background so playback duration
- * never blocks the behavior tree from perceiving the next event.
+ * The post-send voice hook is awaited so the speech-producing behavior remains
+ * RUNNING until playback finishes, while the JavaScript event loop stays responsive.
  */
 export function createSafeSpeaker(
   log: (message: string) => void,
-  afterSend?: (text: string, priority: SpeechPriority) => Promise<void>,
+  afterSend?: (text: string, priority: SpeechPriority, context?: SpeechContext) => Promise<void>,
   now: () => number = Date.now,
   sleep: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 ): SafeSpeaker {
@@ -53,21 +58,23 @@ export function createSafeSpeaker(
   let guaranteedTail = Promise.resolve()
   let guaranteedCount = 0
 
-  const runAfterSend = (text: string, priority: SpeechPriority): void => {
+  const runAfterSend = async (
+    text: string,
+    priority: SpeechPriority,
+    context?: SpeechContext,
+  ): Promise<void> => {
     if (!afterSend) return
     try {
-      void afterSend(text, priority).catch((error) => {
-        // Voice is an enhancement to chat. A TTS/LiveKit failure must not make the BT retry
-        // a chat message that was already sent successfully.
-        log(`音声発話に失敗しました（チャット送信は成功）: ${String(error)}`)
-      })
+      await afterSend(text, priority, context)
     } catch (error) {
+      // Voice is an enhancement to chat. A TTS/LiveKit failure must not make the BT retry
+      // a chat message that was already sent successfully.
       log(`音声発話に失敗しました（チャット送信は成功）: ${String(error)}`)
     }
   }
 
   return {
-    async trySend(send, text) {
+    async trySend(send, text, context) {
       const currentMs = now()
       if (guaranteedCount > 0 || currentMs - lastSentMs < MIN_SAY_INTERVAL_MS) {
         log(
@@ -77,11 +84,11 @@ export function createSafeSpeaker(
       }
       lastSentMs = currentMs
       await send()
-      runAfterSend(text, 'normal')
+      await runAfterSend(text, 'normal', context)
       return true
     },
 
-    sendWhenReady(send, text) {
+    sendWhenReady(send, text, context) {
       guaranteedCount += 1
       const queued = guaranteedTail.then(async () => {
         let remainingMs = MIN_SAY_INTERVAL_MS - (now() - lastSentMs)
@@ -96,7 +103,7 @@ export function createSafeSpeaker(
         }
         lastSentMs = now()
         await send()
-        runAfterSend(text, 'reply')
+        await runAfterSend(text, 'reply', context)
         return true
       })
       guaranteedTail = queued.then(

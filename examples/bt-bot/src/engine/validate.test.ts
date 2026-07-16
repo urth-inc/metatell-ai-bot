@@ -69,6 +69,26 @@ test('必須paramsの欠落はエラーになる', () => {
   assert.ok(issues.some((issue) => issue.level === 'error' && issue.message.includes('text')))
 })
 
+test('emote_from_blackboardはblackboardキーを指定すると検証を通過する', () => {
+  const issues = validateTreeDoc({
+    root: {
+      type: 'action',
+      name: 'emote_from_blackboard',
+      params: { key: 'selectedAnimation' },
+    },
+  })
+
+  assert.deepEqual(issues, [])
+})
+
+test('emote_from_blackboardのblackboardキー指定漏れはエラーになる', () => {
+  const issues = validateTreeDoc({
+    root: { type: 'action', name: 'emote_from_blackboard' },
+  })
+
+  assert.ok(issues.some((issue) => issue.level === 'error' && issue.message.includes('key')))
+})
+
 test('cooldownの外のllm_sayは警告になる', () => {
   const issues = validateTreeDoc({
     root: { type: 'action', name: 'llm_say' },

@@ -98,7 +98,10 @@ export function createSensors(options: SensorOptions): Sensors {
         fromName: from.name ?? '(名無し)',
         text,
         // 人が明示的に呼んだ返信は間隔内でも捨てず、安全な時刻まで待って1回送る。
-        reply: (answer) => speaker.sendWhenReady(() => reply(truncateSay(answer)), answer),
+        reply: (answer) =>
+          speaker.sendWhenReady(() => reply(truncateSay(answer)), answer, {
+            targetSessionId: from.id,
+          }),
       })
     }
   })
@@ -131,7 +134,9 @@ export function createSensors(options: SensorOptions): Sensors {
         text: transcript,
         // 音声にはchat reply threadがないため、通常送信を共通speakerで音声付き返信にする。
         reply: (answer) =>
-          speaker.sendWhenReady(() => client.chat.send(truncateSay(answer)), answer),
+          speaker.sendWhenReady(() => client.chat.send(truncateSay(answer)), answer, {
+            targetSessionId: fromIdentity,
+          }),
       })
     },
 

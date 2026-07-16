@@ -38,6 +38,8 @@ pnpm dev -- https://metatell.app/YOUR_ROOM_ID
 （黄=RUNNING、緑=SUCCESS、灰=FAILURE）。
 `say`、`llm_say`、`llm_reply`などの発言はチャットへ表示され、同じ内容がルーム内で
 音声再生されます。音声は前の発言が終わってから順番に再生されるため、重なりません。
+発話ノードは音声再生が終わるまで`RUNNING`となり、その間は立ち止まります。
+チャットメンションや認識音声への返信では、話しかけたアバターの方を向いて発話します。
 
 ルーム内の人の発話はSpeech-to-Textで認識され、直近の会話としてBTから参照できます。
 認識された発話は、チャットのメンションと同じ`mentioned` / `llm_reply`経路へ入り、
@@ -113,7 +115,8 @@ pnpm check
 | patrol_next | - | bot.config.jsonの巡回地点を1つ進む |
 | move_to_user | - | いちばん近くの人のそばへ歩く |
 | look_at_user | - | いちばん近くの人の方を向く |
-| emote | animation | アニメーション再生。emotesの別名か、起動時ログに出るID/名前を指定 |
+| emote | animation | 固定指定したアニメーションを再生 |
+| emote_from_blackboard | key | blackboardから選んだアニメーションを再生 |
 | wait | sec | 指定秒数待つ |
 | set_blackboard | key, value | blackboardに値を書く |
 | report_users | - | ルームにいる人の名前をチャットと音声で発言する |
@@ -145,9 +148,39 @@ LLMノード（`"type": "action"`）:
 }
 ```
 
-ツリーからは`emote`の`animation`に別名（`greet`など）を書きます。
+固定のアニメーションを使う場合は、`emote`の`animation`に別名（`greet`など）を書きます。
 未割り当ての別名はその回だけスキップされ、ボットは止まりません。
 `idle`と`walking`はどのアバターでも使えます（歩行時は自動で切り替わります）。
+
+`llm_choose`で選んだ別名をblackboardへ保存し、`emote_from_blackboard`で読み出すと、
+BTの実行順序を保ったままアニメーションを動的に選べます。
+自発的な分岐で使う場合は、LLMの連続呼び出しを防ぐため、選択と実行を`cooldown`で囲みます。
+
+```json
+{
+  "type": "cooldown",
+  "params": { "sec": 60 },
+  "child": {
+    "type": "sequence",
+    "children": [
+      {
+        "type": "action",
+        "name": "llm_choose",
+        "params": {
+          "choices": ["greet", "dance"],
+          "key": "selectedAnimation",
+          "question": "いまの状況に合うアニメーションを選んでください"
+        }
+      },
+      {
+        "type": "action",
+        "name": "emote_from_blackboard",
+        "params": { "key": "selectedAnimation" }
+      }
+    ]
+  }
+}
+```
 
 ## レシピ集
 

@@ -12,8 +12,9 @@ import { createShutdownController, watchFileChanges } from './lifecycle.js'
 import { createLlmApi } from './llm.js'
 import { SmoothMovementController } from './movement.js'
 import { registerBuiltins } from './nodes/index.js'
-import { clampToBounds, createSafeSpeaker, KILL_COMMAND, truncateSay } from './safety.js'
+import { createSafeSpeaker, KILL_COMMAND, truncateSay } from './safety.js'
 import { createSensors } from './sensors.js'
+import { SpeechAttentionCoordinator } from './speech-attention.js'
 import { createRoomVoiceSpeaker, type RoomVoiceSpeaker } from './voice.js'
 
 const ROOT_DIR = process.cwd()
@@ -121,11 +122,30 @@ async function main(): Promise<void> {
   await client.connect()
   log(`接続しました: ルーム=${roomId} 名前=${config.name}`)
 
+  let walking = false
+  const setWalking = (next: boolean): void => {
+    if (walking === next) return
+    walking = next
+    client.avatar.play({ id: next ? 'walking' : 'idle', loop: true }).catch(() => {})
+  }
+  const movement = new SmoothMovementController({
+    avatar: client.avatar,
+    setWalking,
+    log,
+  })
+  const speechAttention = new SpeechAttentionCoordinator({
+    getTargetPosition: (sessionId) =>
+      client.getUsers().find((user) => user.id === sessionId)?.position,
+    holdPositionAndLookAt: (target) => movement.holdPositionAndLookAt(target),
+  })
+
   let voice: RoomVoiceSpeaker | null = null
   // Register chat perception before optional TTS/animation initialization, which can take seconds.
   // Messages received during startup stay in the inbox until the first behavior-tree tick.
-  const speaker = createSafeSpeaker(log, async (text, priority) => {
-    await voice?.speak(truncateSay(text), priority)
+  const speaker = createSafeSpeaker(log, async (text, priority, context) => {
+    const activeVoice = voice
+    if (!activeVoice) return
+    await speechAttention.run(context, () => activeVoice.speak(truncateSay(text), priority))
   })
   const bb = createBlackboard()
   bb.set('startedAtMs', Date.now())
@@ -143,6 +163,8 @@ async function main(): Promise<void> {
     log,
   })
   shutdownController.addCleanup(() => root.reset())
+  shutdownController.addCleanup(() => movement.close())
+  shutdownController.addCleanup(() => speechAttention.close())
   const sensors = createSensors({
     client,
     botName: config.name,
@@ -192,21 +214,8 @@ async function main(): Promise<void> {
   }
 
   // BotApi: ノードが世界に触る唯一の窓口。安全装置はこの内側にある
-  let walking = false
   // 未割り当てのemoteの案内はtickごとに繰り返さず1回だけ出す
   const warnedEmotes = new Set<string>()
-  const setWalking = (next: boolean): void => {
-    if (walking === next) return
-    walking = next
-    client.avatar.play({ id: next ? 'walking' : 'idle', loop: true }).catch(() => {})
-  }
-
-  const movement = new SmoothMovementController({
-    avatar: client.avatar,
-    setWalking,
-    log,
-  })
-  shutdownController.addCleanup(() => movement.close())
 
   const api: BotApi = {
     botName: config.name,
@@ -215,9 +224,7 @@ async function main(): Promise<void> {
     log,
     say: (text) => speaker.trySend(() => client.chat.send(truncateSay(text)), text),
     moveTowards: (target) => movement.moveTowards(target),
-    lookAt(target) {
-      client.avatar.lookAt(clampToBounds(target)).catch(() => {})
-    },
+    lookAt: (target) => movement.lookAt(target),
     async emote(animation) {
       const target = config.emotes[animation] ?? animation
       const found = animations.find((entry) => entry.id === target || entry.name === target)

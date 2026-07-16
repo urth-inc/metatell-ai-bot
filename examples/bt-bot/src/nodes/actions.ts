@@ -129,6 +129,27 @@ export function registerBuiltinActions(): void {
   )
 
   registerAction(
+    'emote_from_blackboard',
+    async (ctx, params): Promise<Status> => {
+      const key = typeof params.key === 'string' ? params.key : ''
+      const animation = key === '' ? undefined : ctx.bb.get(key)
+      if (typeof animation !== 'string' || animation === '') return 'FAILURE'
+      return (await ctx.api.emote(animation)) === 'failed' ? 'FAILURE' : 'SUCCESS'
+    },
+    {
+      params: {
+        key: {
+          type: 'string',
+          required: true,
+          description: '再生する別名またはアニメーションID/名前を読み出すblackboardキー',
+        },
+      },
+      description:
+        'llm_chooseなどがblackboardへ保存したアニメーションの別名またはID/名前を、同じkeyで読み出して再生する',
+    },
+  )
+
+  registerAction(
     'wait',
     async (_ctx, params): Promise<Status> => {
       await sleep(asNumber(params.sec, 1) * 1000)
