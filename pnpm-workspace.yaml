@@ -11,3 +11,5 @@ onlyBuiltDependencies:
 minimumReleaseAgeExclude:
   # Renovate security update: happy-dom@20.8.9
   - happy-dom@20.8.9
+  # Renovate security update: vitest@3.2.6
+  - vitest@3.2.6
