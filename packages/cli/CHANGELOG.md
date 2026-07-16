@@ -1,5 +1,12 @@
 # @metatell/bot-cli
 
+## 2.0.2
+
+### Patch Changes
+
+- Updated dependencies [04ff0d5]
+  - @metatell/bot-sdk@2.0.2
+
 ## 2.0.1
 
 ### Patch Changes
