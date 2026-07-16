@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@metatell/bot-sdk": "workspace:*",
-    "commander": "12.1.0"
+    "commander": "15.0.0"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
