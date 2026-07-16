@@ -24,11 +24,6 @@ metatell.config.cjs
 !.metatellrc.example.*
 !metatell.config.example.*
 
-# Changeset temporary files
-.changeset/*.md
-!.changeset/README.md
-!.changeset/config.json
-
 # TypeDoc generated documentation
 docs-generated/
 
