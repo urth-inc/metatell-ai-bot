@@ -46,7 +46,9 @@ export class SmoothMovementController {
   private requestedThisBehaviorTick = false
   private pendingMove: PendingMove | null = null
   private sendingMove = false
+  private movementSettledResolvers = new Set<() => void>()
   private generation = 0
+  private positionHoldCount = 0
   private timer: ReturnType<typeof setInterval> | null = null
 
   constructor(private readonly dependencies: SmoothMovementDependencies) {
@@ -65,6 +67,8 @@ export class SmoothMovementController {
    */
   moveTowards(rawTarget: Vec3): 'moving' | 'arrived' {
     this.requestedThisBehaviorTick = true
+    if (this.positionHoldCount > 0) return 'moving'
+
     const target = clampToBounds(rawTarget)
     const from = this.dependencies.avatar.getPosition()
     if (from) {
@@ -105,6 +109,8 @@ export class SmoothMovementController {
 
   /** Send one interpolation-sized movement update. Public for deterministic tests. */
   update(): void {
+    if (this.positionHoldCount > 0) return
+
     const target = this.target
     if (!target) return
     const from = this.dependencies.avatar.getPosition()
@@ -119,6 +125,14 @@ export class SmoothMovementController {
     this.queueMove(next)
   }
 
+  /** Looks at a BT-selected target unless an active speech owns the avatar's attention. */
+  lookAt(rawTarget: Vec3): void {
+    if (this.positionHoldCount > 0) return
+    this.dependencies.avatar.lookAt(clampToBounds(rawTarget)).catch((error) => {
+      this.dependencies.log(`lookAtに失敗: ${String(error)}`)
+    })
+  }
+
   stop(): void {
     this.target = null
     this.lastLookTarget = null
@@ -127,9 +141,38 @@ export class SmoothMovementController {
     this.dependencies.setWalking(false)
   }
 
+  /**
+   * Stops movement and keeps it stopped until every active hold is released.
+   * The returned release function is safe to call more than once.
+   */
+  async holdPositionAndLookAt(rawTarget?: Vec3): Promise<() => void> {
+    this.positionHoldCount += 1
+    this.stop()
+    await this.waitForMovementToSettle()
+    // An already-sent moveTo cannot be cancelled. Stop again after it settles
+    // so the avatar is idle before it turns toward the conversation partner.
+    this.stop()
+
+    if (rawTarget) {
+      try {
+        await this.dependencies.avatar.lookAt(clampToBounds(rawTarget))
+      } catch (error) {
+        this.dependencies.log(`lookAtに失敗: ${String(error)}`)
+      }
+    }
+
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      this.positionHoldCount = Math.max(0, this.positionHoldCount - 1)
+    }
+  }
+
   close(): void {
     if (this.timer) clearInterval(this.timer)
     this.timer = null
+    this.positionHoldCount = 0
     this.stop()
   }
 
@@ -155,7 +198,17 @@ export class SmoothMovementController {
       }
     } finally {
       this.sendingMove = false
-      if (this.pendingMove) void this.drainMoves()
+      if (this.pendingMove) {
+        void this.drainMoves()
+      } else {
+        for (const resolve of this.movementSettledResolvers) resolve()
+        this.movementSettledResolvers.clear()
+      }
     }
+  }
+
+  private waitForMovementToSettle(): Promise<void> {
+    if (!this.sendingMove) return Promise.resolve()
+    return new Promise((resolve) => this.movementSettledResolvers.add(resolve))
   }
 }

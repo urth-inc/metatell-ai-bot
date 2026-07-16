@@ -182,3 +182,60 @@ test('巡回がRUNNINGでもメンションは次tickで割り込み返信する
   assert.equal(tickTree(root, ctx), 'SUCCESS')
   assert.deepEqual(replies, ['呼んだ？'])
 })
+
+test('返信の音声再生が終わるまでllm_replyをRUNNINGに保ち巡回を再開しない', async () => {
+  let finishReply: ((sent: boolean) => void) | undefined
+  const mentions: PendingMention[] = [
+    {
+      fromName: 'Visitor',
+      text: 'こんにちは',
+      reply: () =>
+        new Promise<boolean>((resolve) => {
+          finishReply = resolve
+        }),
+    },
+  ]
+  const ctx = createContext({
+    mentions,
+    api: {
+      llm: {
+        complete: async () => 'こんにちは！',
+        choose: async () => 0,
+      },
+      log: () => {},
+    },
+  })
+  const root = buildTree({
+    root: {
+      type: 'priority_selector',
+      children: [
+        {
+          type: 'sequence',
+          children: [
+            { type: 'condition', name: 'test_mention_pending' },
+            { type: 'action', name: 'llm_reply' },
+          ],
+        },
+        { type: 'action', name: 'test_patrol_forever' },
+      ],
+    },
+  })
+
+  assert.equal(tickTree(root, ctx), 'RUNNING')
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.ok(finishReply)
+
+  ctx.trace = []
+  assert.equal(tickTree(root, ctx), 'RUNNING')
+  assert.ok(ctx.trace.some((entry) => entry.label === 'action:llm_reply'))
+  assert.ok(!ctx.trace.some((entry) => entry.label === 'action:test_patrol_forever'))
+
+  finishReply(true)
+  await new Promise((resolve) => setImmediate(resolve))
+  ctx.trace = []
+  assert.equal(tickTree(root, ctx), 'SUCCESS')
+
+  ctx.trace = []
+  assert.equal(tickTree(root, ctx), 'RUNNING')
+  assert.ok(ctx.trace.some((entry) => entry.label === 'action:test_patrol_forever'))
+})

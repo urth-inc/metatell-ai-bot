@@ -300,11 +300,13 @@ test('メンション返信も共通speakerを通ってチャットと音声へ�
   const fake = createClientFake([human])
   const replies: string[] = []
   const voices: string[] = []
+  const voiceTargets: Array<string | undefined> = []
   let currentMs = 1_000
   const mentionSpeaker = createSafeSpeaker(
     () => {},
-    async (text) => {
+    async (text, _priority, context) => {
       voices.push(text)
+      voiceTargets.push(context?.targetSessionId)
     },
     () => currentMs,
     async (ms) => {
@@ -335,6 +337,7 @@ test('メンション返信も共通speakerを通ってチャットと音声へ�
   assert.equal(await sensors.inbox.takeMention()?.reply('こんにちは'), true)
   assert.deepEqual(replies, ['こんにちは'])
   assert.deepEqual(voices, ['直前の挨拶', 'こんにちは'])
+  assert.deepEqual(voiceTargets, [undefined, human.id])
 })
 
 test('人の認識音声をwake wordなしでBT入力へ追加して返信する', async () => {
@@ -343,12 +346,14 @@ test('人の認識音声をwake wordなしでBT入力へ追加して返信する
   const human: User = { id: 'human-1', name: 'Visitor', isBot: false }
   const fake = createClientFake([self, otherBot, human])
   const voices: string[] = []
+  const voiceTargets: Array<string | undefined> = []
   const killedBy: string[] = []
   const logs: string[] = []
   const speechSpeaker = createSafeSpeaker(
     () => {},
-    async (text) => {
+    async (text, _priority, context) => {
       voices.push(text)
+      voiceTargets.push(context?.targetSessionId)
     },
   )
   const sensors = createSensors({
@@ -380,6 +385,7 @@ test('人の認識音声をwake wordなしでBT入力へ追加して返信する
   assert.equal(await sensors.inbox.takeMention()?.reply('こんにちは'), true)
   assert.deepEqual(fake.sentChats, ['こんにちは'])
   assert.deepEqual(voices, ['こんにちは'])
+  assert.deepEqual(voiceTargets, [human.id])
   assert.ok(logs.some((message) => message.includes('音声認識（BT入力へ追加）: Visitor')))
 
   sensors.acceptSpeech(human.id, '/killall')
