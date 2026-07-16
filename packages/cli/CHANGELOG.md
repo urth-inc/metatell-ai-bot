@@ -1,5 +1,11 @@
 # @metatell/bot-cli
 
+## 2.0.1
+
+### Patch Changes
+
+- @metatell/bot-sdk@2.0.1
+
 ## 2.0.0
 
 ### Minor Changes

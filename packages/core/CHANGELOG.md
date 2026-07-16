@@ -1,5 +1,11 @@
 # @metatell/bot-core
 
+## 2.0.1
+
+### Patch Changes
+
+- dfb335c: Update the Phoenix client dependency to 1.8.9.
+
 ## 2.0.0
 
 ### Minor Changes
