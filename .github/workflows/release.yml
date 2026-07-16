@@ -42,8 +42,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Update npm
-        run: npm install -g npm@latest
+      - name: Setup npm
+        run: npm install -g npm@11.18.0
 
       - name: Create version PR or publish packages
         uses: changesets/action@v1
