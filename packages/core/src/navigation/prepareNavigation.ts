@@ -21,6 +21,7 @@ import type {
   PrepareNavigationResult,
   RoomSceneInfo,
 } from '../types/navigation.js'
+import { needsSceneAccessCookies, type SceneAccessCookieStore } from './signedCookie.js'
 
 const DEFAULT_MAX_BYTES = 64 * 1024 * 1024
 const DEFAULT_MAX_DECODED_BYTES = 256 * 1024 * 1024
@@ -80,6 +81,10 @@ interface ComponentMarker {
 interface NavigationLimits {
   maxDecodedBytes: number
   maxTriangles: number
+}
+
+interface PrepareNavigationContext {
+  sceneAccessCookies?: SceneAccessCookieStore
 }
 
 function sha256(value: Uint8Array | string): string {
@@ -250,6 +255,7 @@ async function fetchScene(
   serverUrl: string,
   options: PrepareNavigationOptions,
   maxBytes: number,
+  context?: PrepareNavigationContext,
 ): Promise<
   | { status: 'not-modified'; validator: NavigationValidator }
   | { status: 'fetched'; bytes: Uint8Array; validator: NavigationValidator }
@@ -294,13 +300,49 @@ async function fetchScene(
   }, timeoutMs)
 
   try {
+    let sceneAccessCookies: Awaited<ReturnType<SceneAccessCookieStore['get']>> = []
+    let attemptedSceneAccessCookies = false
+
     for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
       validateFetchUrl(url, allowed)
+      if (
+        !attemptedSceneAccessCookies &&
+        context?.sceneAccessCookies &&
+        needsSceneAccessCookies(url, serverUrl)
+      ) {
+        attemptedSceneAccessCookies = true
+        try {
+          sceneAccessCookies = await context.sceneAccessCookies.get(
+            serverUrl,
+            scene.roomId,
+            url,
+            controller.signal,
+          )
+        } catch (error) {
+          if (options.signal?.aborted) throw callerAbortError(options.signal)
+          if (timedOut) {
+            throw new NavigationError(
+              'SCENE_FETCH_FAILED',
+              'The scene access cookie request timed out.',
+              true,
+              error,
+            )
+          }
+          if (isAbortError(error)) throw error
+          // Match the browser client: a signed-cookie sync failure must not
+          // prevent public scenes (or an already-authorized CDN request) from
+          // being fetched. The asset response remains the source of truth.
+          sceneAccessCookies = []
+        }
+      }
+      const requestHeaders = new Headers(headers)
+      const cookieHeader = context?.sceneAccessCookies?.header(sceneAccessCookies, url)
+      if (cookieHeader) requestHeaders.set('cookie', cookieHeader)
       let response: Response
       try {
         response = await fetchImpl(url, {
           method: 'GET',
-          headers,
+          headers: requestHeaders,
           redirect: 'manual',
           signal: controller.signal,
         })
@@ -724,6 +766,7 @@ export async function prepareNavigation(
   scene: RoomSceneInfo | null,
   serverUrl: string,
   options: PrepareNavigationOptions = {},
+  context?: PrepareNavigationContext,
 ): Promise<PrepareNavigationResult> {
   if (!scene) {
     throw new NavigationError(
@@ -742,7 +785,7 @@ export async function prepareNavigation(
     ),
     maxTriangles: positiveLimit(options.maxTriangles, DEFAULT_MAX_TRIANGLES, 'maxTriangles'),
   }
-  const fetched = await fetchScene(scene, serverUrl, options, maxBytes)
+  const fetched = await fetchScene(scene, serverUrl, options, maxBytes, context)
   if (fetched.status === 'not-modified') return fetched
 
   const sceneRevision = sha256(fetched.bytes)

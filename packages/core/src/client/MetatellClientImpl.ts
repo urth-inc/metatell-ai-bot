@@ -25,6 +25,7 @@ import { type IPresenceManager, PresenceManager } from '../interfaces/IPresenceM
 import { type IUserAvatarManager, UserAvatarManager } from '../interfaces/IUserAvatarManager.js'
 import { getLogger } from '../logging/index.js'
 import type { Logger } from '../logging/spi.js'
+import { SceneAccessCookieStore } from '../navigation/signedCookie.js'
 import type {
   Animation,
   AvatarAsset,
@@ -207,6 +208,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
   private userAvatarManager: IUserAvatarManager
   private rateLimiter = new RateLimitedQueue()
   private logger: Logger
+  private readonly sceneAccessCookies: SceneAccessCookieStore
   private orgAvatarUrlCache = new Map<string, string>()
   private voiceMuted = false
   private connectMode: 'enter' | 'join-only' = 'enter'
@@ -215,6 +217,11 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
   constructor(private options: CreateClientOptions) {
     super()
+
+    this.sceneAccessCookies = new SceneAccessCookieStore({
+      authToken: options.authToken,
+      fetch: globalThis.fetch,
+    })
 
     // Initialize logger
     this.logger = getLogger('MetatellClient')
@@ -521,6 +528,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
 
   async disconnect(): Promise<void> {
     this.entered = false
+    this.sceneAccessCookies.clear()
     await this.connectionManager.disconnect()
   }
 
@@ -534,7 +542,9 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       options?: PrepareNavigationOptions,
     ): Promise<PrepareNavigationResult> => {
       const { prepareNavigation } = await import('../navigation/prepareNavigation.js')
-      return prepareNavigation(this.room.getSceneInfo(), this.options.serverUrl, options)
+      return prepareNavigation(this.room.getSceneInfo(), this.options.serverUrl, options, {
+        sceneAccessCookies: this.sceneAccessCookies,
+      })
     },
 
     getUsers: async (): Promise<User[]> => {

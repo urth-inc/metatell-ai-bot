@@ -153,6 +153,11 @@ await avatar.connect({
 navmesh, or spawn data is invalid. Conditional requests can reuse a caller-owned
 snapshot by passing its `PreviousNavigation` validator.
 
+For protected metatell CDN scenes, the client automatically obtains the room's
+path-scoped CloudFront signed cookies before fetching the GLB. When `authToken`
+is configured, it is sent only to the room cookie endpoint and never to the
+scene asset URL or the custom `fetch` passed to `prepareNavigation()`.
+
 Subscribe to `room-scene-changed` and stop work that depends on the old snapshot.
 Passing `expectedSceneIdentity` also prevents a reconnect or avatar entry from
 using a snapshot prepared for a different scene.
