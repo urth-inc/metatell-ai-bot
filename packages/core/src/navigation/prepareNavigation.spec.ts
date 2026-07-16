@@ -1,8 +1,10 @@
+import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { NavigationError } from '../errors.js'
 import type { RoomSceneInfo } from '../types/navigation.js'
 import { prepareNavigation } from './prepareNavigation.js'
+import { SceneAccessCookieStore } from './signedCookie.js'
 
 function pad4(value: number): number {
   return (value + 3) & ~3
@@ -135,6 +137,38 @@ function sceneResponse(bytes: Uint8Array, headers: Record<string, string> = {}):
   return new Response(bytes, { status: 200, headers })
 }
 
+function signedCookieResponse(values: readonly string[], status = 200): Response {
+  const headers = new Headers()
+  for (const value of values) headers.append('set-cookie', value)
+  return new Response('{}', { status, headers })
+}
+
+function cloudFrontPolicy(resource: string, expiresAt = Math.floor(Date.now() / 1_000) + 3_600) {
+  return Buffer.from(
+    JSON.stringify({
+      Statement: [
+        {
+          Resource: resource,
+          Condition: { DateLessThan: { 'AWS:EpochTime': expiresAt } },
+        },
+      ],
+    }),
+  )
+    .toString('base64')
+    .replaceAll('+', '-')
+    .replaceAll('=', '_')
+    .replaceAll('/', '~')
+}
+
+function cloudFrontCookies(path: string, suffix: string): string[] {
+  const resourcePath = path.endsWith('/') ? path : `${path}/`
+  return [
+    `CloudFront-Policy=${cloudFrontPolicy(`https://cdn.metatell-dev.app${resourcePath}*`)}; Domain=.metatell-dev.app; Path=${path}; Secure; HttpOnly`,
+    `CloudFront-Signature=signature-${suffix}; Domain=.metatell-dev.app; Path=${path}; Secure; HttpOnly`,
+    `CloudFront-Key-Pair-Id=key-${suffix}; Domain=.metatell-dev.app; Path=${path}; Secure; HttpOnly`,
+  ]
+}
+
 describe('prepareNavigation', () => {
   it('extracts world-space navmesh geometry and all supported spawn point encodings', async () => {
     const result = await prepareNavigation(scene, 'wss://metatell-dev.app', {
@@ -170,6 +204,171 @@ describe('prepareNavigation', () => {
     ])
     expect(result.validator.etag).toBe('"v1"')
     expect(result.snapshot.sceneRevision).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it('obtains path-scoped CloudFront cookies before fetching a protected CDN scene', async () => {
+    const scenePath = '/organizations/urth/scenes/scene-1/'
+    const protectedScene = {
+      ...scene,
+      modelUrl: `https://cdn.metatell-dev.app${scenePath}scene.glb`,
+    }
+    const cookieFetch = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : input.toString())
+      const headers = new Headers(init?.headers)
+      expect(url.toString()).toBe('https://metatell-dev.app/api/v3/rooms/room-1/signed-cookie')
+      expect(init?.method).toBe('POST')
+      expect(init?.credentials).toBeUndefined()
+      expect(init?.redirect).toBe('manual')
+      expect(headers.get('authorization')).toBe('Bearer access-token')
+      expect(headers.has('cookie')).toBe(false)
+      return signedCookieResponse([
+        ...cloudFrontCookies('/organizations/urth/avatars/', 'avatar'),
+        ...cloudFrontCookies(scenePath, 'scene'),
+        ...cloudFrontCookies('/scoped-tmp/organizations/urth/rooms/room-1', 'tmp'),
+      ])
+    })
+    const assetFetch = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      expect(input.toString()).toBe(protectedScene.modelUrl)
+      const headers = new Headers(init?.headers)
+      expect(init?.method).toBe('GET')
+      expect(headers.has('authorization')).toBe(false)
+      expect(headers.get('cookie')).toContain('CloudFront-Policy=')
+      expect(headers.get('cookie')).toContain('CloudFront-Signature=signature-scene')
+      expect(headers.get('cookie')).toContain('CloudFront-Key-Pair-Id=key-scene')
+      return sceneResponse(buildSceneGlb())
+    })
+    const sceneAccessCookies = new SceneAccessCookieStore({
+      authToken: 'access-token',
+      fetch: cookieFetch,
+    })
+
+    await expect(
+      prepareNavigation(
+        protectedScene,
+        'wss://metatell-dev.app',
+        { fetch: assetFetch },
+        { sceneAccessCookies },
+      ),
+    ).resolves.toMatchObject({ status: 'prepared' })
+    expect(cookieFetch).toHaveBeenCalledOnce()
+    expect(assetFetch).toHaveBeenCalledOnce()
+  })
+
+  it('does not send CloudFront cookies to a storage redirect on the same parent domain', async () => {
+    const scenePath = '/organizations/urth/scenes/scene-1/'
+    const protectedScene = {
+      ...scene,
+      modelUrl: `https://cdn.metatell-dev.app${scenePath}scene.glb`,
+    }
+    let assetRequests = 0
+    const cookieFetch = vi.fn(async () =>
+      signedCookieResponse(cloudFrontCookies(scenePath, 'scene')),
+    )
+    const assetFetch = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : input.toString())
+      assetRequests += 1
+      const cookie = new Headers(init?.headers).get('cookie')
+      if (assetRequests === 1) {
+        expect(cookie).toContain('CloudFront-Policy=')
+        expect(cookie).toContain('CloudFront-Signature=signature-scene')
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location: `https://storage.metatell-dev.app${scenePath}scene.glb`,
+          },
+        })
+      }
+      expect(url.origin).toBe('https://storage.metatell-dev.app')
+      expect(cookie).toBeNull()
+      return sceneResponse(buildSceneGlb())
+    })
+
+    await expect(
+      prepareNavigation(
+        protectedScene,
+        'wss://metatell-dev.app',
+        { fetch: assetFetch },
+        { sceneAccessCookies: new SceneAccessCookieStore({ fetch: cookieFetch }) },
+      ),
+    ).resolves.toMatchObject({ status: 'prepared' })
+  })
+
+  it('obtains cookies after an allowed redirect reaches the protected CDN', async () => {
+    const scenePath = '/organizations/urth/scenes/scene-1/'
+    const redirectedScene = {
+      ...scene,
+      modelUrl: 'https://metatell-dev.app/scene.glb',
+    }
+    const cookieFetch = vi.fn(async () =>
+      signedCookieResponse(cloudFrontCookies(scenePath, 'scene')),
+    )
+    let assetRequests = 0
+    const assetFetch = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      assetRequests += 1
+      const url = new URL(input instanceof Request ? input.url : input.toString())
+      const cookie = new Headers(init?.headers).get('cookie')
+      if (assetRequests === 1) {
+        expect(url.origin).toBe('https://metatell-dev.app')
+        expect(cookie).toBeNull()
+        return new Response(null, {
+          status: 302,
+          headers: { location: `https://cdn.metatell-dev.app${scenePath}scene.glb` },
+        })
+      }
+      expect(url.origin).toBe('https://cdn.metatell-dev.app')
+      expect(cookie).toContain('CloudFront-Signature=signature-scene')
+      return sceneResponse(buildSceneGlb())
+    })
+
+    await expect(
+      prepareNavigation(
+        redirectedScene,
+        'wss://metatell-dev.app',
+        { fetch: assetFetch },
+        { sceneAccessCookies: new SceneAccessCookieStore({ fetch: cookieFetch }) },
+      ),
+    ).resolves.toMatchObject({ status: 'prepared' })
+    expect(cookieFetch).toHaveBeenCalledOnce()
+    expect(assetFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('continues without cookies when the signed-cookie sync fails', async () => {
+    const cookieFetch = vi.fn(async () => new Response('{}', { status: 403 }))
+    const assetFetch = vi.fn(async (_input: URL | RequestInfo, init?: RequestInit) => {
+      expect(new Headers(init?.headers).has('cookie')).toBe(false)
+      return sceneResponse(buildSceneGlb())
+    })
+
+    await expect(
+      prepareNavigation(
+        scene,
+        'wss://metatell-dev.app',
+        { fetch: assetFetch },
+        { sceneAccessCookies: new SceneAccessCookieStore({ fetch: cookieFetch }) },
+      ),
+    ).resolves.toMatchObject({ status: 'prepared' })
+    expect(cookieFetch).toHaveBeenCalledOnce()
+    expect(assetFetch).toHaveBeenCalledOnce()
+  })
+
+  it('reports the asset response when cookie sync and the protected request both fail', async () => {
+    const cookieFetch = vi.fn(async () => new Response('{}', { status: 500 }))
+    const assetFetch = vi.fn(async () => new Response('{}', { status: 403 }))
+
+    await expect(
+      prepareNavigation(
+        scene,
+        'wss://metatell-dev.app',
+        { fetch: assetFetch },
+        { sceneAccessCookies: new SceneAccessCookieStore({ fetch: cookieFetch }) },
+      ),
+    ).rejects.toMatchObject({
+      code: 'SCENE_FETCH_FAILED',
+      retryable: false,
+      message: 'The scene asset request failed with HTTP 403.',
+    })
+    expect(cookieFetch).toHaveBeenCalledOnce()
+    expect(assetFetch).toHaveBeenCalledOnce()
   })
 
   it('uses validators only for the same resource and accepts 304 responses', async () => {

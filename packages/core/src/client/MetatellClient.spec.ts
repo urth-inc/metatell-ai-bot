@@ -9,6 +9,7 @@ import type { IConnectionManager } from '../interfaces/IConnectionManager.js'
 import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IPresenceManager, PresenceUser } from '../interfaces/IPresenceManager.js'
 import type { IUserAvatarManager, UserAvatar } from '../interfaces/IUserAvatarManager.js'
+import type { SceneAccessCookieStore } from '../navigation/signedCookie.js'
 import {
   type CreateClientOptions,
   createMetatellClient,
@@ -75,10 +76,57 @@ interface ClientInternals {
   connectionManager: IConnectionManager
   eventBus: IEventBus
   presenceManager: IPresenceManager
+  sceneAccessCookies: SceneAccessCookieStore
   userAvatarManager: IUserAvatarManager
 }
 
 const clientOptions = { serverUrl: 'wss://test.metatell.app', roomId: 'test-room' }
+
+describe('MetatellClientImpl navigation access', () => {
+  it('keeps the authenticated cookie fetch private and clears its store on disconnect', async () => {
+    const internalFetch = vi.fn<typeof globalThis.fetch>()
+    vi.stubGlobal('fetch', internalFetch)
+    const client = createMetatellClient({ ...clientOptions, authToken: 'access-token' })
+    vi.unstubAllGlobals()
+
+    const internals = client as unknown as ClientInternals
+    const privateState = internals.sceneAccessCookies as unknown as {
+      authToken?: string
+      fetchImpl?: typeof globalThis.fetch
+    }
+    expect(privateState.authToken).toBe('access-token')
+    expect(privateState.fetchImpl).toBe(internalFetch)
+
+    vi.spyOn(internals.connectionManager, 'getRoomJoinInfo').mockReturnValue({
+      sessionId: null,
+      scene: {
+        roomId: 'test-room',
+        sceneId: 'scene-1',
+        identity: 'scene-1',
+        modelUrl: 'https://cdn.metatell.app/organizations/urth/scenes/scene-1/scene.glb',
+      },
+    })
+    const cookieGet = vi.spyOn(internals.sceneAccessCookies, 'get').mockResolvedValue([])
+    vi.spyOn(internals.sceneAccessCookies, 'header').mockReturnValue(undefined)
+    const assetFetch = vi.fn(async () => new Response('{}'))
+
+    await expect(client.room.prepareNavigation({ fetch: assetFetch })).rejects.toMatchObject({
+      code: 'SCENE_FORMAT_UNSUPPORTED',
+    })
+    expect(cookieGet).toHaveBeenCalledOnce()
+    expect(assetFetch).toHaveBeenCalledOnce()
+    expect(internalFetch).not.toHaveBeenCalled()
+
+    const clear = vi.spyOn(internals.sceneAccessCookies, 'clear')
+    const disconnect = vi
+      .spyOn(internals.connectionManager, 'disconnect')
+      .mockResolvedValue(undefined)
+    await client.disconnect()
+    expect(clear).toHaveBeenCalledOnce()
+    expect(disconnect).toHaveBeenCalledOnce()
+    expect(clear.mock.invocationCallOrder[0]).toBeLessThan(disconnect.mock.invocationCallOrder[0])
+  })
+})
 
 describe('MetatellClientImpl user bot markers', () => {
   it('should expose the presence bot marker through chat and lifecycle events', () => {
