@@ -1,11 +1,7 @@
 // Core Service Factory (内部実装のメインエントリーポイント)
 
 // NAF Message Builder (ユーティリティ)
-export type {
-  NafAvatarConfig,
-  NafDataType,
-  NafMessage,
-} from './builders/NafMessageBuilder.js'
+export type { NafAvatarConfig, NafDataType, NafMessage } from './builders/NafMessageBuilder.js'
 export { NafComponentId, NafMessageBuilder } from './builders/NafMessageBuilder.js'
 export { CoreServiceFactory } from './CoreServiceFactory.js'
 // Client implementation
@@ -54,20 +50,14 @@ export {
 export { ConnectionManager, type IConnectionManager } from './interfaces/IConnectionManager.js'
 export { EventBus, type IEventBus, SystemEvents } from './interfaces/IEventBus.js'
 export { type IMessageService, MessageService } from './interfaces/IMessageService.js'
-export type {
-  OrganizationAvatar,
-  OrganizationInfo,
-} from './interfaces/IOrganizationService.js'
+export type { OrganizationAvatar, OrganizationInfo } from './interfaces/IOrganizationService.js'
 export {
   type IOrganizationService,
   OrganizationService,
 } from './interfaces/IOrganizationService.js'
 export type { PresenceUser } from './interfaces/IPresenceManager.js'
 export { type IPresenceManager, PresenceManager } from './interfaces/IPresenceManager.js'
-export type {
-  UserAvatar,
-  UserAvatarEvent,
-} from './interfaces/IUserAvatarManager.js'
+export type { UserAvatar, UserAvatarEvent } from './interfaces/IUserAvatarManager.js'
 export { type IUserAvatarManager, UserAvatarManager } from './interfaces/IUserAvatarManager.js'
 export type {
   IWebSocketConnectionManager,

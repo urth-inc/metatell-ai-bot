@@ -146,13 +146,13 @@ export class CoreServiceFactory {
    * @returns Service instance
    */
   // Overload for interface tokens (abstract classes extending ServiceIdentifier)
-  // biome-ignore lint/suspicious/noExplicitAny: Required for type inference with abstract classes
+  // oxlint-disable-next-line typescript/no-explicit-any -- Required for type inference with abstract classes
   public getService<T>(key: abstract new (...args: any[]) => ServiceIdentifier<T>): T
   // Overload for concrete classes
-  // biome-ignore lint/suspicious/noExplicitAny: Required for type inference with concrete classes
+  // oxlint-disable-next-line typescript/no-explicit-any -- Required for type inference with concrete classes
   public getService<C extends new (...args: any[]) => any>(key: C): InstanceType<C>
   // Implementation
-  // biome-ignore lint/suspicious/noExplicitAny: Implementation signature must be broad to cover all overloads
+  // oxlint-disable-next-line typescript/no-explicit-any -- Implementation signature must be broad to cover all overloads
   public getService(key: any): any {
     return this.container.get(key)
   }

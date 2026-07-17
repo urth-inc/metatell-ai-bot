@@ -68,13 +68,13 @@ export class ServiceContainer {
    * const appSettings = container.get(AppSettings) // Type is inferred as IAppSettings
    */
   // Overload for interface tokens (abstract classes extending ServiceIdentifier)
-  // biome-ignore lint/suspicious/noExplicitAny: Required for type inference with abstract classes
+  // oxlint-disable-next-line typescript/no-explicit-any -- Required for type inference with abstract classes
   get<T>(key: abstract new (...args: any[]) => ServiceIdentifier<T>): T
   // Overload for concrete classes
-  // biome-ignore lint/suspicious/noExplicitAny: Required for type inference with concrete classes
+  // oxlint-disable-next-line typescript/no-explicit-any -- Required for type inference with concrete classes
   get<C extends new (...args: any[]) => any>(key: C): InstanceType<C>
   // Implementation
-  // biome-ignore lint/suspicious/noExplicitAny: Implementation signature must be broad to cover all overloads
+  // oxlint-disable-next-line typescript/no-explicit-any -- Implementation signature must be broad to cover all overloads
   get(key: any): any {
     const options = this.options.get(key as ServiceKey<unknown>)
 

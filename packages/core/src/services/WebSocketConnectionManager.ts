@@ -9,7 +9,7 @@ if (typeof global !== 'undefined') {
   }
 
   if (!g.WebSocket) {
-    // biome-ignore lint/suspicious/noExplicitAny: ws library provides a compatible WebSocket implementation for Node.js
+    // oxlint-disable-next-line typescript/no-explicit-any -- ws library provides a compatible WebSocket implementation for Node.js
     g.WebSocket = WebSocketImpl as any
   }
 }

@@ -147,8 +147,9 @@ export interface FaceSnapshotEnabledComponent extends NAFComponent<boolean> {}
  * Face snapshot component (ID: 13)
  * Note: Also used for VRM avatar status (animation state) for compatibility
  */
-export interface FaceSnapshotComponent
-  extends NAFComponent<FaceSnapshotData | { status: string; animationRunId: string }> {}
+export interface FaceSnapshotComponent extends NAFComponent<
+  FaceSnapshotData | { status: string; animationRunId: string }
+> {}
 
 /**
  * Alias for FaceSnapshot when used for VRM avatar status
