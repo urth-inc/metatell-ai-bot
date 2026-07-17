@@ -23,6 +23,7 @@ export default defineConfig({
       'packages/*/src/**/*.{test,spec}.ts',
       'packages/*/tests/e2e/**/*.test.ts',
       'test-utils/**/*.{test,spec}.ts',
+      'scripts/**/*.{test,spec}.ts',
     ],
   },
   resolve: {
