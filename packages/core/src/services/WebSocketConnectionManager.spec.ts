@@ -17,24 +17,31 @@ import { WebSocketConnectionManager } from './WebSocketConnectionManager.js'
 
 // Mock Phoenix Socket and Channel
 vi.mock('phoenix', () => {
-  const MockChannel = vi.fn().mockImplementation(() => ({
-    join: vi.fn().mockReturnValue({
-      receive: vi.fn().mockReturnThis(),
-    }),
-    leave: vi.fn(),
-    on: vi.fn(),
-    push: vi.fn(),
-  }))
+  const MockChannel = vi.fn().mockImplementation(function MockChannel() {
+    return {
+      join: vi.fn().mockReturnValue({
+        receive: vi.fn().mockReturnThis(),
+      }),
+      leave: vi.fn(),
+      on: vi.fn(),
+      push: vi.fn(),
+    }
+  })
 
-  const MockSocket = vi.fn().mockImplementation((_url: string, _options: SocketOptions) => ({
-    connect: vi.fn(),
-    disconnect: vi.fn(),
-    isConnected: vi.fn(() => false),
-    channel: vi.fn(() => new MockChannel()),
-    onOpen: vi.fn(),
-    onClose: vi.fn(),
-    onError: vi.fn(),
-  }))
+  const MockSocket = vi.fn().mockImplementation(function MockSocket(
+    _url: string,
+    _options: SocketOptions,
+  ) {
+    return {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      isConnected: vi.fn(() => false),
+      channel: vi.fn(() => new MockChannel()),
+      onOpen: vi.fn(),
+      onClose: vi.fn(),
+      onError: vi.fn(),
+    }
+  })
 
   return { Socket: MockSocket, Channel: MockChannel }
 })
@@ -119,7 +126,9 @@ describe('WebSocketConnectionManager', () => {
         onError: vi.fn(),
       }
 
-      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
+      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(function Socket() {
+        return mockSocketInstance
+      })
       mockSocket = mockSocketInstance
 
       const config = {
@@ -152,7 +161,9 @@ describe('WebSocketConnectionManager', () => {
         onError: vi.fn(),
       }
 
-      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
+      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(function Socket() {
+        return mockSocketInstance
+      })
 
       const config = {
         serverUrl: 'https://test.app/auth',
@@ -206,7 +217,9 @@ describe('WebSocketConnectionManager', () => {
         onError: vi.fn(),
       }
 
-      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
+      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(function Socket() {
+        return mockSocketInstance
+      })
 
       const config = {
         serverUrl: 'https://test.app/auth',
@@ -246,7 +259,9 @@ describe('WebSocketConnectionManager', () => {
         onError: vi.fn(),
       }
 
-      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
+      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(function Socket() {
+        return mockSocketInstance
+      })
 
       await connectionManager.connect({
         serverUrl: 'https://test.app/auth',
@@ -295,7 +310,9 @@ describe('WebSocketConnectionManager', () => {
         onError: vi.fn(),
       }
 
-      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
+      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(function Socket() {
+        return mockSocketInstance
+      })
 
       // Connect successfully
       await connectionManager.connect({
@@ -337,7 +354,9 @@ describe('WebSocketConnectionManager', () => {
         onError: vi.fn(),
       }
 
-      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
+      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(function Socket() {
+        return mockSocketInstance
+      })
 
       await connectionManager.connect({
         serverUrl: 'https://test.app/auth',
@@ -377,7 +396,9 @@ describe('WebSocketConnectionManager', () => {
         onError: vi.fn(),
       }
 
-      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
+      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(function Socket() {
+        return mockSocketInstance
+      })
 
       await connectionManager.connect({
         serverUrl: 'https://test.app/auth',
@@ -451,7 +472,9 @@ describe('WebSocketConnectionManager', () => {
         onError: vi.fn(),
       }
 
-      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
+      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(function Socket() {
+        return mockSocketInstance
+      })
 
       await connectionManager.connect({
         serverUrl: 'https://test.app/auth',
@@ -483,7 +506,9 @@ describe('WebSocketConnectionManager', () => {
         onError: vi.fn(),
       }
 
-      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
+      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(function Socket() {
+        return mockSocketInstance
+      })
 
       connectionManager
         .connect({
@@ -513,7 +538,9 @@ describe('WebSocketConnectionManager', () => {
         }),
       }
 
-      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
+      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(function Socket() {
+        return mockSocketInstance
+      })
 
       connectionManager
         .connect({
@@ -544,7 +571,9 @@ describe('WebSocketConnectionManager', () => {
         onError: vi.fn(),
       }
 
-      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
+      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(function Socket() {
+        return mockSocketInstance
+      })
 
       connectionManager
         .connect({
@@ -589,7 +618,9 @@ describe('WebSocketConnectionManager', () => {
         onError: vi.fn(),
       }
 
-      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocketInstance)
+      ;(Socket as ReturnType<typeof vi.fn>).mockImplementation(function Socket() {
+        return mockSocketInstance
+      })
 
       await connectionManager.connect({
         serverUrl: 'https://test.app/auth',

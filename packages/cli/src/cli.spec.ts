@@ -36,7 +36,7 @@ const createMockProgram = () => {
 let mockProgram: ReturnType<typeof createMockProgram> | null
 
 vi.mock('commander', () => ({
-  Command: vi.fn(() => {
+  Command: vi.fn(function Command() {
     mockProgram = createMockProgram()
     return mockProgram
   }),

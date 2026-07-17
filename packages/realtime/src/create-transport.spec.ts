@@ -4,14 +4,16 @@ import { createRealtimeTransport } from './create-transport.js'
 
 // Mock LiveKitAdapter since it has external dependencies
 vi.mock('./livekit.js', () => ({
-  LiveKitAdapter: vi.fn(() => ({
-    state: 'idle',
-    connect: vi.fn(),
-    disconnect: vi.fn(),
-    on: vi.fn(),
-    off: vi.fn(),
-    sendAudio: vi.fn(),
-  })),
+  LiveKitAdapter: vi.fn(function LiveKitAdapter() {
+    return {
+      state: 'idle',
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      sendAudio: vi.fn(),
+    }
+  }),
 }))
 
 describe('createRealtimeTransport', () => {
