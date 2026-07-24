@@ -170,6 +170,91 @@ describe('UserAvatarManager', () => {
       )
     })
 
+    it('should handle NAF update message (dataType: um) so bots can observe other bots', () => {
+      const nafHandler = findMockCall(
+        mockMessageService.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'naf',
+      )?.[1] as (data: unknown) => void
+
+      const movedHandler = vi.fn()
+      userAvatarManager.on('userMoved', movedHandler)
+
+      // First, create a user with NAF create message to establish baseline
+      nafHandler({
+        dataType: 'u',
+        data: {
+          networkId: 'bot-789',
+          owner: 'bot-789',
+          components: {
+            '0': { isVector3: true, x: 1, y: 0, z: 1 },
+          },
+        },
+      })
+
+      vi.clearAllMocks()
+
+      // Bot SDK sends position updates as 'um' over the unreliable 'naf' event
+      // (same multi-data shape as NafMessageBuilder.build() produces)
+      nafHandler({
+        dataType: 'um',
+        data: {
+          d: [
+            {
+              networkId: 'bot-789',
+              owner: 'bot-789',
+              creator: 'bot-789',
+              components: {
+                '0': { isVector3: true, x: 3, y: 0, z: 7 },
+              },
+            },
+          ],
+        },
+      })
+
+      expect(movedHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'bot-789',
+          position: { x: 3, y: 0, z: 7 },
+        }),
+      )
+      expect(userAvatarManager.getUser('bot-789')).toEqual(
+        expect.objectContaining({ position: { x: 3, y: 0, z: 7 } }),
+      )
+    })
+
+    it('should create an unknown user from NAF update message (dataType: um)', () => {
+      const nafHandler = findMockCall(
+        mockMessageService.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'naf',
+      )?.[1] as (data: unknown) => void
+
+      const joinedHandler = vi.fn()
+      userAvatarManager.on('userJoined', joinedHandler)
+
+      nafHandler({
+        dataType: 'um',
+        data: {
+          d: [
+            {
+              networkId: 'bot-new',
+              owner: 'bot-new',
+              creator: 'bot-new',
+              components: {
+                '0': { isVector3: true, x: 2, y: 0, z: 4 },
+              },
+            },
+          ],
+        },
+      })
+
+      expect(joinedHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'bot-new',
+          position: { x: 2, y: 0, z: 4 },
+        }),
+      )
+    })
+
     it('should calculate quaternion w component', () => {
       const nafHandler = findMockCall(
         mockMessageService.on as ReturnType<typeof vi.fn>,
