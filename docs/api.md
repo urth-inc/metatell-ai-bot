@@ -112,8 +112,9 @@ client.on('user-moved', (user) => {
 client.on('voice:mute-changed', ({ muted }) => {})
 ```
 
-Position updates are pushed over NAF. `getNearbyUsers()` reads a snapshot of
-the same cache.
+Position updates are pushed over NAF. `user.id` is the presence session ID
+(same space as `user-join` / `user-leave`) when it can be resolved.
+`getNearbyUsers()` reads a snapshot of the same cache.
 
 Errors are primarily reported by rejected promises. The `error` event type is
 available for integrations that attach their own event sources.

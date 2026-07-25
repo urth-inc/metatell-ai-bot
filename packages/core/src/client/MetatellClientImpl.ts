@@ -392,10 +392,14 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     })
 
     this.userAvatarManager.on('userMoved', (avatar) => {
-      const presenceUser = this.presenceManager.getUser(avatar.id)
+      // Prefer the presence session ID so user-moved matches user-join / user-leave.
+      const sessionId = avatar.sessionId ?? avatar.id
+      const presenceUser =
+        this.presenceManager.getUser(sessionId) ?? this.presenceManager.getUser(avatar.id)
+      const id = presenceUser?.id ?? sessionId
       const user: User = {
-        id: avatar.id,
-        name: avatar.nickname || avatar.id.split('#')[0] || avatar.id,
+        id,
+        name: presenceUser?.profile?.displayName || avatar.nickname || id.split('#')[0] || id,
         isBot: presenceUser?.isBot === true,
         position: avatar.position,
         rotation: avatar.rotation,

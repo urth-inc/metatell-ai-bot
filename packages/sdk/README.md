@@ -181,8 +181,9 @@ client.on('voice:mute-changed', ({ muted }) => {})
 client.on('room-scene-changed', ({ previousIdentity, current }) => {})
 ```
 
-Position updates are pushed over NAF. `getNearbyUsers()` reads a snapshot of
-the same cache.
+Position updates are pushed over NAF. `user.id` is the presence session ID
+(same space as `user-join` / `user-leave`) when it can be resolved.
+`getNearbyUsers()` reads a snapshot of the same cache.
 
 ## Voice
 
