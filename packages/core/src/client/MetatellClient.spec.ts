@@ -177,12 +177,14 @@ describe('MetatellClientImpl user bot markers', () => {
     }
     const botAvatar: UserAvatar = {
       id: bot.id,
+      sessionId: bot.id,
       nickname: 'Guide Bot',
       position: { x: 1, y: 0, z: 0 },
       lastUpdated: 0,
     }
     const humanAvatar: UserAvatar = {
       id: human.id,
+      sessionId: human.id,
       nickname: 'Visitor',
       position: { x: 2, y: 0, z: 0 },
       lastUpdated: 0,
@@ -212,6 +214,55 @@ describe('MetatellClientImpl user bot markers', () => {
     expect(directUsers.map((user) => user.isBot)).toEqual([true, false])
     expect(roomUsers.map((user) => user.isBot)).toEqual([true, false])
     expect(nearbyUsers.map((user) => user.isBot)).toEqual([true, false])
+  })
+
+  it('should resolve nearby users to presence session ids and dedupe dual keys', async () => {
+    const client = createMetatellClient(clientOptions)
+    const internals = client as unknown as ClientInternals
+    const human: PresenceUser = {
+      id: 'session-human',
+      profile: { displayName: 'Visitor' },
+      isBot: false,
+    }
+    const networkAvatar: UserAvatar = {
+      id: 'naf-network',
+      sessionId: human.id,
+      nickname: 'Visitor',
+      position: { x: 2, y: 0, z: 0 },
+      lastUpdated: 1,
+    }
+    const sessionAvatar: UserAvatar = {
+      id: human.id,
+      sessionId: human.id,
+      nickname: 'Visitor',
+      position: { x: 2, y: 0, z: 0 },
+      lastUpdated: 1,
+    }
+    vi.spyOn(internals.presenceManager, 'getUser').mockImplementation((id) =>
+      id === human.id ? human : undefined,
+    )
+    vi.spyOn(internals.avatarController, 'getState').mockReturnValue({
+      networkId: 'self',
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0, w: 1 },
+      avatarId: 'bot-avatar',
+    })
+    vi.spyOn(internals.userAvatarManager, 'getUsersInRange').mockReturnValue([
+      networkAvatar,
+      sessionAvatar,
+    ])
+
+    const nearbyUsers = await client.room.getNearbyUsers(10)
+
+    expect(nearbyUsers).toEqual([
+      {
+        id: human.id,
+        name: 'Visitor',
+        isBot: false,
+        position: { x: 2, y: 0, z: 0 },
+        rotation: undefined,
+      },
+    ])
   })
 })
 

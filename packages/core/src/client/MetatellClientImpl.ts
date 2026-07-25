@@ -22,7 +22,11 @@ import {
   OrganizationService,
 } from '../interfaces/IOrganizationService.js'
 import { type IPresenceManager, PresenceManager } from '../interfaces/IPresenceManager.js'
-import { type IUserAvatarManager, UserAvatarManager } from '../interfaces/IUserAvatarManager.js'
+import {
+  type IUserAvatarManager,
+  type UserAvatar,
+  UserAvatarManager,
+} from '../interfaces/IUserAvatarManager.js'
 import { getLogger } from '../logging/index.js'
 import type { Logger } from '../logging/spi.js'
 import { SceneAccessCookieStore } from '../navigation/signedCookie.js'
@@ -392,20 +396,26 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
     })
 
     this.userAvatarManager.on('userMoved', (avatar) => {
-      // Prefer the presence session ID so user-moved matches user-join / user-leave.
-      const sessionId = avatar.sessionId ?? avatar.id
-      const presenceUser =
-        this.presenceManager.getUser(sessionId) ?? this.presenceManager.getUser(avatar.id)
-      const id = presenceUser?.id ?? sessionId
-      const user: User = {
-        id,
-        name: presenceUser?.profile?.displayName || avatar.nickname || id.split('#')[0] || id,
-        isBot: presenceUser?.isBot === true,
-        position: avatar.position,
-        rotation: avatar.rotation,
-      }
-      this.emit('user-moved', user)
+      this.emit('user-moved', this.toPublicUserFromAvatar(avatar))
     })
+  }
+
+  /**
+   * Convert a UserAvatar cache entry to the public User type.
+   * Prefers the presence session ID so callers can correlate with user-join / user-leave.
+   */
+  private toPublicUserFromAvatar(avatar: UserAvatar): User {
+    const sessionId = avatar.sessionId ?? avatar.id
+    const presenceUser =
+      this.presenceManager.getUser(sessionId) ?? this.presenceManager.getUser(avatar.id)
+    const id = presenceUser?.id ?? sessionId
+    return {
+      id,
+      name: presenceUser?.profile?.displayName || avatar.nickname || id.split('#')[0] || id,
+      isBot: presenceUser?.isBot === true,
+      position: avatar.position,
+      rotation: avatar.rotation,
+    }
   }
 
   private async resyncAvatarForNewUser(): Promise<void> {
@@ -578,14 +588,16 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       // Get users within range from UserAvatarManager.
       const nearbyAvatars = this.userAvatarManager.getUsersInRange(currentPosition, radius)
 
-      // Convert UserAvatar values to the User type.
-      return nearbyAvatars.map((avatar) => ({
-        id: avatar.id,
-        name: avatar.nickname || avatar.id.split('#')[0] || avatar.id,
-        isBot: this.presenceManager.getUser(avatar.id)?.isBot === true,
-        position: avatar.position,
-        rotation: avatar.rotation,
-      }))
+      // Convert to User, prefer session IDs, and drop NAF/presence dual-key duplicates.
+      const seen = new Set<string>()
+      const users: User[] = []
+      for (const avatar of nearbyAvatars) {
+        const user = this.toPublicUserFromAvatar(avatar)
+        if (seen.has(user.id)) continue
+        seen.add(user.id)
+        users.push(user)
+      }
+      return users
     },
   }
 
