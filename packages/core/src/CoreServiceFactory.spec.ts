@@ -31,86 +31,108 @@ vi.mock('./logging/index.js', () => ({
 
 // Mock all service implementations
 vi.mock('./services/AnimationService.js', () => ({
-  AnimationService: vi.fn().mockImplementation(() => ({
-    initialize: vi.fn(),
-  })),
+  AnimationService: vi.fn().mockImplementation(function AnimationService() {
+    return {
+      initialize: vi.fn(),
+    }
+  }),
 }))
 
 vi.mock('./services/AppSettings.js', () => ({
-  AppSettings: vi.fn().mockImplementation(() => ({
-    setLogLevel: vi.fn(),
-    setDebugMode: vi.fn(),
-  })),
+  AppSettings: vi.fn().mockImplementation(function AppSettings() {
+    return {
+      setLogLevel: vi.fn(),
+      setDebugMode: vi.fn(),
+    }
+  }),
 }))
 
 vi.mock('./services/AuthenticationService.js', () => ({
-  AuthenticationService: vi.fn().mockImplementation(() => ({
-    authenticate: vi.fn(),
-  })),
+  AuthenticationService: vi.fn().mockImplementation(function AuthenticationService() {
+    return {
+      authenticate: vi.fn(),
+    }
+  }),
 }))
 
 vi.mock('./services/AvatarController.js', () => ({
-  AvatarController: vi.fn().mockImplementation(() => ({
-    spawn: vi.fn(),
-    move: vi.fn(),
-  })),
+  AvatarController: vi.fn().mockImplementation(function AvatarController() {
+    return {
+      spawn: vi.fn(),
+      move: vi.fn(),
+    }
+  }),
 }))
 
 vi.mock('./services/ConfigurationProvider.js', () => ({
-  ConfigurationProvider: vi.fn().mockImplementation(() => ({
-    getConfiguration: vi.fn().mockReturnValue({
-      serverUrl: 'wss://test.server',
-      hubUrl: 'https://test.server',
-      hubId: 'test-hub',
-      token: 'test-token',
-      profile: {
-        displayName: 'TestBot',
-        avatarId: 'test-avatar',
-      },
-    }),
-  })),
+  ConfigurationProvider: vi.fn().mockImplementation(function ConfigurationProvider() {
+    return {
+      getConfiguration: vi.fn().mockReturnValue({
+        serverUrl: 'wss://test.server',
+        hubUrl: 'https://test.server',
+        hubId: 'test-hub',
+        token: 'test-token',
+        profile: {
+          displayName: 'TestBot',
+          avatarId: 'test-avatar',
+        },
+      }),
+    }
+  }),
 }))
 
 vi.mock('./services/EventBus.js', () => ({
-  EventBus: vi.fn().mockImplementation(() => ({
-    on: vi.fn(),
-    emit: vi.fn(),
-    off: vi.fn(),
-  })),
+  EventBus: vi.fn().mockImplementation(function EventBus() {
+    return {
+      on: vi.fn(),
+      emit: vi.fn(),
+      off: vi.fn(),
+    }
+  }),
 }))
 
 vi.mock('./services/MessageService.js', () => ({
-  MessageService: vi.fn().mockImplementation(() => ({
-    sendMessage: vi.fn(),
-  })),
+  MessageService: vi.fn().mockImplementation(function MessageService() {
+    return {
+      sendMessage: vi.fn(),
+    }
+  }),
 }))
 
 vi.mock('./services/OrganizationService.js', () => ({
-  OrganizationService: vi.fn().mockImplementation(() => ({
-    getOrganizationInfo: vi.fn(),
-    fetchOrganizationAvatars: vi.fn(),
-  })),
+  OrganizationService: vi.fn().mockImplementation(function OrganizationService() {
+    return {
+      getOrganizationInfo: vi.fn(),
+      fetchOrganizationAvatars: vi.fn(),
+    }
+  }),
 }))
 
 vi.mock('./services/PresenceManager.js', () => ({
-  PresenceManager: vi.fn().mockImplementation(() => ({
-    getUsers: vi.fn(),
-    updatePresence: vi.fn(),
-  })),
+  PresenceManager: vi.fn().mockImplementation(function PresenceManager() {
+    return {
+      getUsers: vi.fn(),
+      updatePresence: vi.fn(),
+    }
+  }),
 }))
 
 vi.mock('./services/UserAvatarManager.js', () => ({
-  UserAvatarManager: vi.fn().mockImplementation(() => ({
-    getUser: vi.fn(),
-    getUsersInRange: vi.fn(),
-  })),
+  UserAvatarManager: vi.fn().mockImplementation(function UserAvatarManager() {
+    return {
+      getUser: vi.fn(),
+      getUsersInRange: vi.fn(),
+    }
+  }),
 }))
 
 vi.mock('./services/WebSocketConnectionManager.js', () => ({
-  WebSocketConnectionManager: vi.fn().mockImplementation(() => ({
-    connect: vi.fn(),
-    disconnect: vi.fn(),
-  })),
+  WebSocketConnectionManager: vi.fn().mockImplementation(function WebSocketConnectionManager() {
+    return {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    }
+  }),
 }))
 
 describe('CoreServiceFactory', () => {

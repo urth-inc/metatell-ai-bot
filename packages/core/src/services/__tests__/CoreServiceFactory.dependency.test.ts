@@ -53,20 +53,22 @@ vi.mock('../AvatarController.js', () => ({
 }))
 
 vi.mock('../ConfigurationProvider.js', () => ({
-  ConfigurationProvider: vi.fn().mockImplementation((config) => ({
-    getConfiguration: vi.fn().mockReturnValue(
-      config || {
-        serverUrl: 'wss://test.server',
-        hubUrl: 'https://test.server',
-        hubId: 'test-hub',
-        token: 'test-token',
-        profile: {
-          displayName: 'TestBot',
-          avatarId: 'test-avatar',
+  ConfigurationProvider: vi.fn().mockImplementation(function ConfigurationProvider(config) {
+    return {
+      getConfiguration: vi.fn().mockReturnValue(
+        config || {
+          serverUrl: 'wss://test.server',
+          hubUrl: 'https://test.server',
+          hubId: 'test-hub',
+          token: 'test-token',
+          profile: {
+            displayName: 'TestBot',
+            avatarId: 'test-avatar',
+          },
         },
-      },
-    ),
-  })),
+      ),
+    }
+  }),
 }))
 
 vi.mock('../EventBus.js', () => ({
