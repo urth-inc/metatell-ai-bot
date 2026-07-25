@@ -52,10 +52,34 @@ describe('buildCommands', () => {
     expect(second.args).toEqual(['--fix', '--max-warnings=0', '--no-error-on-unmatched-pattern'])
   })
 
-  it('appends forwarded file arguments to both commands', () => {
+  it('appends forwarded file arguments after -- to both commands', () => {
     const [first, second] = buildCommands('check', ['a.ts', 'b.ts'])
-    expect(first.args.slice(-2)).toEqual(['a.ts', 'b.ts'])
-    expect(second.args.slice(-2)).toEqual(['a.ts', 'b.ts'])
+    expect(first.args).toEqual(['--check', '--no-error-on-unmatched-pattern', '--', 'a.ts', 'b.ts'])
+    expect(second.args).toEqual([
+      '--max-warnings=0',
+      '--no-error-on-unmatched-pattern',
+      '--',
+      'a.ts',
+      'b.ts',
+    ])
+  })
+
+  it('does not insert -- when no files are provided', () => {
+    const [first, second] = buildCommands('check', [])
+    expect(first.args).not.toContain('--')
+    expect(second.args).not.toContain('--')
+  })
+
+  it('treats option-like filenames as path operands after --', () => {
+    const [first, second] = buildCommands('fix', ['--fix'])
+    expect(first.args).toEqual(['--write', '--no-error-on-unmatched-pattern', '--', '--fix'])
+    expect(second.args).toEqual([
+      '--fix',
+      '--max-warnings=0',
+      '--no-error-on-unmatched-pattern',
+      '--',
+      '--fix',
+    ])
   })
 })
 
@@ -77,6 +101,7 @@ describe('runChecks', () => {
       '/abs/oxfmt/bin/oxfmt',
       '--check',
       '--no-error-on-unmatched-pattern',
+      '--',
       'a.ts',
       'b c.ts',
     ])
@@ -84,6 +109,7 @@ describe('runChecks', () => {
       '/abs/oxlint/bin/oxlint',
       '--max-warnings=0',
       '--no-error-on-unmatched-pattern',
+      '--',
       'a.ts',
       'b c.ts',
     ])

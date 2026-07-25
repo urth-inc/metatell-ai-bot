@@ -8,11 +8,13 @@
     "no-unused-vars": [
       "error",
       {
+        "args": "all",
         "argsIgnorePattern": "^_",
         "caughtErrorsIgnorePattern": "^_",
         "varsIgnorePattern": "^_"
       }
     ],
+    "typescript/no-explicit-any": "error",
     "typescript/no-duplicate-enum-values": "off",
     "unicorn/no-useless-fallback-in-spread": "off"
   },

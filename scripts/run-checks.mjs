@@ -56,9 +56,12 @@ export function buildCommands(mode, files = []) {
   const unmatched = '--no-error-on-unmatched-pattern'
   const oxfmtArgs = mode === 'fix' ? ['--write'] : ['--check']
   const oxlintArgs = mode === 'fix' ? ['--fix', '--max-warnings=0'] : ['--max-warnings=0']
+  // Separate options from path operands so a file named `--fix` (etc.) is not
+  // parsed as a flag. Only emit `--` when there are files to forward.
+  const fileArgs = files.length > 0 ? ['--', ...files] : []
   return [
-    { name: 'oxfmt', pkg: 'oxfmt', bin: 'oxfmt', args: [...oxfmtArgs, unmatched, ...files] },
-    { name: 'oxlint', pkg: 'oxlint', bin: 'oxlint', args: [...oxlintArgs, unmatched, ...files] },
+    { name: 'oxfmt', pkg: 'oxfmt', bin: 'oxfmt', args: [...oxfmtArgs, unmatched, ...fileArgs] },
+    { name: 'oxlint', pkg: 'oxlint', bin: 'oxlint', args: [...oxlintArgs, unmatched, ...fileArgs] },
   ]
 }
 
