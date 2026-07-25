@@ -11,7 +11,7 @@
     "check": "node scripts/run-checks.mjs check",
     "check:fix": "node scripts/run-checks.mjs fix",
     "typecheck": "tsc --build",
-    "clean": "pnpm -r clean",
+    "clean": "pnpm -r run clean",
     "changeset": "changeset",
     "bumpup": "changeset version",
     "release": "pnpm build && changeset publish",
@@ -38,5 +38,5 @@
     "type": "git",
     "url": "https://github.com/urth-inc/metatell-ai-bot"
   },
-  "packageManager": "pnpm@10.34.5"
+  "packageManager": "pnpm@11.15.0"
 }
