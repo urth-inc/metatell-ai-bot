@@ -10,7 +10,21 @@ function pad4(value: number): number {
   return (value + 3) & ~3
 }
 
-function buildSceneGlb(options: { navMesh?: boolean; secondNavMesh?: boolean } = {}): Uint8Array {
+interface MutableSceneGlb {
+  scene?: number
+  scenes: Array<{ nodes: number[] }>
+  nodes: Array<Record<string, unknown>>
+  meshes: Array<{ primitives: Array<Record<string, unknown>> }>
+  accessors: Array<Record<string, unknown>>
+}
+
+interface BuildSceneGlbOptions {
+  navMesh?: boolean
+  secondNavMesh?: boolean
+  configure?: (json: MutableSceneGlb) => void
+}
+
+function buildSceneGlb(options: BuildSceneGlbOptions = {}): Uint8Array {
   const positions = new Float32Array([0, 0, 0, 2, 0, 0, 2, 1, 2, 0, 1, 2])
   const indices = new Uint16Array([0, 1, 2, 0, 2, 3])
   const binaryLength = pad4(positions.byteLength + indices.byteLength)
@@ -107,6 +121,7 @@ function buildSceneGlb(options: { navMesh?: boolean; secondNavMesh?: boolean } =
     buffers: [{ byteLength: binaryLength }],
     extensionsUsed: ['MOZ_hubs_components', 'HUBS_components'],
   }
+  options.configure?.(json)
   const jsonBytes = new TextEncoder().encode(JSON.stringify(json))
   const jsonLength = pad4(jsonBytes.byteLength)
   const totalLength = 12 + 8 + jsonLength + 8 + binaryLength
@@ -124,6 +139,10 @@ function buildSceneGlb(options: { navMesh?: boolean; secondNavMesh?: boolean } =
   view.setUint32(binaryHeader + 4, 0x004e4942, true)
   glb.set(binary, binaryHeader + 8)
   return glb
+}
+
+function translatedPositions(x: number): number[] {
+  return [x, 0, 0, x + 2, 0, 0, x + 2, 1, 2, x, 1, 2]
 }
 
 const scene: RoomSceneInfo = {
@@ -426,18 +445,170 @@ describe('prepareNavigation', () => {
     ).rejects.toBeInstanceOf(NavigationError)
   })
 
-  it('does not fall back when navmesh data is absent or unsupported', async () => {
+  it('reports when the default scene has no nav mesh', async () => {
     await expect(
       prepareNavigation(scene, 'wss://metatell-dev.app', {
         fetch: vi.fn(async () => sceneResponse(buildSceneGlb({ navMesh: false }))),
       }),
     ).rejects.toMatchObject({ code: 'NAV_MESH_NOT_FOUND' })
+  })
 
+  it('selects the first nav mesh marker in default-scene preorder', async () => {
+    const result = await prepareNavigation(scene, 'wss://metatell-dev.app', {
+      fetch: vi.fn(async () =>
+        sceneResponse(
+          buildSceneGlb({
+            secondNavMesh: true,
+            configure: (json) => {
+              const firstMarkerIndex = json.nodes.length - 1
+              json.nodes[firstMarkerIndex].translation = [10, 0, 0]
+              const firstBranchIndex =
+                json.nodes.push({
+                  name: 'First Branch',
+                  translation: [1, 0, 0],
+                  children: [firstMarkerIndex],
+                }) - 1
+              json.scenes[0].nodes = [firstBranchIndex, 0, 2, 3, 4]
+            },
+          }),
+        ),
+      ),
+    })
+
+    expect(result.status).toBe('prepared')
+    if (result.status !== 'prepared') return
+    expect(Array.from(result.snapshot.positions)).toEqual(translatedPositions(11))
+  })
+
+  it('uses the first mesh in the selected marker subtree', async () => {
+    const result = await prepareNavigation(scene, 'wss://metatell-dev.app', {
+      fetch: vi.fn(async () =>
+        sceneResponse(
+          buildSceneGlb({
+            configure: (json) => {
+              delete json.nodes[0].mesh
+              json.nodes[0].translation = [2, 0, 0]
+              const laterMeshIndex =
+                json.nodes.push({ name: 'Later Mesh', mesh: 0, translation: [20, 0, 0] }) - 1
+              const firstMeshIndex =
+                json.nodes.push({ name: 'First Mesh', mesh: 0, translation: [10, 0, 0] }) - 1
+              const groupIndex =
+                json.nodes.push({
+                  name: 'Mesh Group',
+                  translation: [1, 0, 0],
+                  children: [firstMeshIndex, laterMeshIndex],
+                }) - 1
+              json.nodes[0].children = [groupIndex]
+            },
+          }),
+        ),
+      ),
+    })
+
+    expect(result.status).toBe('prepared')
+    if (result.status !== 'prepared') return
+    expect(Array.from(result.snapshot.positions)).toEqual(translatedPositions(13))
+  })
+
+  it('does not fall back to a later marker when the first marker has no mesh', async () => {
     await expect(
       prepareNavigation(scene, 'wss://metatell-dev.app', {
-        fetch: vi.fn(async () => sceneResponse(buildSceneGlb({ secondNavMesh: true }))),
+        fetch: vi.fn(async () =>
+          sceneResponse(
+            buildSceneGlb({
+              secondNavMesh: true,
+              configure: (json) => {
+                delete json.nodes[0].mesh
+              },
+            }),
+          ),
+        ),
       }),
-    ).rejects.toMatchObject({ code: 'NAV_MESH_UNSUPPORTED' })
+    ).rejects.toMatchObject({ code: 'NAV_MESH_INVALID' })
+  })
+
+  it('ignores nav mesh markers outside the default scene', async () => {
+    const result = await prepareNavigation(scene, 'wss://metatell-dev.app', {
+      fetch: vi.fn(async () =>
+        sceneResponse(
+          buildSceneGlb({
+            configure: (json) => {
+              delete json.nodes[0].mesh
+              const defaultMarkerIndex =
+                json.nodes.push({
+                  name: 'Default Scene Nav Mesh',
+                  mesh: 0,
+                  translation: [30, 0, 0],
+                  extensions: { MOZ_hubs_components: { 'nav-mesh': {} } },
+                }) - 1
+              json.scenes.push({ nodes: [defaultMarkerIndex] })
+              json.scene = 1
+            },
+          }),
+        ),
+      ),
+    })
+
+    expect(result.status).toBe('prepared')
+    if (result.status !== 'prepared') return
+    expect(Array.from(result.snapshot.positions)).toEqual(translatedPositions(30))
+    expect(result.snapshot.spawnPoints).toEqual([])
+  })
+
+  it('skips non-mesh primitives and uses only the first mesh primitive', async () => {
+    const result = await prepareNavigation(scene, 'wss://metatell-dev.app', {
+      fetch: vi.fn(async () =>
+        sceneResponse(
+          buildSceneGlb({
+            configure: (json) => {
+              json.meshes[0].primitives.unshift({
+                attributes: { POSITION: 0 },
+                indices: 1,
+                mode: 1,
+              })
+              const laterIndexAccessor =
+                json.accessors.push({
+                  bufferView: 1,
+                  componentType: 5123,
+                  count: 3,
+                  type: 'SCALAR',
+                  min: [0],
+                  max: [2],
+                }) - 1
+              json.meshes[0].primitives.push({
+                attributes: { POSITION: 0 },
+                indices: laterIndexAccessor,
+                mode: 4,
+              })
+            },
+          }),
+        ),
+      ),
+    })
+
+    expect(result.status).toBe('prepared')
+    if (result.status !== 'prepared') return
+    expect(result.snapshot.triangleCount).toBe(2)
+    expect(Array.from(result.snapshot.positions)).toEqual(translatedPositions(0))
+  })
+
+  it('does not skip the first nav mesh marker based on its zone', async () => {
+    await expect(
+      prepareNavigation(scene, 'wss://metatell-dev.app', {
+        fetch: vi.fn(async () =>
+          sceneResponse(
+            buildSceneGlb({
+              secondNavMesh: true,
+              configure: (json) => {
+                json.nodes[0].extensions = {
+                  MOZ_hubs_components: { 'nav-mesh': { zone: 'secondary' } },
+                }
+              },
+            }),
+          ),
+        ),
+      }),
+    ).rejects.toMatchObject({ code: 'NAV_MESH_NOT_FOUND' })
   })
 
   it('preserves caller cancellation as a standard AbortError', async () => {
