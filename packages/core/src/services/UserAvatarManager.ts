@@ -141,6 +141,10 @@ export class UserAvatarManager implements IUserAvatarManager {
       // 新規アバター作成
       const data = message.data as NAFComponent
       this.updateUserFromNAF(data)
+    } else if (message.dataType === 'um') {
+      // Bot（bot-sdk）はmoveTo/rotateToの位置更新を'naf'イベントの'um'で送信するため、
+      // 'nafr'と同様にここでも処理しないとBot同士が互いの位置を観測できない
+      this.applyMultiUpdate(message)
     }
   }
 
@@ -159,13 +163,17 @@ export class UserAvatarManager implements IUserAvatarManager {
     }
 
     if (parsedMessage.dataType === 'um') {
-      // アバター更新
-      const data = parsedMessage.data as { d: NAFComponent[] }
-      if (data.d && Array.isArray(data.d)) {
-        this.logger.debug('[NAF] Processing NAFR updates', { count: data.d.length })
-        for (const component of data.d) {
-          this.updateUserFromNAF(component)
-        }
+      this.applyMultiUpdate(parsedMessage)
+    }
+  }
+
+  // dataType 'um'（複数アバター更新）のdata.dを順に反映する。'naf'と'nafr'の両経路から呼ばれる
+  private applyMultiUpdate(message: NAFMessage): void {
+    const data = message.data as { d: NAFComponent[] }
+    if (data.d && Array.isArray(data.d)) {
+      this.logger.debug('[NAF] Processing avatar updates', { count: data.d.length })
+      for (const component of data.d) {
+        this.updateUserFromNAF(component)
       }
     }
   }
@@ -262,6 +270,7 @@ export class UserAvatarManager implements IUserAvatarManager {
 
     const userAvatar: UserAvatar = {
       id: networkId,
+      sessionId: presenceUser?.id ?? existingUser?.sessionId,
       nickname,
       position: { x: position.x, y: position.y, z: position.z },
       rotation: rotation || { x: 0, y: 0, z: 0, w: 1 },
@@ -438,6 +447,7 @@ export class UserAvatarManager implements IUserAvatarManager {
     if (!this.users.has(user.id)) {
       const userAvatar: UserAvatar = {
         id: user.id,
+        sessionId: user.id,
         nickname: user.profile.displayName || 'Unknown',
         position: { x: 0, y: 0, z: 0 }, // デフォルト位置を設定
         rotation: { x: 0, y: 0, z: 0, w: 1 },

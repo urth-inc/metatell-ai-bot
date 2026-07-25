@@ -177,12 +177,14 @@ describe('MetatellClientImpl user bot markers', () => {
     }
     const botAvatar: UserAvatar = {
       id: bot.id,
+      sessionId: bot.id,
       nickname: 'Guide Bot',
       position: { x: 1, y: 0, z: 0 },
       lastUpdated: 0,
     }
     const humanAvatar: UserAvatar = {
       id: human.id,
+      sessionId: human.id,
       nickname: 'Visitor',
       position: { x: 2, y: 0, z: 0 },
       lastUpdated: 0,
@@ -212,6 +214,151 @@ describe('MetatellClientImpl user bot markers', () => {
     expect(directUsers.map((user) => user.isBot)).toEqual([true, false])
     expect(roomUsers.map((user) => user.isBot)).toEqual([true, false])
     expect(nearbyUsers.map((user) => user.isBot)).toEqual([true, false])
+  })
+
+  it('should resolve nearby users to presence session ids and dedupe dual keys', async () => {
+    const client = createMetatellClient(clientOptions)
+    const internals = client as unknown as ClientInternals
+    const human: PresenceUser = {
+      id: 'session-human',
+      profile: { displayName: 'Visitor' },
+      isBot: false,
+    }
+    const networkAvatar: UserAvatar = {
+      id: 'naf-network',
+      sessionId: human.id,
+      nickname: 'Visitor',
+      position: { x: 2, y: 0, z: 0 },
+      lastUpdated: 1,
+    }
+    const sessionAvatar: UserAvatar = {
+      id: human.id,
+      sessionId: human.id,
+      nickname: 'Visitor',
+      position: { x: 2, y: 0, z: 0 },
+      lastUpdated: 1,
+    }
+    vi.spyOn(internals.presenceManager, 'getUser').mockImplementation((id) =>
+      id === human.id ? human : undefined,
+    )
+    vi.spyOn(internals.avatarController, 'getState').mockReturnValue({
+      networkId: 'self',
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0, w: 1 },
+      avatarId: 'bot-avatar',
+    })
+    vi.spyOn(internals.userAvatarManager, 'getUsersInRange').mockReturnValue([
+      networkAvatar,
+      sessionAvatar,
+    ])
+
+    const nearbyUsers = await client.room.getNearbyUsers(10)
+
+    expect(nearbyUsers).toEqual([
+      {
+        id: human.id,
+        name: 'Visitor',
+        isBot: false,
+        position: { x: 2, y: 0, z: 0 },
+        rotation: undefined,
+      },
+    ])
+  })
+})
+
+describe('MetatellClientImpl user-moved event', () => {
+  const emitUserMoved = (manager: IUserAvatarManager, avatar: UserAvatar) => {
+    ;(
+      manager as unknown as {
+        emit: (event: string, user: UserAvatar) => void
+      }
+    ).emit('userMoved', avatar)
+  }
+
+  it('should emit user-moved with session id when networkId differs from presence', () => {
+    const client = createMetatellClient(clientOptions)
+    const internals = client as unknown as ClientInternals
+    const sessionId = 'session-walker'
+    const networkId = 'naf-network-456'
+    const avatar: UserAvatar = {
+      id: networkId,
+      sessionId,
+      nickname: 'Walker',
+      position: { x: 3, y: 0, z: 4 },
+      rotation: { x: 0, y: 0.7, z: 0, w: 0.7 },
+      lastUpdated: 1,
+    }
+    vi.spyOn(internals.presenceManager, 'getUser').mockImplementation((id) =>
+      id === sessionId
+        ? { id: sessionId, profile: { displayName: 'Walker' }, isBot: false }
+        : undefined,
+    )
+
+    const received: Array<{
+      id: string
+      name: string
+      isBot: boolean
+      position?: { x: number; y: number; z: number }
+      rotation?: { x: number; y: number; z: number; w: number }
+    }> = []
+    client.on('user-moved', (user) => received.push(user))
+
+    emitUserMoved(internals.userAvatarManager, avatar)
+
+    expect(received).toHaveLength(1)
+    expect(received[0]).toEqual({
+      id: sessionId,
+      name: 'Walker',
+      isBot: false,
+      position: { x: 3, y: 0, z: 4 },
+      rotation: { x: 0, y: 0.7, z: 0, w: 0.7 },
+    })
+  })
+
+  it('should mark user-moved payload as bot using the resolved session id', () => {
+    const client = createMetatellClient(clientOptions)
+    const internals = client as unknown as ClientInternals
+    const sessionId = 'bot-session-789'
+    const avatar: UserAvatar = {
+      id: 'naf-bot-network',
+      sessionId,
+      nickname: 'Guide Bot',
+      position: { x: 1, y: 0, z: 0 },
+      lastUpdated: 1,
+    }
+    vi.spyOn(internals.presenceManager, 'getUser').mockImplementation((id) =>
+      id === sessionId
+        ? { id: sessionId, profile: { displayName: 'Guide Bot' }, isBot: true }
+        : undefined,
+    )
+
+    const received: Array<{ id: string; isBot: boolean }> = []
+    client.on('user-moved', (user) => received.push({ id: user.id, isBot: user.isBot }))
+
+    emitUserMoved(internals.userAvatarManager, avatar)
+
+    expect(received).toEqual([{ id: sessionId, isBot: true }])
+  })
+
+  it('should fall back to network id when session id is unresolved', () => {
+    const client = createMetatellClient(clientOptions)
+    const internals = client as unknown as ClientInternals
+    const avatar: UserAvatar = {
+      id: 'naf-orphan',
+      nickname: 'Unknown',
+      position: { x: 0, y: 0, z: 1 },
+      lastUpdated: 1,
+    }
+    vi.spyOn(internals.presenceManager, 'getUser').mockReturnValue(undefined)
+
+    const received: Array<{ id: string; name: string; isBot: boolean }> = []
+    client.on('user-moved', (user) =>
+      received.push({ id: user.id, name: user.name, isBot: user.isBot }),
+    )
+
+    emitUserMoved(internals.userAvatarManager, avatar)
+
+    expect(received).toEqual([{ id: 'naf-orphan', name: 'Unknown', isBot: false }])
   })
 })
 

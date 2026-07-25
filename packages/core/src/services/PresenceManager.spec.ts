@@ -13,12 +13,14 @@ import { PresenceManager } from './PresenceManager.js'
 
 // Mock Phoenix Presence
 vi.mock('phoenix', () => {
-  const MockPresence = vi.fn().mockImplementation((_channel: unknown) => ({
-    onSync: vi.fn(),
-    list: vi.fn(),
-    onJoin: vi.fn(),
-    onLeave: vi.fn(),
-  }))
+  const MockPresence = vi.fn().mockImplementation(function MockPresence(_channel: unknown) {
+    return {
+      onSync: vi.fn(),
+      list: vi.fn(),
+      onJoin: vi.fn(),
+      onLeave: vi.fn(),
+    }
+  })
 
   return { Presence: MockPresence }
 })
