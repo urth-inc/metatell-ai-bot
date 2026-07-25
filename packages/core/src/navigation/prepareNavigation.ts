@@ -38,8 +38,13 @@ const SUPPORTED_GEOMETRY_EXTENSIONS = new Set([
 interface RawNode {
   name?: unknown
   mesh?: unknown
+  children?: unknown
   extras?: Record<string, unknown>
   extensions?: Record<string, unknown>
+}
+
+interface RawScene {
+  nodes?: unknown
 }
 
 interface RawPrimitive {
@@ -64,6 +69,8 @@ interface RawBuffer {
 }
 
 interface RawGltf {
+  scene?: unknown
+  scenes?: RawScene[]
   nodes?: RawNode[]
   meshes?: RawMesh[]
   accessors?: RawAccessor[]
@@ -76,6 +83,11 @@ interface ComponentMarker {
   nodeIndex: number
   name?: string
   components: Record<string, unknown>
+}
+
+interface NavigationMeshSelection {
+  meshNodeIndex: number
+  primitiveIndex: number
 }
 
 interface NavigationLimits {
@@ -431,17 +443,56 @@ function getComponents(node: RawNode): Record<string, unknown> | null {
     : null
 }
 
-function collectMarkers(nodes: RawNode[]): ComponentMarker[] {
+function nodeIndicesInPreorder(nodes: RawNode[], roots: readonly unknown[]): number[] {
+  const ordered: number[] = []
+  const visited = new Set<number>()
+  const pending = [...roots].reverse()
+
+  while (pending.length > 0) {
+    const value = pending.pop()
+    if (
+      typeof value !== 'number' ||
+      !Number.isInteger(value) ||
+      value < 0 ||
+      value >= nodes.length ||
+      visited.has(value)
+    ) {
+      continue
+    }
+
+    visited.add(value)
+    ordered.push(value)
+    const children = nodes[value].children
+    if (!Array.isArray(children)) continue
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      pending.push(children[index])
+    }
+  }
+
+  return ordered
+}
+
+function defaultSceneNodeIndices(raw: RawGltf, nodes: RawNode[]): number[] {
+  const sceneIndex = raw.scene === undefined ? 0 : raw.scene
+  if (typeof sceneIndex !== 'number' || !Number.isInteger(sceneIndex) || sceneIndex < 0) {
+    return []
+  }
+  const roots = raw.scenes?.[sceneIndex]?.nodes
+  return nodeIndicesInPreorder(nodes, Array.isArray(roots) ? roots : [])
+}
+
+function collectMarkers(nodes: RawNode[], nodeIndices: readonly number[]): ComponentMarker[] {
   const markers: ComponentMarker[] = []
-  nodes.forEach((node, nodeIndex) => {
+  for (const nodeIndex of nodeIndices) {
+    const node = nodes[nodeIndex]
     const components = getComponents(node)
-    if (!components) return
+    if (!components) continue
     markers.push({
       nodeIndex,
       name: typeof node.name === 'string' && node.name ? node.name : undefined,
       components,
     })
-  })
+  }
   return markers
 }
 
@@ -451,24 +502,48 @@ function navMeshZone(value: unknown): string {
   return typeof zone === 'string' && zone ? zone : 'character'
 }
 
+function createsMesh(primitive: RawPrimitive): boolean {
+  // Triangle strips and fans also become Mesh objects in a glTF scene. Select
+  // them here before validating supported navigation geometry so a later
+  // primitive is never used as an implicit fallback.
+  const mode = primitive.mode ?? Primitive.Mode.TRIANGLES
+  return (
+    mode === Primitive.Mode.TRIANGLES ||
+    mode === Primitive.Mode.TRIANGLE_STRIP ||
+    mode === Primitive.Mode.TRIANGLE_FAN
+  )
+}
+
+function selectNavigationMesh(
+  raw: RawGltf,
+  marker: ComponentMarker,
+): NavigationMeshSelection | null {
+  const nodes = raw.nodes ?? []
+  for (const nodeIndex of nodeIndicesInPreorder(nodes, [marker.nodeIndex])) {
+    const node = nodes[nodeIndex]
+    if (!Number.isInteger(node.mesh)) continue
+    const primitives = raw.meshes?.[node.mesh as number]?.primitives ?? []
+    const primitiveIndex = primitives.findIndex(createsMesh)
+    if (primitiveIndex >= 0) {
+      return { meshNodeIndex: nodeIndex, primitiveIndex }
+    }
+  }
+  return null
+}
+
 function decodedGeometrySize(
   raw: RawGltf,
-  navNodeIndex: number,
+  selection: NavigationMeshSelection,
 ): { bytes: number; triangles: number } {
-  const node = raw.nodes?.[navNodeIndex]
+  const node = raw.nodes?.[selection.meshNodeIndex]
   if (!node || !Number.isInteger(node.mesh)) {
     throw new NavigationError('NAV_MESH_INVALID', 'The nav mesh node has no mesh.', false)
   }
   const mesh = raw.meshes?.[node.mesh as number]
-  const primitives = mesh?.primitives ?? []
-  if (primitives.length !== 1) {
-    throw new NavigationError(
-      'NAV_MESH_UNSUPPORTED',
-      'Exactly one primitive is supported for the character nav mesh.',
-      false,
-    )
+  const primitive = mesh?.primitives?.[selection.primitiveIndex]
+  if (!primitive) {
+    throw new NavigationError('NAV_MESH_INVALID', 'The nav mesh has no mesh primitive.', false)
   }
-  const primitive = primitives[0]
   const positionIndex = primitive.attributes?.POSITION
   if (!Number.isInteger(positionIndex)) {
     throw new NavigationError('NAV_MESH_INVALID', 'The nav mesh has no POSITION accessor.', false)
@@ -627,24 +702,28 @@ async function parseNavigationSnapshot(
   }
 
   const nodes = raw.nodes ?? []
-  const markers = collectMarkers(nodes)
-  const navMarkers = markers.filter(
-    (marker) =>
-      Object.hasOwn(marker.components, 'nav-mesh') &&
-      navMeshZone(marker.components['nav-mesh']) === 'character',
-  )
-  if (navMarkers.length === 0) {
+  const markers = collectMarkers(nodes, defaultSceneNodeIndices(raw, nodes))
+  const navMarker = markers.find((marker) => Object.hasOwn(marker.components, 'nav-mesh'))
+  if (!navMarker) {
     throw new NavigationError('NAV_MESH_NOT_FOUND', 'No character nav mesh was found.', false)
   }
-  if (navMarkers.length !== 1) {
+  if (navMeshZone(navMarker.components['nav-mesh']) !== 'character') {
     throw new NavigationError(
-      'NAV_MESH_UNSUPPORTED',
-      'Exactly one character nav mesh node is supported.',
+      'NAV_MESH_NOT_FOUND',
+      'The first nav mesh does not provide character navigation.',
+      false,
+    )
+  }
+  const selection = selectNavigationMesh(raw, navMarker)
+  if (!selection) {
+    throw new NavigationError(
+      'NAV_MESH_INVALID',
+      'The first nav mesh marker contains no mesh.',
       false,
     )
   }
 
-  const estimate = decodedGeometrySize(raw, navMarkers[0].nodeIndex)
+  const estimate = decodedGeometrySize(raw, selection)
   if (estimate.bytes > limits.maxDecodedBytes) {
     throw new NavigationError(
       'NAV_MESH_TOO_LARGE',
@@ -684,13 +763,11 @@ async function parseNavigationSnapshot(
     if (typeof index === 'number') nodesByIndex.set(index, node)
   }
 
-  const navNode = nodesByIndex.get(navMarkers[0].nodeIndex)
-  const mesh = navNode?.getMesh()
-  const primitives = mesh?.listPrimitives() ?? []
-  if (!navNode || primitives.length !== 1) {
+  const navNode = nodesByIndex.get(selection.meshNodeIndex)
+  const primitive = navNode?.getMesh()?.listPrimitives()[selection.primitiveIndex]
+  if (!navNode || !primitive) {
     throw new NavigationError('NAV_MESH_INVALID', 'The nav mesh node could not be decoded.', false)
   }
-  const primitive = primitives[0]
   if (primitive.getMode() !== Primitive.Mode.TRIANGLES) {
     throw new NavigationError(
       'NAV_MESH_INVALID',

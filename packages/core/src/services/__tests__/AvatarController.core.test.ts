@@ -105,7 +105,9 @@ describe('AvatarController - Core Functionality', () => {
       build: vi.fn().mockReturnValue({ type: 'naf-message', data: 'test-data' }),
     }
 
-    vi.mocked(NafMessageBuilder).mockImplementation(() => mockNafMessageBuilder)
+    vi.mocked(NafMessageBuilder).mockImplementation(function NafMessageBuilder() {
+      return mockNafMessageBuilder
+    })
 
     avatarController = new AvatarController(
       mockMessageService,

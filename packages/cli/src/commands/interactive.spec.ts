@@ -16,9 +16,11 @@ vi.mock('../utils/url.js', () => ({
 }))
 
 vi.mock('../utils/commands.js', () => ({
-  CommandParser: vi.fn(() => ({
-    execute: vi.fn(),
-  })),
+  CommandParser: vi.fn(function CommandParser() {
+    return {
+      execute: vi.fn(),
+    }
+  }),
 }))
 
 // Mock readline
@@ -31,7 +33,9 @@ interface MockReadline {
 let mockRlInstance: MockReadline
 
 vi.mock('node:readline', () => ({
-  createInterface: vi.fn(() => mockRlInstance),
+  createInterface: vi.fn(function createInterface() {
+    return mockRlInstance
+  }),
 }))
 
 // Mock console
@@ -347,7 +351,9 @@ describe('startInteractiveMode', () => {
     const mockParser = {
       execute: vi.fn().mockResolvedValue({ success: true }),
     }
-    vi.mocked(CommandParser).mockReturnValue(mockParser as ReturnType<typeof CommandParser>)
+    vi.mocked(CommandParser).mockImplementation(function CommandParser() {
+      return mockParser as ReturnType<typeof CommandParser>
+    })
 
     await startInteractiveMode('https://metatell.app/test-room', {})
 

@@ -53,20 +53,22 @@ vi.mock('../AvatarController.js', () => ({
 }))
 
 vi.mock('../ConfigurationProvider.js', () => ({
-  ConfigurationProvider: vi.fn().mockImplementation((config) => ({
-    getConfiguration: vi.fn().mockReturnValue(
-      config || {
-        serverUrl: 'wss://test.server',
-        hubUrl: 'https://test.server',
-        hubId: 'test-hub',
-        token: 'test-token',
-        profile: {
-          displayName: 'TestBot',
-          avatarId: 'test-avatar',
+  ConfigurationProvider: vi.fn().mockImplementation(function ConfigurationProvider(config) {
+    return {
+      getConfiguration: vi.fn().mockReturnValue(
+        config || {
+          serverUrl: 'wss://test.server',
+          hubUrl: 'https://test.server',
+          hubId: 'test-hub',
+          token: 'test-token',
+          profile: {
+            displayName: 'TestBot',
+            avatarId: 'test-avatar',
+          },
         },
-      },
-    ),
-  })),
+      ),
+    }
+  }),
 }))
 
 vi.mock('../EventBus.js', () => ({
@@ -192,14 +194,17 @@ describe('CoreServiceFactory - Dependency Relationships', () => {
         'https://v-air-admin-production.urth.workers.dev',
       ],
       ['fallback', 'not-a-url', 'https://v-air-admin-production.urth.workers.dev'],
-    ])('should inject the %s admin API URL into AnimationService', (_environment, hubUrl, expected) => {
-      factory = new CoreServiceFactory({ ...testConfig, hubUrl })
+    ])(
+      'should inject the %s admin API URL into AnimationService',
+      (_environment, hubUrl, expected) => {
+        factory = new CoreServiceFactory({ ...testConfig, hubUrl })
 
-      factory.getContainer().get(AnimationService)
+        factory.getContainer().get(AnimationService)
 
-      const constructorArgs = vi.mocked(AnimationServiceImpl).mock.calls[0]
-      expect(constructorArgs[1]).toBe(expected)
-    })
+        const constructorArgs = vi.mocked(AnimationServiceImpl).mock.calls[0]
+        expect(constructorArgs[1]).toBe(expected)
+      },
+    )
 
     it('should not use storageUrl as the AnimationService API base', () => {
       factory = new CoreServiceFactory({

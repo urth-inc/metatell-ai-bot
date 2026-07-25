@@ -5,9 +5,13 @@ packages:
 minimumReleaseAge: 10080
 trustPolicy: no-downgrade
 blockExoticSubdeps: true
-onlyBuiltDependencies:
-  - esbuild
-  - sharp
+saveExact: true
+# pnpm 11: onlyBuiltDependencies → allowBuilds (strictDepBuilds defaults to true)
+allowBuilds:
+  esbuild: true
+  lefthook: true
+  protobufjs: true
+  sharp: true
 minimumReleaseAgeExclude:
   # Renovate security update: happy-dom@20.8.9
   - happy-dom@20.8.9

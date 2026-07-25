@@ -170,6 +170,265 @@ describe('UserAvatarManager', () => {
       )
     })
 
+    it('should preserve the resolved presence session id across avatar aliases', () => {
+      const nafHandler = findMockCall(
+        mockMessageService.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'naf',
+      )?.[1] as (data: unknown) => void
+      const nafrHandler = findMockCall(
+        mockMessageService.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'nafr',
+      )?.[1] as (data: unknown) => void
+      const presenceUser = {
+        id: 'session-user',
+        profile: { displayName: 'Session User' },
+      }
+      mockPresenceManager.getUsers = vi.fn().mockReturnValue([presenceUser])
+      mockPresenceManager.getUser = vi.fn((id: string) =>
+        id === presenceUser.id ? presenceUser : undefined,
+      )
+      const movedHandler = vi.fn()
+      userAvatarManager.on('userMoved', movedHandler)
+
+      nafHandler({
+        dataType: 'u',
+        data: {
+          networkId: 'naf-network-id',
+          owner: presenceUser.id,
+          creator: presenceUser.id,
+          template: '#remote-avatar',
+          components: {
+            '0': { x: 1, y: 0, z: 0 },
+          },
+        },
+      })
+
+      expect(userAvatarManager.getUser('naf-network-id')).toEqual(
+        expect.objectContaining({
+          id: 'naf-network-id',
+          sessionId: presenceUser.id,
+          position: { x: 1, y: 0, z: 0 },
+        }),
+      )
+      expect(userAvatarManager.getUser(presenceUser.id)).toEqual(
+        expect.objectContaining({
+          id: presenceUser.id,
+          sessionId: presenceUser.id,
+          position: { x: 1, y: 0, z: 0 },
+        }),
+      )
+
+      nafrHandler({
+        naf: JSON.stringify({
+          dataType: 'um',
+          data: {
+            d: [
+              {
+                networkId: 'naf-network-id',
+                owner: presenceUser.id,
+                creator: presenceUser.id,
+                template: '#remote-avatar',
+                components: {
+                  '0': { x: 2, y: 0, z: 0 },
+                },
+              },
+            ],
+          },
+        }),
+      })
+
+      expect(movedHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'naf-network-id',
+          sessionId: presenceUser.id,
+          position: { x: 2, y: 0, z: 0 },
+        }),
+      )
+      expect(userAvatarManager.getUser(presenceUser.id)?.position).toEqual({
+        x: 2,
+        y: 0,
+        z: 0,
+      })
+    })
+
+    it('should handle NAF update message (dataType: um) so bots can observe other bots', () => {
+      const nafHandler = findMockCall(
+        mockMessageService.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'naf',
+      )?.[1] as (data: unknown) => void
+
+      const movedHandler = vi.fn()
+      userAvatarManager.on('userMoved', movedHandler)
+
+      // First, create a user with NAF create message to establish baseline
+      nafHandler({
+        dataType: 'u',
+        data: {
+          networkId: 'bot-789',
+          owner: 'bot-789',
+          components: {
+            '0': { isVector3: true, x: 1, y: 0, z: 1 },
+          },
+        },
+      })
+
+      vi.clearAllMocks()
+
+      // Bot SDK sends position updates as 'um' over the unreliable 'naf' event
+      // (same multi-data shape as NafMessageBuilder.build() produces)
+      nafHandler({
+        dataType: 'um',
+        data: {
+          d: [
+            {
+              networkId: 'bot-789',
+              owner: 'bot-789',
+              creator: 'bot-789',
+              components: {
+                '0': { isVector3: true, x: 3, y: 0, z: 7 },
+              },
+            },
+          ],
+        },
+      })
+
+      expect(movedHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'bot-789',
+          position: { x: 3, y: 0, z: 7 },
+        }),
+      )
+      expect(userAvatarManager.getUser('bot-789')).toEqual(
+        expect.objectContaining({ position: { x: 3, y: 0, z: 7 } }),
+      )
+    })
+
+    it('should apply every NAF multi-update and preserve resolved session aliases', () => {
+      const nafHandler = findMockCall(
+        mockMessageService.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'naf',
+      )?.[1] as (data: unknown) => void
+      const presenceUsers = [
+        {
+          id: 'session-a',
+          profile: { displayName: 'Bot A' },
+        },
+        {
+          id: 'session-b',
+          profile: { displayName: 'Bot B' },
+        },
+      ]
+      mockPresenceManager.getUsers = vi.fn().mockReturnValue(presenceUsers)
+      mockPresenceManager.getUser = vi.fn((id: string) =>
+        presenceUsers.find((user) => user.id === id),
+      )
+      const movedHandler = vi.fn()
+      userAvatarManager.on('userMoved', movedHandler)
+
+      for (const [index, presenceUser] of presenceUsers.entries()) {
+        nafHandler({
+          dataType: 'u',
+          data: {
+            networkId: `network-${index}`,
+            owner: presenceUser.id,
+            creator: presenceUser.id,
+            template: '#remote-avatar',
+            components: {
+              '0': { x: index, y: 0, z: 0 },
+            },
+          },
+        })
+      }
+
+      movedHandler.mockClear()
+      nafHandler({
+        dataType: 'um',
+        data: {
+          d: [
+            {
+              networkId: 'network-0',
+              owner: presenceUsers[0].id,
+              creator: presenceUsers[0].id,
+              template: '#remote-avatar',
+              components: {
+                '0': { x: 3, y: 0, z: 4 },
+              },
+            },
+            {
+              networkId: 'network-1',
+              owner: presenceUsers[1].id,
+              creator: presenceUsers[1].id,
+              template: '#remote-avatar',
+              components: {
+                '0': { x: 5, y: 0, z: 6 },
+              },
+            },
+          ],
+        },
+      })
+
+      expect(movedHandler).toHaveBeenCalledTimes(2)
+      expect(movedHandler).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          id: 'network-0',
+          sessionId: presenceUsers[0].id,
+          position: { x: 3, y: 0, z: 4 },
+        }),
+      )
+      expect(movedHandler).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          id: 'network-1',
+          sessionId: presenceUsers[1].id,
+          position: { x: 5, y: 0, z: 6 },
+        }),
+      )
+      expect(userAvatarManager.getUser(presenceUsers[0].id)?.position).toEqual({
+        x: 3,
+        y: 0,
+        z: 4,
+      })
+      expect(userAvatarManager.getUser(presenceUsers[1].id)?.position).toEqual({
+        x: 5,
+        y: 0,
+        z: 6,
+      })
+    })
+
+    it('should create an unknown user from NAF update message (dataType: um)', () => {
+      const nafHandler = findMockCall(
+        mockMessageService.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'naf',
+      )?.[1] as (data: unknown) => void
+
+      const joinedHandler = vi.fn()
+      userAvatarManager.on('userJoined', joinedHandler)
+
+      nafHandler({
+        dataType: 'um',
+        data: {
+          d: [
+            {
+              networkId: 'bot-new',
+              owner: 'bot-new',
+              creator: 'bot-new',
+              components: {
+                '0': { isVector3: true, x: 2, y: 0, z: 4 },
+              },
+            },
+          ],
+        },
+      })
+
+      expect(joinedHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'bot-new',
+          position: { x: 2, y: 0, z: 4 },
+        }),
+      )
+    })
+
     it('should calculate quaternion w component', () => {
       const nafHandler = findMockCall(
         mockMessageService.on as ReturnType<typeof vi.fn>,
@@ -230,6 +489,7 @@ describe('UserAvatarManager', () => {
       // Check that user is added to internal state but no event is emitted yet
       const user = userAvatarManager.getUser('new-user')
       expect(user?.nickname).toBe('NewUser')
+      expect(user?.sessionId).toBe('new-user')
       expect(user?.position).toEqual({ x: 0, y: 0, z: 0 }) // Position defaults to origin
     })
 

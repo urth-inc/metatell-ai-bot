@@ -6,7 +6,7 @@ import { DifyClient } from './dify-client.js'
  */
 export class GeminiLLMProcessor {
   private ai: GoogleGenAI
-  // biome-ignore lint/suspicious/noExplicitAny: @google/genai doesn't export Chat type yet
+  // oxlint-disable-next-line typescript/no-explicit-any -- @google/genai doesn't export Chat type yet
   private chat: any
   private difyClient?: DifyClient
   private userId: string = 'speech-bot-user'

@@ -147,11 +147,12 @@ await avatar.connect({
 })
 ```
 
-`prepareNavigation()` supports self-contained GLB scenes and extracts Hubs
-`spawn-point`/spawnable `waypoint` components plus exactly one `character`
-`nav-mesh`. It does not fall back to a rectangular boundary when the GLB,
-navmesh, or spawn data is invalid. Conditional requests can reuse a caller-owned
-snapshot by passing its `PreviousNavigation` validator.
+`prepareNavigation()` supports self-contained GLB scenes. It traverses the
+default scene in tree order, extracts Hubs `spawn-point`/spawnable `waypoint`
+components, and uses the first `nav-mesh` marker's first mesh for `character`
+navigation. It does not fall back to later markers or a rectangular boundary
+when the selected navmesh or spawn data is invalid. Conditional requests can
+reuse a caller-owned snapshot by passing its `PreviousNavigation` validator.
 
 For protected metatell CDN scenes, the client automatically obtains the room's
 path-scoped CloudFront signed cookies before fetching the GLB. When `authToken`
@@ -174,9 +175,16 @@ client.on('disconnected', (reason) => {})
 client.on('chat-message', (message) => {})
 client.on('user-join', (user) => {})
 client.on('user-leave', (user) => {})
+client.on('user-moved', (user) => {
+  console.log(user.name, user.position)
+})
 client.on('voice:mute-changed', ({ muted }) => {})
 client.on('room-scene-changed', ({ previousIdentity, current }) => {})
 ```
+
+Position updates are pushed over NAF. `user-moved` and `getNearbyUsers()` use
+the presence session ID (same space as `user-join` / `user-leave`) when it can
+be resolved. `getNearbyUsers()` reads a snapshot of the same cache.
 
 ## Voice
 
