@@ -215,6 +215,72 @@ describe('MetatellClientImpl user bot markers', () => {
   })
 })
 
+describe('MetatellClientImpl user-moved event', () => {
+  const emitUserMoved = (manager: IUserAvatarManager, avatar: UserAvatar) => {
+    ;(
+      manager as unknown as {
+        emit: (event: string, user: UserAvatar) => void
+      }
+    ).emit('userMoved', avatar)
+  }
+
+  it('should emit user-moved with avatar fields when userAvatarManager fires userMoved', () => {
+    const client = createMetatellClient(clientOptions)
+    const internals = client as unknown as ClientInternals
+    const avatar: UserAvatar = {
+      id: 'human-456',
+      nickname: 'Walker',
+      position: { x: 3, y: 0, z: 4 },
+      rotation: { x: 0, y: 0.7, z: 0, w: 0.7 },
+      lastUpdated: 1,
+    }
+    vi.spyOn(internals.presenceManager, 'getUser').mockReturnValue(undefined)
+
+    const received: Array<{
+      id: string
+      name: string
+      isBot: boolean
+      position?: { x: number; y: number; z: number }
+      rotation?: { x: number; y: number; z: number; w: number }
+    }> = []
+    client.on('user-moved', (user) => received.push(user))
+
+    emitUserMoved(internals.userAvatarManager, avatar)
+
+    expect(received).toHaveLength(1)
+    expect(received[0]).toEqual({
+      id: 'human-456',
+      name: 'Walker',
+      isBot: false,
+      position: { x: 3, y: 0, z: 4 },
+      rotation: { x: 0, y: 0.7, z: 0, w: 0.7 },
+    })
+  })
+
+  it('should mark user-moved payload as bot when presence says so', () => {
+    const client = createMetatellClient(clientOptions)
+    const internals = client as unknown as ClientInternals
+    const avatar: UserAvatar = {
+      id: 'bot-789',
+      nickname: 'Guide Bot',
+      position: { x: 1, y: 0, z: 0 },
+      lastUpdated: 1,
+    }
+    vi.spyOn(internals.presenceManager, 'getUser').mockReturnValue({
+      id: avatar.id,
+      profile: { displayName: 'Guide Bot' },
+      isBot: true,
+    })
+
+    const received: boolean[] = []
+    client.on('user-moved', (user) => received.push(user.isBot))
+
+    emitUserMoved(internals.userAvatarManager, avatar)
+
+    expect(received).toEqual([true])
+  })
+})
+
 describe('MetatellClientImpl chat mentions', () => {
   const setupChatReceiver = () => {
     const client = createMetatellClient(clientOptions)

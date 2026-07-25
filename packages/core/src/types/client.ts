@@ -107,6 +107,7 @@ export interface MetatellClientEvents {
   disconnected: () => void
   'user-join': (user: User) => void
   'user-leave': (user: User) => void
+  'user-moved': (user: User) => void
   'chat-message': (event: {
     from: User
     text: string
