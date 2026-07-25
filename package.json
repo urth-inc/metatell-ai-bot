@@ -18,7 +18,7 @@
     "typedoc": "typedoc"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.6",
+    "@biomejs/biome": "2.5.4",
     "@changesets/cli": "2.31.0",
     "@types/node": "24.13.3",
     "@types/phoenix": "1.6.7",
