@@ -27,7 +27,7 @@
     "meshoptimizer": "1.2.0",
     "phoenix": "1.8.9",
     "uuid": "14.0.1",
-    "ws": "8.21.0"
+    "ws": "8.21.1"
   },
   "peerDependencies": {
     "@types/node": "*",
