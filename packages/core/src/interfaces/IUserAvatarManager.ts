@@ -4,8 +4,10 @@ import { ServiceIdentifier } from '../ServiceIdentifier.js'
  * User avatar information.
  */
 export interface UserAvatar {
-  /** User ID, usually the session ID. */
+  /** Avatar network ID (NAF networkId). May differ from the presence session ID. */
   id: string
+  /** Presence session ID when resolved; used for public client events. */
+  sessionId?: string
   /** User nickname. */
   nickname: string
   /** Avatar position. */

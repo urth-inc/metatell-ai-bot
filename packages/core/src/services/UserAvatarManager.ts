@@ -262,6 +262,7 @@ export class UserAvatarManager implements IUserAvatarManager {
 
     const userAvatar: UserAvatar = {
       id: networkId,
+      sessionId: presenceUser?.id ?? existingUser?.sessionId,
       nickname,
       position: { x: position.x, y: position.y, z: position.z },
       rotation: rotation || { x: 0, y: 0, z: 0, w: 1 },
@@ -438,6 +439,7 @@ export class UserAvatarManager implements IUserAvatarManager {
     if (!this.users.has(user.id)) {
       const userAvatar: UserAvatar = {
         id: user.id,
+        sessionId: user.id,
         nickname: user.profile.displayName || 'Unknown',
         position: { x: 0, y: 0, z: 0 }, // デフォルト位置を設定
         rotation: { x: 0, y: 0, z: 0, w: 1 },
