@@ -170,6 +170,87 @@ describe('UserAvatarManager', () => {
       )
     })
 
+    it('should preserve the resolved presence session id across avatar aliases', () => {
+      const nafHandler = findMockCall(
+        mockMessageService.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'naf',
+      )?.[1] as (data: unknown) => void
+      const nafrHandler = findMockCall(
+        mockMessageService.on as ReturnType<typeof vi.fn>,
+        (call) => call[0] === 'nafr',
+      )?.[1] as (data: unknown) => void
+      const presenceUser = {
+        id: 'session-user',
+        profile: { displayName: 'Session User' },
+      }
+      mockPresenceManager.getUsers = vi.fn().mockReturnValue([presenceUser])
+      mockPresenceManager.getUser = vi.fn((id: string) =>
+        id === presenceUser.id ? presenceUser : undefined,
+      )
+      const movedHandler = vi.fn()
+      userAvatarManager.on('userMoved', movedHandler)
+
+      nafHandler({
+        dataType: 'u',
+        data: {
+          networkId: 'naf-network-id',
+          owner: presenceUser.id,
+          creator: presenceUser.id,
+          template: '#remote-avatar',
+          components: {
+            '0': { x: 1, y: 0, z: 0 },
+          },
+        },
+      })
+
+      expect(userAvatarManager.getUser('naf-network-id')).toEqual(
+        expect.objectContaining({
+          id: 'naf-network-id',
+          sessionId: presenceUser.id,
+          position: { x: 1, y: 0, z: 0 },
+        }),
+      )
+      expect(userAvatarManager.getUser(presenceUser.id)).toEqual(
+        expect.objectContaining({
+          id: presenceUser.id,
+          sessionId: presenceUser.id,
+          position: { x: 1, y: 0, z: 0 },
+        }),
+      )
+
+      nafrHandler({
+        naf: JSON.stringify({
+          dataType: 'um',
+          data: {
+            d: [
+              {
+                networkId: 'naf-network-id',
+                owner: presenceUser.id,
+                creator: presenceUser.id,
+                template: '#remote-avatar',
+                components: {
+                  '0': { x: 2, y: 0, z: 0 },
+                },
+              },
+            ],
+          },
+        }),
+      })
+
+      expect(movedHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'naf-network-id',
+          sessionId: presenceUser.id,
+          position: { x: 2, y: 0, z: 0 },
+        }),
+      )
+      expect(userAvatarManager.getUser(presenceUser.id)?.position).toEqual({
+        x: 2,
+        y: 0,
+        z: 0,
+      })
+    })
+
     it('should handle NAF update message (dataType: um) so bots can observe other bots', () => {
       const nafHandler = findMockCall(
         mockMessageService.on as ReturnType<typeof vi.fn>,
@@ -315,6 +396,7 @@ describe('UserAvatarManager', () => {
       // Check that user is added to internal state but no event is emitted yet
       const user = userAvatarManager.getUser('new-user')
       expect(user?.nickname).toBe('NewUser')
+      expect(user?.sessionId).toBe('new-user')
       expect(user?.position).toEqual({ x: 0, y: 0, z: 0 }) // Position defaults to origin
     })
 

@@ -106,8 +106,15 @@ client.on('disconnected', (reason) => {})
 client.on('chat-message', (message) => {})
 client.on('user-join', (user) => {})
 client.on('user-leave', (user) => {})
+client.on('user-moved', (user) => {
+  console.log(user.name, user.position)
+})
 client.on('voice:mute-changed', ({ muted }) => {})
 ```
+
+Position updates are pushed over NAF. `user-moved` and `getNearbyUsers()` use
+the presence session ID (same space as `user-join` / `user-leave`) when it can
+be resolved. `getNearbyUsers()` reads a snapshot of the same cache.
 
 Errors are primarily reported by rejected promises. The `error` event type is
 available for integrations that attach their own event sources.
