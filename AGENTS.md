@@ -12,12 +12,12 @@
 - Build all: `pnpm build` (recurses). Per package: `pnpm -F @metatell/bot-core build`.
 - Typecheck: `pnpm typecheck` or `pnpm -F <pkg> typecheck`.
 - Test: `pnpm test` (Vitest). Coverage: `pnpm test:coverage`. UI: `pnpm test:ui`.
-- Lint/format: `pnpm check` (Biome). Autofix: `pnpm check:fix`.
+- Lint/format: `pnpm check` (Oxlint + Oxfmt). Autofix: `pnpm check:fix`.
 - Clean: `pnpm clean`. Docs: `pnpm typedoc`.
 
 ## Coding Style & Naming Conventions
 - Language: TypeScript with `strict` settings (`tsconfig.base.json`).
-- Formatting: Biome (2 spaces, single quotes, trailing commas, no unnecessary semicolons).
+- Formatting: Oxfmt (2 spaces, single quotes, trailing commas, no semicolons where supported).
 - Naming: PascalCase classes, camelCase functions/vars, kebab-case files and package names. Keep cohesive modules under `src/`.
 
 ## Testing Guidelines

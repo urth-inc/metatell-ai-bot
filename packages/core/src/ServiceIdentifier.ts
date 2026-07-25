@@ -12,7 +12,7 @@
  * @template T - The interface type this identifier represents
  */
 export abstract class ServiceIdentifier<T> {
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: This field is used for type inference only
+  // oxlint-disable-next-line no-unused-private-class-members -- This field is used for type inference only
   private readonly _phantom?: T
 }
 
@@ -26,13 +26,9 @@ export type ServiceType<T> = T extends ServiceIdentifier<infer U> ? U : T
  * Supports both concrete classes and abstract classes (tokens)
  */
 // Type alias for constructor parameters - necessary for generic DI container
-// biome-ignore lint/suspicious/noExplicitAny: Constructor parameters must accept any types for DI container flexibility
+// oxlint-disable-next-line typescript/no-explicit-any -- Constructor parameters must accept any types for DI container flexibility
 type ConstructorArgs = any[]
 
 export type ServiceKey<T> =
-  | (new (
-      ...args: ConstructorArgs
-    ) => T) // Concrete class constructor
-  | (abstract new (
-      ...args: ConstructorArgs
-    ) => T) // Abstract class (token)
+  | (new (...args: ConstructorArgs) => T) // Concrete class constructor
+  | (abstract new (...args: ConstructorArgs) => T) // Abstract class (token)
