@@ -4,7 +4,7 @@ Command-line tools for developing and testing metatell bots.
 
 ## Requirements
 
-- Node.js 20 or later. Node.js 22 is recommended.
+- Node.js 22.12 or later (commander 15 requirement). Node.js 24 is recommended.
 
 ## Install
 
