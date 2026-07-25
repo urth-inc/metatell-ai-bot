@@ -1,5 +1,16 @@
 # @metatell/bot-core
 
+## 2.1.0
+
+### Minor Changes
+
+- dd0adf7: Expose `user-moved` on MetatellClient when another user's avatar position updates via NAF. Prefer the presence session ID for `user-moved` and `getNearbyUsers()` so they align with `user-join` / `user-leave`.
+
+### Patch Changes
+
+- 5df1992: Select character navigation geometry from the first nav-mesh marker in the default scene tree, allowing scenes that contain additional nav-mesh markers.
+- e8661ea: Receive avatar position updates (dataType 'um') on the unreliable 'naf' event so bots can observe other bots' movement. Previously 'um' was only processed on the 'nafr' path used by browser clients.
+
 ## 2.0.2
 
 ### Patch Changes
