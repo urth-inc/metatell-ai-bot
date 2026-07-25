@@ -18,7 +18,7 @@
     "typedoc": "typedoc"
   },
   "devDependencies": {
-    "@changesets/cli": "2.31.0",
+    "@changesets/cli": "2.31.1",
     "@types/node": "24.13.3",
     "@types/phoenix": "1.6.7",
     "@types/ws": "8.18.1",
