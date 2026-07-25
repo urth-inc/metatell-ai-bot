@@ -132,8 +132,8 @@ importers:
   packages/realtime:
     dependencies:
       '@livekit/rtc-node':
-        specifier: 0.13.30
-        version: 0.13.30
+        specifier: 0.13.31
+        version: 0.13.31
       '@metatell/bot-core':
         specifier: workspace:*
         version: link:../core
@@ -839,8 +839,8 @@ packages:
     resolution: {integrity: sha512-ZJD2DNoHfR8PzKeyDMH6i1zKpk7S4LlrQDIZvisxj6HPaJnKofzSssNMF8fpGFvVCZ844kbcOFogRPgHFno82w==}
     engines: {node: '>= 18'}
 
-  '@livekit/rtc-node@0.13.30':
-    resolution: {integrity: sha512-chUeAKM2EABTbd0Xtkf+TXPPb+wS8ry7Pze0CSWN/MhC1Lx5QD26qr2LECrzFxnGg4httK0SzlEnpurgboOxiQ==}
+  '@livekit/rtc-node@0.13.31':
+    resolution: {integrity: sha512-uCpyUUOoph+sDsjW6mSmDe6ox1vSfgaWR5VFgP7u4KGf1clyJooX7d6Fe94ZruDjLTsGxxV97IOmVU5+cBiBgg==}
     engines: {node: '>= 18'}
 
   '@livekit/typed-emitter@3.0.0':
@@ -3142,7 +3142,7 @@ snapshots:
       '@livekit/rtc-ffi-bindings-linux-x64-gnu': 0.12.60
       '@livekit/rtc-ffi-bindings-win32-x64-msvc': 0.12.60
 
-  '@livekit/rtc-node@0.13.30':
+  '@livekit/rtc-node@0.13.31':
     dependencies:
       '@datastructures-js/deque': 1.0.8
       '@livekit/mutex': 1.1.1
