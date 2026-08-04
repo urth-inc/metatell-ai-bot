@@ -132,7 +132,7 @@ await client.connect({ mode: 'join-only' })
 const scene = client.room.getSceneInfo()
 const result = await client.room.prepareNavigation({
   // Custom-domain assets must be added as exact HTTPS origins.
-  additionalAllowedOrigins: ['https://assets.example.com'],
+  additionalAllowedOrigins: ['https://cdn.space.customer.example'],
 })
 if (result.status !== 'prepared') throw new Error('A cached snapshot is required for 304')
 
@@ -156,8 +156,11 @@ reuse a caller-owned snapshot by passing its `PreviousNavigation` validator.
 
 For protected metatell CDN scenes, the client automatically obtains the room's
 path-scoped CloudFront signed cookies before fetching the GLB. When `authToken`
-is configured, it is sent only to the room cookie endpoint and never to the
-scene asset URL or the custom `fetch` passed to `prepareNavigation()`.
+is configured, it is sent only to the room cookie endpoint at `serverUrl` and
+never to the scene asset URL or the custom `fetch` passed to
+`prepareNavigation()`. For an explicitly allowed `https://cdn.<custom-domain>`
+origin, that cookie request identifies `<custom-domain>` so the returned cookies
+apply to its CDN without sending the access token to the custom origin.
 
 Subscribe to `room-scene-changed` and stop work that depends on the old snapshot.
 Passing `expectedSceneIdentity` also prevents a reconnect or avatar entry from

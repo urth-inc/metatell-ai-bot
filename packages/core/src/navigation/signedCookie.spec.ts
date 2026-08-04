@@ -103,6 +103,34 @@ describe('SceneAccessCookieStore', () => {
     expect(fetchMock).toHaveBeenCalledOnce()
   })
 
+  it('requests cookies for a custom CDN from the configured server origin', async () => {
+    const customHost = 'space.customer.example'
+    const customSceneUrl = new URL(`https://cdn.${customHost}${SCENE_PATH}scene.glb`)
+    const fetchMock = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      expect(input.toString()).toBe('https://metatell.app/api/v3/rooms/room-1/signed-cookie')
+      const headers = new Headers(init?.headers)
+      expect(headers.get('authorization')).toBe('Bearer access-token')
+      expect(headers.get('x-original-host')).toBe(customHost)
+      return responseWithCookies(
+        cookieTriplet(SCENE_PATH, 'custom-scene', {
+          domain: `.${customHost}`,
+          resource: `${customSceneUrl.origin}${SCENE_PATH}*`,
+        }),
+      )
+    })
+    const store = new SceneAccessCookieStore({ authToken: 'access-token', fetch: fetchMock })
+
+    const cookieSets = await store.get(
+      'wss://metatell.app',
+      'room-1',
+      customSceneUrl,
+      new AbortController().signal,
+    )
+
+    expect(store.header(cookieSets, customSceneUrl)).toContain('signature-custom-scene')
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
   it('keeps complete path-scoped triplets together and selects only the scene set', async () => {
     const store = createStore([
       ...cookieTriplet('/organizations/urth/avatars/', 'avatar'),

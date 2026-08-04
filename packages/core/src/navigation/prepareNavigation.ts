@@ -320,7 +320,7 @@ async function fetchScene(
       if (
         !attemptedSceneAccessCookies &&
         context?.sceneAccessCookies &&
-        needsSceneAccessCookies(url, serverUrl)
+        needsSceneAccessCookies(url)
       ) {
         attemptedSceneAccessCookies = true
         try {
