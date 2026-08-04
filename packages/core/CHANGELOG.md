@@ -1,5 +1,11 @@
 # @metatell/bot-core
 
+## 2.1.1
+
+### Patch Changes
+
+- 1059fda: Fetch protected scene GLBs from explicitly allowed custom-domain CDNs by requesting room-scoped cookies for the scene's original host.
+
 ## 2.1.0
 
 ### Minor Changes
