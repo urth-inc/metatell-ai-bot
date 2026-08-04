@@ -179,12 +179,18 @@ function cloudFrontPolicy(resource: string, expiresAt = Math.floor(Date.now() / 
     .replaceAll('/', '~')
 }
 
-function cloudFrontCookies(path: string, suffix: string): string[] {
+function cloudFrontCookies(
+  path: string,
+  suffix: string,
+  options: { cdnOrigin?: string; domain?: string } = {},
+): string[] {
   const resourcePath = path.endsWith('/') ? path : `${path}/`
+  const cdnOrigin = options.cdnOrigin ?? 'https://cdn.metatell-dev.app'
+  const domain = options.domain ?? '.metatell-dev.app'
   return [
-    `CloudFront-Policy=${cloudFrontPolicy(`https://cdn.metatell-dev.app${resourcePath}*`)}; Domain=.metatell-dev.app; Path=${path}; Secure; HttpOnly`,
-    `CloudFront-Signature=signature-${suffix}; Domain=.metatell-dev.app; Path=${path}; Secure; HttpOnly`,
-    `CloudFront-Key-Pair-Id=key-${suffix}; Domain=.metatell-dev.app; Path=${path}; Secure; HttpOnly`,
+    `CloudFront-Policy=${cloudFrontPolicy(`${cdnOrigin}${resourcePath}*`)}; Domain=${domain}; Path=${path}; Secure; HttpOnly`,
+    `CloudFront-Signature=signature-${suffix}; Domain=${domain}; Path=${path}; Secure; HttpOnly`,
+    `CloudFront-Key-Pair-Id=key-${suffix}; Domain=${domain}; Path=${path}; Secure; HttpOnly`,
   ]
 }
 
@@ -266,6 +272,61 @@ describe('prepareNavigation', () => {
         protectedScene,
         'wss://metatell-dev.app',
         { fetch: assetFetch },
+        { sceneAccessCookies },
+      ),
+    ).resolves.toMatchObject({ status: 'prepared' })
+    expect(cookieFetch).toHaveBeenCalledOnce()
+    expect(assetFetch).toHaveBeenCalledOnce()
+  })
+
+  it('obtains cookies for an explicitly allowed custom-domain CDN', async () => {
+    const scenePath = '/organizations/customer/scenes/scene-1/'
+    const customHost = 'space.customer.example'
+    const customCdnOrigin = `https://cdn.${customHost}`
+    const protectedScene = {
+      ...scene,
+      modelUrl: `${customCdnOrigin}${scenePath}scene.glb`,
+    }
+    const cookieFetch = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      expect(input.toString()).toBe('https://metatell.app/api/v3/rooms/room-1/signed-cookie')
+      const headers = new Headers(init?.headers)
+      expect(headers.get('authorization')).toBe('Bearer access-token')
+      expect(headers.get('x-original-host')).toBe(customHost)
+      return signedCookieResponse(
+        cloudFrontCookies(scenePath, 'custom-scene', {
+          cdnOrigin: customCdnOrigin,
+          domain: `.${customHost}`,
+        }),
+      )
+    })
+    const assetFetch = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      expect(input.toString()).toBe(protectedScene.modelUrl)
+      const headers = new Headers(init?.headers)
+      expect(headers.has('authorization')).toBe(false)
+      expect(headers.get('cookie')).toContain('CloudFront-Signature=signature-custom-scene')
+      return sceneResponse(buildSceneGlb())
+    })
+    const sceneAccessCookies = new SceneAccessCookieStore({
+      authToken: 'access-token',
+      fetch: cookieFetch,
+    })
+
+    await expect(
+      prepareNavigation(
+        protectedScene,
+        'wss://metatell.app',
+        { fetch: assetFetch },
+        { sceneAccessCookies },
+      ),
+    ).rejects.toMatchObject({ code: 'SCENE_FETCH_FAILED', retryable: false })
+    expect(cookieFetch).not.toHaveBeenCalled()
+    expect(assetFetch).not.toHaveBeenCalled()
+
+    await expect(
+      prepareNavigation(
+        protectedScene,
+        'wss://metatell.app',
+        { fetch: assetFetch, additionalAllowedOrigins: [customCdnOrigin] },
         { sceneAccessCookies },
       ),
     ).resolves.toMatchObject({ status: 'prepared' })

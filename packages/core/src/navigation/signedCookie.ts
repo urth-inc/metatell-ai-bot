@@ -75,24 +75,17 @@ function signedCookieEndpoint(serverUrl: string, roomId: string): URL {
   return endpoint
 }
 
-export function needsSceneAccessCookies(sceneUrl: URL, serverUrl: string): boolean {
-  if (sceneUrl.protocol !== 'https:') return false
+function sceneAccessRequestHost(sceneUrl: URL): string | undefined {
+  if (sceneUrl.protocol !== 'https:') return undefined
   const sceneHostname = sceneUrl.hostname.toLowerCase()
-  if (!sceneHostname.startsWith('cdn.')) return false
+  if (!sceneHostname.startsWith('cdn.')) return undefined
 
-  let serverHostname: string
-  try {
-    serverHostname = new URL(serverUrl).hostname.toLowerCase()
-  } catch {
-    return false
-  }
+  const requestHost = sceneHostname.slice('cdn.'.length)
+  return requestHost || undefined
+}
 
-  const cdnBaseHostname = sceneHostname.slice('cdn.'.length)
-  return (
-    serverHostname === cdnBaseHostname ||
-    serverHostname.endsWith(`.${cdnBaseHostname}`) ||
-    cdnBaseHostname.endsWith(`.${serverHostname}`)
-  )
+export function needsSceneAccessCookies(sceneUrl: URL): boolean {
+  return sceneAccessRequestHost(sceneUrl) !== undefined
 }
 
 function getSetCookieValues(headers: Headers): string[] {
@@ -322,6 +315,12 @@ async function fetchSceneAccessCookies(
 ): Promise<readonly SceneAccessCookieSet[]> {
   const endpoint = signedCookieEndpoint(options.serverUrl, options.roomId)
   const headers = new Headers()
+  const requestHost = sceneAccessRequestHost(options.sceneUrl)
+  // Mirror the custom-domain proxy so the canonical room endpoint signs cookies
+  // for cdn.<original-host> while the access token remains on serverUrl.
+  if (requestHost && requestHost !== endpoint.hostname.toLowerCase()) {
+    headers.set('x-original-host', requestHost)
+  }
   if (options.authToken) {
     try {
       headers.set('authorization', `Bearer ${options.authToken}`)
