@@ -1,5 +1,13 @@
 # metatell-bt-bot-example
 
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies [1059fda]
+  - @metatell/bot-sdk@2.1.1
+  - @metatell/bot-realtime@2.0.4
+
 ## 0.0.8
 
 ### Patch Changes

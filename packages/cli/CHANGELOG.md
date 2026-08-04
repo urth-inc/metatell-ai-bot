@@ -1,5 +1,12 @@
 # @metatell/bot-cli
 
+## 2.0.4
+
+### Patch Changes
+
+- Updated dependencies [1059fda]
+  - @metatell/bot-sdk@2.1.1
+
 ## 2.0.3
 
 ### Patch Changes
