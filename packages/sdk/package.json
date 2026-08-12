@@ -51,7 +51,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/phoenix": "1.6.7",
-    "@types/three": "0.185.1"
+    "@types/three": "0.185.4"
   },
   "repository": {
     "type": "git",
