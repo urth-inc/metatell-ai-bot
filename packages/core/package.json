@@ -21,7 +21,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@gltf-transform/core": "4.4.1",
+    "@gltf-transform/core": "4.4.2",
     "@gltf-transform/extensions": "4.4.1",
     "draco3dgltf": "1.5.7",
     "meshoptimizer": "1.2.0",

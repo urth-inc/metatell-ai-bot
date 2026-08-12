@@ -98,8 +98,8 @@ importers:
   packages/core:
     dependencies:
       '@gltf-transform/core':
-        specifier: 4.4.1
-        version: 4.4.1
+        specifier: 4.4.2
+        version: 4.4.2
       '@gltf-transform/extensions':
         specifier: 4.4.1
         version: 4.4.1
@@ -739,8 +739,8 @@ packages:
   '@gerrit0/mini-shiki@3.23.0':
     resolution: {integrity: sha512-bEMORlG0cqdjVyCEuU0cDQbORWX+kYCeo0kV1lbxF5bt4r7SID2l9bqsxJEM0zndaxpOUT7riCyIVEuqq/Ynxg==}
 
-  '@gltf-transform/core@4.4.1':
-    resolution: {integrity: sha512-ygWWFOrj1HnfvBimHF1yHTY4abbeBjn3CvljijaWKoRLMRV/a8pWYQu9rfMFQhfpT5kYZTD5Mp+dizAXPbiTDQ==}
+  '@gltf-transform/core@4.4.2':
+    resolution: {integrity: sha512-qsWKwNSwK+2s834Mt4xbYcyHqCrgNFP7hIv5s487JxebngRfDgelpghNF+kSswGb2/NuapasfK3UViFoSJJoMg==}
 
   '@gltf-transform/extensions@4.4.1':
     resolution: {integrity: sha512-dZZ9D/NdpNeJUmQKExtISYtd3W6OxU4njk8UI3IKm6j97uVskYQ24BNi2YP40uUpdWPiREsS/DhjNhWAbGU/1A==}
@@ -2908,13 +2908,13 @@ snapshots:
       '@shikijs/types': 3.23.0
       '@shikijs/vscode-textmate': 10.0.2
 
-  '@gltf-transform/core@4.4.1':
+  '@gltf-transform/core@4.4.2':
     dependencies:
       property-graph: 4.1.0
 
   '@gltf-transform/extensions@4.4.1':
     dependencies:
-      '@gltf-transform/core': 4.4.1
+      '@gltf-transform/core': 4.4.2
       ktx-parse: 1.1.0
 
   '@google-cloud/common@6.0.1(supports-color@7.2.0)':
