@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@gltf-transform/core": "4.4.1",
-    "@gltf-transform/extensions": "4.4.1",
+    "@gltf-transform/extensions": "4.4.2",
     "draco3dgltf": "1.5.7",
     "meshoptimizer": "1.2.0",
     "phoenix": "1.8.9",
