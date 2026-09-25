@@ -8,7 +8,6 @@
   "excludePrivate": true,
   "excludeProtected": true,
   "excludeExternals": true,
-  "includeVersion": true,
   "hideGenerator": true,
   "customCss": "./typedoc-theme.css",
   "readme": "./README.md",
@@ -32,5 +31,6 @@
   },
   "skipErrorChecking": true,
   "treatValidationWarningsAsErrors": false,
-  "treatWarningsAsErrors": false
+  "treatWarningsAsErrors": false,
+  "projectDocuments": ["docs/*.md"]
 }

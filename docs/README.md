@@ -5,13 +5,13 @@ This directory contains guides for building bots with the metatell Bot SDK.
 ## Guides
 
 - [Getting started](./getting-started.md): install the SDK, connect to a room, and run a minimal bot.
-- [API overview](./api.md): high-level and low-level SDK APIs.
+- [API overview](./api.md): high-level and low-level SDK APIs, voice, scene navigation, errors, and utilities.
 - [Examples](./examples.md): practical bot patterns and runnable examples.
-- [Logging and errors](./logging-and-errors.md): error handling, logging, and diagnostics.
-- [Troubleshooting](./troubleshooting.md): common setup and runtime issues.
+- [Logging and errors](./logging-and-errors.md): logging, rate limits, error classes, and error handling.
+- [Troubleshooting](./troubleshooting.md): common connection, avatar, voice, navigation, and TypeScript issues.
 - [FAQ](./faq.md): short answers to common questions.
 - [NAF messages](./NAF.md): typed helpers for networked avatar synchronization messages.
-- [Release process](./RELEASE.md): repository release workflow.
+- [Release process](./RELEASE.md): repository release workflow for maintainers.
 
 ## Public API Reference
 

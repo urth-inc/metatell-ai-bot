@@ -142,3 +142,5 @@ appSettings.setDebugMode(true)
 ```
 
 This will log all incoming NAF/NAFR messages with `[NAF RECEIVED]` and `[NAFR RECEIVED]` prefixes.
+
+`createMetatellClient({ debug: true })` enables the same debug mode.

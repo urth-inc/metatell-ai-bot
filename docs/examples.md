@@ -12,6 +12,7 @@ This page shows common bot patterns. Runnable projects are available under
 | [voice-ai-bot](../examples/voice-ai-bot/README.md) | Connect voice input and output to Gemini Live. |
 | [speech-to-speech-bot](../examples/speech-to-speech-bot/README.md) | Speech recognition, LLM response generation, and text-to-speech playback. |
 | [dify-bot](../examples/dify-bot/README.md) | Forward room chat to a Dify application. |
+| [bt-bot](../examples/bt-bot/README.md) | Autonomous bot driven by a behavior tree and an LLM, with chat and voice (README in Japanese). |
 
 ## Reply When Mentioned
 
@@ -102,10 +103,9 @@ for (const user of users) {
 ```ts
 import { enableVoice } from '@metatell/bot-sdk'
 
+// 48000 Hz, mono, signed 16-bit PCM. Use pcm.resample() for other rates.
 const voice = await enableVoice(client, {
   transport: { type: 'livekit' },
-  sampleRate: 48000,
-  channels: 1,
   handlers: {
     getLocalPcmStream: async function* () {
       while (true) {
@@ -116,7 +116,7 @@ const voice = await enableVoice(client, {
   },
 })
 
-await voice.stop()
+await voice.detach()
 ```
 
 ## Record Remote PCM Frames
@@ -142,9 +142,15 @@ client.on('voice:mute-changed', ({ muted }) => {
   console.log('muted:', muted)
 })
 
-await client.muteVoice(true)
-console.log(client.isVoiceMuted())
+await client.muteVoice?.(true)
 ```
+
+Before voice is enabled, `muteVoice()` updates the client state, emits
+`voice:mute-changed`, and makes `sendVoiceFrame()` ignore frames. While an
+`enableVoice()` attachment is active, `muteVoice()` is routed to the transport
+instead, and the LiveKit transport does not currently mute published audio.
+Stop your local PCM stream if the bot must go silent. `AgentClient` also exposes
+`isVoiceMuted()`.
 
 ## Dify Chat Bridge
 
@@ -153,7 +159,8 @@ application and post the application response back to the room.
 
 ```bash
 cd examples/dify-bot
-npm install
+npm ci
+npm run build
 cp .env.example .env
-npm start
+npm start -- https://metatell.app/YOUR_ROOM_ID
 ```
