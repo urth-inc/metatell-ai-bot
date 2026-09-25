@@ -173,8 +173,10 @@ using a snapshot prepared for a different scene.
 
 By default, `prepareNavigation()` limits the download to 64 MiB, the decoded
 navmesh to 256 MiB and 500,000 triangles, and the request to 30 seconds. Override
-them with `maxBytes`, `maxDecodedBytes`, `maxTriangles`, and `timeoutMs`, or
-cancel with `signal`. Failures reject with `NavigationError`.
+them with `maxBytes`, `maxDecodedBytes`, `maxTriangles`, and `timeoutMs`.
+Scene, navmesh, and timeout failures reject with `NavigationError`. Cancelling
+through `signal` rejects with an `AbortError` instead: the signal's reason when it
+is an `AbortError`, otherwise a `DOMException` named `AbortError`.
 
 The navigation runtime exposes `getSpawnPoints()`, `samplePoint()`,
 `projectPoint()`, `findPath()`, and `clampStep()`. Keep one runtime per worker and a separate cursor per virtual

@@ -235,13 +235,15 @@ await agent.connect({ url: 'https://metatell.app/YOUR_ROOM_ID' })
 ```
 
 Use `createAgentClientWithFactory(factory, config)` to reuse an existing
-`CoreServiceFactory`.
+`CoreServiceFactory`. Read the session ID from `getStatus().sessionId`;
+`getSessionId()` exists on `DefaultAgentClient` but not on the `AgentClient`
+interface type.
 
 Common methods:
 
 | Area | Methods |
 | --- | --- |
-| Connection | `connect(options)`, `disconnect()`, `join(room)`, `leave()`, `getStatus()`, `getSessionId()` |
+| Connection | `connect(options)`, `disconnect()`, `join(room)`, `leave()`, `getStatus()` |
 | Chat | `send(text)` |
 | Avatar | `move(position)`, `look(target)`, `lookAtNearest()` |
 | Users | `getUsers()`, `getUser(id)`, `getUsersNearby(radius)` |

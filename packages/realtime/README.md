@@ -74,7 +74,7 @@ LiveKit otherwise.
 | `topics` | Data topics that can be sent. Defaults to `control`, `events`, `transcript`, and `audio`. Sending to another topic fails. |
 | `audioPublish` | `sampleRate` (16000, 24000, or 48000), `channels` (1 or 2), optional `frameDurationMs` (10 or 20, default 20), and optional `trackName`. Defaults to 48000 Hz mono. |
 | `connect` | Optional `autoSubscribe` and `dynacast` flags. |
-| `timeouts` | Optional `connectMs`. |
+| `timeouts` | Accepted for `connectMs`, but not currently enforced by either adapter. |
 | `logger` | Optional `(level, msg, meta) => void` logger. |
 
 `pushPcmFrame()` expects one frame of `sampleRate * frameDurationMs / 1000`
@@ -122,9 +122,12 @@ or `'disconnected'`.
 
 ## Errors
 
-Transport failures reject with `RealtimeError`, a `MetatellError` subclass.
-Its `code` is one of the `ErrorCodes` values, such as `NotConnected`,
-`UnknownTopic`, or `AudioNotStarted`.
+Adapter precondition and connection failures reject with `RealtimeError`, a
+`MetatellError` subclass whose `code` is one of the `ErrorCodes` values, such as
+`AlreadyConnecting`, `ConnectionFailed`, `NotConnected`, `UnknownTopic`,
+`SendFailed`, or `AudioNotStarted`. Errors raised by LiveKit while publishing,
+unpublishing, or closing the audio track in `startAudioPublisher()` and
+`stopAudioPublisher()` are not wrapped and propagate as-is.
 
 ## License
 

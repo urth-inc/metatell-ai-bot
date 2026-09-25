@@ -95,7 +95,9 @@ client.chat.onMessage(async ({ mention, reply }) => {
   `KHR_mesh_quantization`.
 - `SCENE_CHANGED`: the room scene changed. Prepare a new snapshot.
 
-Retry only when `error.retryable` is `true`.
+Retry only when `error.retryable` is `true`. If you pass `signal` and abort it,
+`prepareNavigation()` rejects with an `AbortError` (the signal's reason when it
+is an `AbortError`, otherwise a `DOMException`), not a `NavigationError`.
 
 ## TypeScript reports module or type errors
 
