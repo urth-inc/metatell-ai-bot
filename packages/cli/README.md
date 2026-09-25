@@ -39,12 +39,14 @@ metatell-bot https://metatell.app/ROOM_ID -d
 ```bash
 metatell-bot https://metatell.app/ROOM_ID [options]
 metatell-bot interactive https://metatell.app/ROOM_ID [options]
+metatell-bot i https://metatell.app/ROOM_ID [options]
 ```
 
 Available interactive commands:
 
 | Command | Description |
 | --- | --- |
+| `/help` or `/?` | Show available commands. |
 | `/say <message>` | Send a chat message. |
 | `/move <x> <y> <z>` | Move the bot avatar. |
 | `/look <x> <y> <z>` | Look at a coordinate. |
@@ -55,8 +57,7 @@ Available interactive commands:
 | `/info` | Show bot information. |
 | `/avatar <id>` | Change the bot avatar. |
 | `/assets` | List available avatars. |
-| `/anime <name>` | Play an animation. |
-| `/animation <name>` | Play an animation. |
+| `/anime <id>` or `/animation <id>` | Play an animation by ID. |
 | `/animations` | List available animations. |
 | `/stop` | Stop the current animation and return to idle. |
 | `quit` or `exit` | Exit the CLI. |
@@ -64,14 +65,19 @@ Available interactive commands:
 ### Connection Test
 
 ```bash
-metatell-bot connect https://metatell.app/ROOM_ID [options]
+metatell-bot connect https://metatell.app/ROOM_ID [--debug]
 ```
+
+Connects as `MetatellCLI`, prints basic room information, and disconnects.
 
 ### Room Inspection
 
 ```bash
-metatell-bot inspect https://metatell.app/ROOM_ID [options]
+metatell-bot inspect https://metatell.app/ROOM_ID
 ```
+
+Connects as `MetatellInspector` and prints room state and user presence. This
+command has no options.
 
 ## Options
 
@@ -80,32 +86,33 @@ metatell-bot inspect https://metatell.app/ROOM_ID [options]
 | `--name` | `-n` | Bot display name. | `MetatellCLI` |
 | `--debug` | `-d` | Enable debug logs. | `false` |
 
+`--name` applies to interactive mode. `connect` accepts only `--debug`. Use
+`--version` and `--help` for CLI information.
+
+The CLI connects without an access token, so rooms that restrict chat or other
+actions to authenticated users may reject those actions. For metatell domains,
+tenant subdomains in the room URL are normalized to the base domain.
+
 ## Local Development
+
+The repository is a pnpm workspace:
 
 ```bash
 git clone https://github.com/urth-inc/metatell-ai-bot.git
 cd metatell-ai-bot
-npm install
-cd packages/cli
-npm run build
-npm link
-metatell-bot --version
-metatell-bot --help
+pnpm install
+pnpm build
+node packages/cli/dist/cli.js --version
+node packages/cli/dist/cli.js --help
 ```
 
 Useful commands:
 
 ```bash
-npm run dev
-npm run build
-npm run typecheck
-cd ../.. && npm test packages/cli/src/cli.spec.ts
-```
-
-Remove the global link:
-
-```bash
-npm unlink -g @metatell/bot-cli
+pnpm --filter @metatell/bot-cli dev https://metatell.app/ROOM_ID
+pnpm --filter @metatell/bot-cli build
+pnpm --filter @metatell/bot-cli typecheck
+pnpm test packages/cli
 ```
 
 ## License

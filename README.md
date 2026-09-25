@@ -1,8 +1,8 @@
 # metatell Bot SDK
 
 TypeScript and Node.js packages for building bots that connect to metatell rooms.
-The SDK covers room connection, chat, presence, avatar movement, animation, and
-experimental voice integration.
+The SDK covers room connection, chat, presence, avatar movement, animation,
+scene navigation, and experimental voice integration.
 
 - API documentation: https://sdk.metatell.io/bot/
 - Guides: [docs/](./docs/README.md)
@@ -12,16 +12,18 @@ experimental voice integration.
 
 | Package | Purpose |
 | --- | --- |
-| `@metatell/bot-sdk` | High-level bot SDK for most applications |
+| `@metatell/bot-sdk` | High-level bot SDK for most applications. Navigation runtime at `@metatell/bot-sdk/navigation` |
 | `@metatell/bot-core` | Core services and shared types for advanced integrations |
 | `@metatell/bot-realtime` | Realtime voice transport helpers |
-| `@metatell/bot-cli` | Developer CLI utilities |
+| `@metatell/bot-cli` | Developer CLI (`metatell-bot`) for connecting to and inspecting rooms |
 
 ## Requirements
 
-- Node.js 20 or later. Node.js 22 is recommended.
+- Node.js 20 or later. Node.js 24 is recommended and is the version used in CI.
+  `@metatell/bot-cli` requires Node.js 22.12 or later.
 - ESM runtime.
-- TypeScript 5 or later for TypeScript projects.
+- TypeScript 5 or later for TypeScript projects. The packages are built with
+  TypeScript 6.
 
 ## Install
 
@@ -63,6 +65,7 @@ For runnable examples, see:
 - [examples/voice-ai-bot](./examples/voice-ai-bot/README.md)
 - [examples/speech-to-speech-bot](./examples/speech-to-speech-bot/README.md)
 - [examples/dify-bot](./examples/dify-bot/README.md)
+- [examples/bt-bot](./examples/bt-bot/README.md)
 
 ## Common Workflows
 

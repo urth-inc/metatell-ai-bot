@@ -8,7 +8,11 @@ transport and records remote PCM audio to local WAV files.
 ```bash
 pnpm install
 pnpm build
+cp .env.example .env
 ```
+
+`npm start` loads `.env`, so the file must exist. `METATELL_USERNAME` sets the
+bot display name.
 
 ## Run
 
@@ -62,8 +66,3 @@ interpolation.
 
 - Avoid hot reload with `@livekit/rtc-node`.
 - Use a 48000 Hz WAV file when possible to preserve quality.
-- If connection setup is slow on IPv6 networks, try forcing relay transport:
-
-```bash
-ICE_TRANSPORT_POLICY=relay npm start -- <room-url>
-```

@@ -2,12 +2,17 @@
 
 This repository uses pnpm, Changesets, and npm OIDC trusted publishing.
 
-## Workflows
+## Workflow
 
-1. `release.yml`: creates changesets, opens the version PR, merges it, and
-   invokes publishing.
-2. `publish.yml`: reusable workflow that publishes packages to npm and creates
-   GitHub releases.
+`release.yml` runs on every push to `develop` and can also be started manually
+from `develop`. It uses the Changesets GitHub Action:
+
+1. When unreleased changesets exist, it opens or updates the
+   `chore(release): Version Packages` PR.
+2. When no changesets remain, such as after the version PR is merged, it runs
+   `pnpm run release`. This builds the packages, publishes versions that are not
+   yet on npm with `changeset publish` and npm provenance, and creates GitHub
+   releases.
 
 ## First-Time Setup
 
@@ -62,14 +67,11 @@ Commit the generated `.changeset/` file with the code or documentation change.
 
 ## Running a Release
 
-1. Open the `release.yml` workflow in GitHub Actions.
-2. Click "Run workflow".
-3. Select the `develop` branch.
-4. Select the semver bump type: `patch`, `minor`, or `major`.
-5. Run the workflow.
-
-The release workflow creates a version PR, merges it after checks pass, waits for
-the merge to complete, and then invokes `publish.yml`.
+1. Merge PRs that include changesets into `develop`.
+2. Review the `chore(release): Version Packages` PR opened by `release.yml`.
+   Changesets determines each package's semver bump from the changeset files.
+3. Merge the version PR. The next `release.yml` run publishes the new versions
+   to npm and creates GitHub releases.
 
 ## Troubleshooting
 

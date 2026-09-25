@@ -5,9 +5,10 @@ mentioned in chat.
 
 ## Prerequisites
 
-- Node.js 20 or later. Node.js 22 is recommended.
+- Node.js 20 or later. Node.js 24 is recommended and is the version used in CI.
 - A metatell room URL.
-- A room access token if your metatell environment requires authentication.
+- An access token if the bot needs room-role permissions, such as text chat in
+  rooms that restrict it.
 
 ## Install
 
@@ -30,7 +31,7 @@ const client = createMetatellClient({
   serverUrl: 'wss://metatell.app',
   roomId: 'YOUR_ROOM_ID',
   username: 'GuideBot',
-  token: process.env.METATELL_TOKEN,
+  authToken: process.env.METATELL_TOKEN,
 })
 
 await client.connect()
@@ -49,11 +50,12 @@ client.chat.onMessage(async ({ from, text, mention, reply }) => {
 | --- | --- | --- |
 | `serverUrl` | Yes | WebSocket origin for your metatell environment, for example `wss://metatell.app`. |
 | `roomId` | Yes | Room identifier from the metatell room URL. |
-| `token` | No | Access token for environments that require authentication. Store it in an environment variable. |
-| `username` | No | Display name for the bot avatar. |
-| `avatarId` | No | Avatar asset ID to select after connection. |
+| `authToken` | No | OIDC access token sent when joining the room. It gives the bot room-role permissions. Store it in an environment variable. |
+| `username` | No | Display name for the bot avatar. Defaults to `MetatellBot`. |
+| `avatarId` | No | Avatar ID to spawn. When omitted, the first organization avatar is used. |
+| `avatarSrc` | No | GLTF URL used when `avatarId` is an organization avatar UUID. |
+| `defaultAvatarId` | No | Fallback avatar ID when no `avatarId` or organization avatar is available. |
 | `debug` | No | Enables verbose SDK logs. |
-| `reconnect` | No | Reconnection settings for transient network failures. |
 
 ## Parse a Room URL
 
@@ -80,10 +82,11 @@ if (!roomId) {
 ```bash
 cd examples/basic-bot
 npm install
+npm run build
 npm start -- https://metatell.app/YOUR_ROOM_ID
 ```
 
-Add `-- --debug` after the room URL to print verbose logs:
+Add `--debug` after the room URL to print verbose logs:
 
 ```bash
 npm start -- https://metatell.app/YOUR_ROOM_ID --debug
@@ -92,5 +95,5 @@ npm start -- https://metatell.app/YOUR_ROOM_ID --debug
 ## Next Steps
 
 - Use [API overview](./api.md) for available chat, room, avatar, voice, and event APIs.
-- Use [Examples](./examples.md) for command handling, following users, voice streaming, and Dify integration.
+- Use [Examples](./examples.md) for command handling, following users, voice streaming, Dify integration, and behavior trees.
 - Use [Troubleshooting](./troubleshooting.md) if connection, authentication, or voice setup fails.

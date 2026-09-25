@@ -2,8 +2,9 @@
 
 ## Which runtime is supported?
 
-Node.js 20 or later is supported. Node.js 22 is recommended. Deno and Bun are
-not part of the supported test matrix.
+Node.js 20 or later is supported. Node.js 24 is recommended and is the version
+used in CI. `@metatell/bot-cli` requires Node.js 22.12 or later. Deno and Bun
+are not part of the supported test matrix.
 
 ## Can I use the SDK in a browser?
 
@@ -22,14 +23,15 @@ const roomId = url.pathname.split('/').filter(Boolean)[0]
 
 ## Do I need an access token?
 
-Some environments and rooms require a token. Pass it as `token` when creating
-the client and store it in an environment variable:
+A token is needed when the bot requires room-role permissions, such as text
+chat in rooms that restrict it. Pass an OIDC access token as `authToken` when
+creating the client and store it in an environment variable:
 
 ```ts
 createMetatellClient({
   serverUrl,
   roomId,
-  token: process.env.METATELL_TOKEN,
+  authToken: process.env.METATELL_TOKEN,
 })
 ```
 
@@ -58,6 +60,13 @@ Use `createMetatellClient()` and the high-level `MetatellClient` API. Use
 
 ## How do I build a voice bot?
 
-Use `enableVoice()` with `@metatell/bot-realtime`. See
+Install `@metatell/bot-realtime` and call `enableVoice()` after `connect()`. See
+[API overview](./api.md) for the audio format and
 [examples/voice-bot](../examples/voice-bot/README.md) for a runnable WAV
 playback and recording example.
+
+## How do I find walkable positions in a scene?
+
+Connect, call `client.room.prepareNavigation()`, and pass the snapshot to
+`createNavigationRuntime()` from `@metatell/bot-sdk/navigation`. See the
+[`@metatell/bot-sdk` package README](../packages/sdk/README.md).

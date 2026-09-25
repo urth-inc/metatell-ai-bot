@@ -61,8 +61,3 @@ examples/voice-ai-bot/
 
 - Avoid hot reload with `@livekit/rtc-node`.
 - Monitor API usage and quota in Google AI Studio.
-- If connection setup is slow on IPv6 networks, try:
-
-```bash
-ICE_TRANSPORT_POLICY=relay npm start -- <room-url>
-```

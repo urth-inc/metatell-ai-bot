@@ -5,9 +5,10 @@ rooms.
 
 ## Requirements
 
-- Node.js 20 or later. Node.js 22 is recommended.
+- Node.js 20 or later. Node.js 24 is recommended and is the version used in CI.
 - ESM runtime.
-- TypeScript 5 or later for TypeScript projects.
+- TypeScript 5 or later for TypeScript projects. Use `moduleResolution`
+  `NodeNext`, `Node16`, or `Bundler` to import `@metatell/bot-sdk/navigation`.
 
 ## Install
 
@@ -60,14 +61,18 @@ main().catch((error) => {
 })
 ```
 
+Pass `authToken` (an OIDC access token) when the bot needs room-role
+permissions such as text chat. Other options are `avatarId`, `avatarSrc`,
+`defaultAvatarId`, and `debug`.
+
 ## Main Features
 
 - Chat send and receive APIs.
 - Room presence and nearby-user queries.
 - Avatar selection, movement, rotation, and animation playback.
 - Typed events through `MetatellClientEvents`.
-- Error classes for authentication, network, not found, rate limit, and audio
-  format failures.
+- Error classes for authentication, transport, protocol, timeout, rate limit,
+  and navigation failures.
 - Logging provider hooks.
 - Optional realtime voice integration through `enableVoice()`.
 - GLB scene preparation and navmesh pathfinding for non-browser runtimes.
@@ -103,7 +108,7 @@ await client.avatar.rotateTo({ x: 0, y: 90, z: 0 })
 await client.avatar.lookAt({ x: 0, y: 1.6, z: 0 })
 const assets = await client.avatar.getAvailableAssets()
 const animations = await client.avatar.getAvailableAnimations()
-await client.avatar.play({ id: 'walking', loop: true, duration: 5000 })
+await client.avatar.play({ id: 'walking', loop: true })
 ```
 
 `moveTo()` uses room coordinates. `rotateTo()` uses Euler angles in degrees.
@@ -166,15 +171,22 @@ Subscribe to `room-scene-changed` and stop work that depends on the old snapshot
 Passing `expectedSceneIdentity` also prevents a reconnect or avatar entry from
 using a snapshot prepared for a different scene.
 
-The navigation runtime exposes `samplePoint()`, `projectPoint()`, `findPath()`,
-and `clampStep()`. Keep one runtime per worker and a separate cursor per virtual
+By default, `prepareNavigation()` limits the download to 64 MiB, the decoded
+navmesh to 256 MiB and 500,000 triangles, and the request to 30 seconds. Override
+them with `maxBytes`, `maxDecodedBytes`, `maxTriangles`, and `timeoutMs`.
+Scene, navmesh, and timeout failures reject with `NavigationError`. Cancelling
+through `signal` rejects with an `AbortError` instead: the signal's reason when it
+is an `AbortError`, otherwise a `DOMException` named `AbortError`.
+
+The navigation runtime exposes `getSpawnPoints()`, `samplePoint()`,
+`projectPoint()`, `findPath()`, and `clampStep()`. Keep one runtime per worker and a separate cursor per virtual
 user or agent.
 
 ## Events
 
 ```ts
 client.on('connected', () => {})
-client.on('disconnected', (reason) => {})
+client.on('disconnected', () => {})
 client.on('chat-message', (message) => {})
 client.on('user-join', (user) => {})
 client.on('user-leave', (user) => {})
@@ -194,10 +206,9 @@ be resolved. `getNearbyUsers()` reads a snapshot of the same cache.
 ```ts
 import { enableVoice } from '@metatell/bot-sdk'
 
+// Call after client.connect(). Audio is 48000 Hz, mono, signed 16-bit PCM.
 const voice = await enableVoice(client, {
   transport: { type: 'livekit' },
-  sampleRate: 48000,
-  channels: 1,
   handlers: {
     onRemotePcm: async (pcm, meta) => {
       console.log('audio frame from', meta.fromIdentity, pcm.length)
@@ -205,21 +216,21 @@ const voice = await enableVoice(client, {
   },
 })
 
-await voice.stop()
+await voice.detach()
 ```
 
 ## Error Handling
 
 ```ts
-import { AuthError, NetworkError } from '@metatell/bot-sdk'
+import { AuthenticationError, TransportError } from '@metatell/bot-sdk'
 
 try {
   await client.connect()
 } catch (error) {
-  if (error instanceof AuthError) {
+  if (error instanceof AuthenticationError) {
     console.error('Authentication failed:', error.message)
-  } else if (error instanceof NetworkError) {
-    console.error('Network error:', error.message)
+  } else if (error instanceof TransportError) {
+    console.error('Connection failed:', error.reason ?? error.message)
   } else {
     throw error
   }
