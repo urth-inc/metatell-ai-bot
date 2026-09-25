@@ -1,5 +1,13 @@
 # @metatell/bot-cli
 
+## 2.0.5
+
+### Patch Changes
+
+- 861d818: Refresh package READMEs to match the current public API: `authToken` and avatar options, the actual error classes, `enableVoice()` audio format and `detach()`, scene navigation limits and abort behavior, the realtime transport factory, core service composition, and CLI commands and options.
+- Updated dependencies [861d818]
+  - @metatell/bot-sdk@2.1.2
+
 ## 2.0.4
 
 ### Patch Changes
