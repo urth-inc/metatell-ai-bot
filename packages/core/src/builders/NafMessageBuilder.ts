@@ -1,24 +1,10 @@
-/**
- * NAF Component IDs - Mapping of component types to their numeric IDs
- */
-export enum NafComponentId {
-  Position = '0',
-  Velocity = '1',
-  Scale = '2',
-  Avatar = '3',
-  HeadRotation = '4',
-  LeftHandRotation = '5',
-  RightHandRotation = '6',
-  LeftHandPosition = '7',
-  RightHandPosition = '8',
-  HandRaised = '9',
-  PinPosition = '10',
-  PinScale = '11',
-  FaceSnapshotEnabled = '12',
-  FaceSnapshot = '13', // Also used for VRM avatar status (animation state) for compatibility
-  VrmAvatarStatus = '13', // Alias for FaceSnapshot when used for animation state
-  BodyRotation = '14',
-}
+import {
+  NafComponentId,
+  quaternionToEulerDegrees,
+  serializeRemoteAvatar,
+} from '../types/remote-avatar.js'
+import type { RemoteAvatarComponents } from '../types/remote-avatar.js'
+export { NafComponentId } from '../types/remote-avatar.js'
 
 /**
  * NAF Avatar configuration
@@ -85,13 +71,6 @@ export class NafMessageBuilder {
   private parent: unknown = null
   private components: Partial<Record<NafComponentId, unknown>> = {}
   private isMultiData: boolean = false
-
-  constructor() {
-    // Set default components
-    this.components[NafComponentId.Position] = { isVector3: true, x: 0, y: 0, z: 0 }
-    this.components[NafComponentId.Scale] = { x: 1, y: 1, z: 1 }
-    this.components[NafComponentId.HandRaised] = false
-  }
 
   /**
    * Set the data type
@@ -162,15 +141,7 @@ export class NafMessageBuilder {
    * Set position component
    */
   withPosition(position: { x: number; y: number; z: number }): this {
-    this.components[NafComponentId.Position] = { isVector3: true, ...position }
-    return this
-  }
-
-  /**
-   * Set velocity component
-   */
-  withVelocity(velocity: { x: number; y: number; z: number }): this {
-    this.components[NafComponentId.Velocity] = velocity
+    this.components[NafComponentId.Position] = { ...position }
     return this
   }
 
@@ -208,7 +179,7 @@ export class NafMessageBuilder {
    * Set head rotation (quaternion)
    */
   withHeadRotation(rotation: { x: number; y: number; z: number; w: number }): this {
-    this.components[NafComponentId.HeadRotation] = rotation
+    this.components[NafComponentId.HeadRotation] = quaternionToEulerDegrees(rotation)
     return this
   }
 
@@ -216,7 +187,7 @@ export class NafMessageBuilder {
    * Set left hand rotation (quaternion)
    */
   withLeftHandRotation(rotation: { x: number; y: number; z: number; w: number }): this {
-    this.components[NafComponentId.LeftHandRotation] = rotation
+    this.components[NafComponentId.LeftHandRotation] = quaternionToEulerDegrees(rotation)
     return this
   }
 
@@ -224,7 +195,7 @@ export class NafMessageBuilder {
    * Set right hand rotation (quaternion)
    */
   withRightHandRotation(rotation: { x: number; y: number; z: number; w: number }): this {
-    this.components[NafComponentId.RightHandRotation] = rotation
+    this.components[NafComponentId.RightHandRotation] = quaternionToEulerDegrees(rotation)
     return this
   }
 
@@ -245,46 +216,6 @@ export class NafMessageBuilder {
   }
 
   /**
-   * Set hand raised state
-   */
-  withHandRaised(raised: boolean): this {
-    this.components[NafComponentId.HandRaised] = raised
-    return this
-  }
-
-  /**
-   * Set pin position
-   */
-  withPinPosition(position: { x: number; y: number; z: number }): this {
-    this.components[NafComponentId.PinPosition] = position
-    return this
-  }
-
-  /**
-   * Set pin scale
-   */
-  withPinScale(scale: { x: number; y: number; z: number }): this {
-    this.components[NafComponentId.PinScale] = scale
-    return this
-  }
-
-  /**
-   * Set face snapshot enabled
-   */
-  withFaceSnapshotEnabled(enabled: boolean): this {
-    this.components[NafComponentId.FaceSnapshotEnabled] = enabled
-    return this
-  }
-
-  /**
-   * Set face snapshot data
-   */
-  withFaceSnapshot(data: unknown): this {
-    this.components[NafComponentId.FaceSnapshot] = data
-    return this
-  }
-
-  /**
    * Set megaphone state
    */
   withMegaphone(enabled: boolean): this {
@@ -297,6 +228,12 @@ export class NafMessageBuilder {
    */
   withTemporaryMegaphone(enabled: boolean): this {
     this.temporaryMegaphone = enabled
+    return this
+  }
+
+  /** Set typed browser components (Euler degrees, parent-local metres). */
+  withRemoteAvatar(fields: Partial<RemoteAvatarComponents>): this {
+    Object.assign(this.components, serializeRemoteAvatar(fields))
     return this
   }
 
@@ -318,7 +255,7 @@ export class NafMessageBuilder {
       throw new Error('networkId, owner, and creator are required')
     }
 
-    // Build components object including defaults set in constructor and any explicitly set components
+    // Build components object containing only explicitly set components
     const mergedComponents = { ...this.components }
 
     if (this.isMultiData) {

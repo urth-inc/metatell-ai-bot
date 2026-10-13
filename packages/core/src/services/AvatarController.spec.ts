@@ -97,7 +97,7 @@ describe('AvatarController', () => {
           creator: 'test-session-123',
           template: '#remote-avatar',
           components: expect.objectContaining({
-            '0': { isVector3: true, x: 0, y: 0.2, z: 0 },
+            '0': { x: 0, y: 0.2, z: 0 },
           }),
         }),
       })
@@ -116,7 +116,7 @@ describe('AvatarController', () => {
         dataType: 'u',
         data: expect.objectContaining({
           components: expect.objectContaining({
-            '0': { isVector3: true, ...customPosition },
+            '0': { ...customPosition },
           }),
         }),
       })
@@ -179,7 +179,7 @@ describe('AvatarController', () => {
                 persistent: false,
                 parent: null,
                 components: expect.objectContaining({
-                  '0': { isVector3: true, ...newPosition },
+                  '0': { ...newPosition },
                 }),
               }),
             ]),
@@ -303,7 +303,6 @@ describe('AvatarController', () => {
               expect.objectContaining({
                 components: expect.objectContaining({
                   '0': {
-                    isVector3: true,
                     ...updates.position,
                   },
                 }),
