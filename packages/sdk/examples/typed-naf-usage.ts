@@ -1,3 +1,4 @@
+import { Euler, MathUtils, Quaternion as ThreeQuaternion } from 'three'
 /**
  * Example: Using strongly-typed NAF messages
  * Demonstrates the improved type safety for NAF message handling
@@ -84,20 +85,18 @@ function updateAvatarPosition(
   const builder = new NafMessageBuilder()
     .withDataType('um')
     .withNetworkId(networkId)
+    .withOwner(networkId)
+    .withCreator(networkId)
     .withPosition(position)
 
   if (rotation) {
-    // Note: Body rotation expects Euler angles in degrees, not quaternions
-    // Convert quaternion to Euler angles (simplified for Y-axis rotation)
-    const yaw = Math.atan2(
-      2 * (rotation.w * rotation.y + rotation.x * rotation.z),
-      1 - 2 * (rotation.y * rotation.y + rotation.z * rotation.z),
-    )
-
+    // Use the SDK wire rotation format: YXZ Euler degrees, all three axes.
+    const q = new ThreeQuaternion(rotation.x, rotation.y, rotation.z, rotation.w).normalize()
+    const euler = new Euler().setFromQuaternion(q, 'YXZ')
     builder.withBodyRotation({
-      x: 0, // Pitch
-      y: yaw * (180 / Math.PI), // Yaw - convert radians to degrees
-      z: 0, // Roll
+      x: MathUtils.radToDeg(euler.x),
+      y: MathUtils.radToDeg(euler.y),
+      z: MathUtils.radToDeg(euler.z),
     })
   }
 

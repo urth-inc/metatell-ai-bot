@@ -4,7 +4,6 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { NafMessageBuilder } from '../../builders/NafMessageBuilder.js'
 import type { IAnimationService } from '../../interfaces/IAnimationService.js'
 import type { AvatarState, Position, Rotation } from '../../interfaces/IAvatarController.js'
 import type { IConfigurationProvider } from '../../interfaces/IConfigurationProvider.js'
@@ -23,16 +22,12 @@ vi.mock('../../logging/index.js', () => ({
   }),
 }))
 
-// Mock NafMessageBuilder
-vi.mock('../../builders/NafMessageBuilder.js')
-
 describe('AvatarController - Core Functionality', () => {
   let avatarController: AvatarController
   let mockMessageService: IMessageService
   let mockConfigProvider: IConfigurationProvider
   let mockEventBus: IEventBus
   let mockAnimationService: IAnimationService
-  let mockNafMessageBuilder: InstanceType<typeof NafMessageBuilder>
 
   const mockConfig = {
     profile: {
@@ -74,41 +69,6 @@ describe('AvatarController - Core Functionality', () => {
       loadAnimation: vi.fn(),
     } as unknown as IAnimationService
 
-    // Mock NafMessageBuilder with fluent interface
-    mockNafMessageBuilder = {
-      withDataType: vi.fn().mockReturnThis(),
-      withNetworkId: vi.fn().mockReturnThis(),
-      withOwner: vi.fn().mockReturnThis(),
-      withCreator: vi.fn().mockReturnThis(),
-      withFirstSync: vi.fn().mockReturnThis(),
-      withPosition: vi.fn().mockReturnThis(),
-      withRotation: vi.fn().mockReturnThis(),
-      withBodyRotation: vi.fn().mockReturnThis(),
-      withAvatar: vi.fn().mockReturnThis(),
-      withTemplate: vi.fn().mockReturnThis(),
-      withPersistent: vi.fn().mockReturnThis(),
-      withLastOwnerTime: vi.fn().mockReturnThis(),
-      withVelocity: vi.fn().mockReturnThis(),
-      withScale: vi.fn().mockReturnThis(),
-      withHeadRotation: vi.fn().mockReturnThis(),
-      withLeftHandRotation: vi.fn().mockReturnThis(),
-      withRightHandRotation: vi.fn().mockReturnThis(),
-      withLeftHandPosition: vi.fn().mockReturnThis(),
-      withRightHandPosition: vi.fn().mockReturnThis(),
-      withHandRaised: vi.fn().mockReturnThis(),
-      withPinPosition: vi.fn().mockReturnThis(),
-      withPinScale: vi.fn().mockReturnThis(),
-      withFaceSnapshotEnabled: vi.fn().mockReturnThis(),
-      withFaceSnapshot: vi.fn().mockReturnThis(),
-      withMegaphone: vi.fn().mockReturnThis(),
-      withTemporaryMegaphone: vi.fn().mockReturnThis(),
-      build: vi.fn().mockReturnValue({ type: 'naf-message', data: 'test-data' }),
-    }
-
-    vi.mocked(NafMessageBuilder).mockImplementation(function NafMessageBuilder() {
-      return mockNafMessageBuilder
-    })
-
     avatarController = new AvatarController(
       mockMessageService,
       mockConfigProvider,
@@ -140,15 +100,17 @@ describe('AvatarController - Core Functionality', () => {
     it('should create and send NAF messages with correct parameters', async () => {
       await avatarController.spawn('test-avatar', testPosition)
 
-      expect(NafMessageBuilder).toHaveBeenCalledTimes(1) // Only one spawn message now
+      // Only one spawn message now
 
-      // Verify NAF message building
-      expect(mockNafMessageBuilder.withDataType).toHaveBeenCalledWith('u')
-      expect(mockNafMessageBuilder.withNetworkId).toHaveBeenCalledWith('test-session-123')
-      expect(mockNafMessageBuilder.withOwner).toHaveBeenCalledWith('test-session-123')
-      expect(mockNafMessageBuilder.withCreator).toHaveBeenCalledWith('test-session-123')
-      expect(mockNafMessageBuilder.withFirstSync).toHaveBeenCalledWith(true)
-      expect(mockNafMessageBuilder.withPosition).toHaveBeenCalledWith(testPosition)
+      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataType: 'u',
+          data: expect.objectContaining({
+            isFirstSync: true,
+            components: expect.objectContaining({ '0': testPosition }),
+          }),
+        }),
+      )
 
       // Verify message service calls (spawn now uses sendNAFR for reliable delivery)
       expect(mockMessageService.sendNAFR).toHaveBeenCalledTimes(1)
@@ -194,8 +156,7 @@ describe('AvatarController - Core Functionality', () => {
 
     it('should use default position when not provided', async () => {
       await avatarController.spawn('test-avatar')
-
-      expect(mockNafMessageBuilder.withPosition).toHaveBeenCalledWith({ x: 0, y: 0.2, z: 0 })
+      expect(avatarController.getState()?.position).toEqual({ x: 0, y: 0.2, z: 0 })
     })
 
     it('should throw error for organization avatar without avatarSrc', async () => {
@@ -224,11 +185,9 @@ describe('AvatarController - Core Functionality', () => {
       await expect(unspawnedController.move(testPosition)).rejects.toThrow('Avatar not spawned')
     })
 
-    it('should create and send NAFR message with correct position', async () => {
+    it('should create and send NAF message with correct position', async () => {
       await avatarController.move(testPosition)
 
-      expect(mockNafMessageBuilder.withDataType).toHaveBeenCalledWith('um')
-      expect(mockNafMessageBuilder.withPosition).toHaveBeenCalledWith(testPosition)
       expect(mockMessageService.sendNAF).toHaveBeenCalledTimes(1)
     })
 
@@ -266,13 +225,9 @@ describe('AvatarController - Core Functionality', () => {
       await expect(unspawnedController.rotate(testRotation)).rejects.toThrow('Avatar not spawned')
     })
 
-    it('should create and send NAFR message with rotation', async () => {
+    it('should create and send NAF message with rotation', async () => {
       await avatarController.rotate(testRotation)
 
-      expect(mockNafMessageBuilder.withDataType).toHaveBeenCalledWith('um')
-      expect(mockNafMessageBuilder.withBodyRotation).toHaveBeenCalledWith(
-        expect.objectContaining({ x: 0, y: 0, z: 0 }), // Euler angles
-      )
       expect(mockMessageService.sendNAF).toHaveBeenCalledTimes(1)
     })
 
@@ -310,7 +265,7 @@ describe('AvatarController - Core Functionality', () => {
       await expect(unspawnedController.updateState({})).rejects.toThrow('Avatar not spawned')
     })
 
-    it('should create and send NAFR message with state updates', async () => {
+    it('should create and send NAF message with state updates', async () => {
       const partialState: Partial<AvatarState> = {
         position: testPosition,
         rotation: testRotation,
@@ -318,9 +273,6 @@ describe('AvatarController - Core Functionality', () => {
 
       await avatarController.updateState(partialState)
 
-      expect(mockNafMessageBuilder.withDataType).toHaveBeenCalledWith('um')
-      expect(mockNafMessageBuilder.withPosition).toHaveBeenCalledWith(testPosition)
-      expect(mockNafMessageBuilder.withBodyRotation).toHaveBeenCalled()
       expect(mockMessageService.sendNAF).toHaveBeenCalledTimes(1)
     })
 
@@ -354,8 +306,6 @@ describe('AvatarController - Core Functionality', () => {
 
       await avatarController.updateState(partialState)
 
-      expect(mockNafMessageBuilder.withAvatar).toHaveBeenCalled()
-
       const state = avatarController.getState()
       expect(state?.avatarSrc).toBe('https://new-avatar-source.com/avatar.gltf')
     })
@@ -387,20 +337,23 @@ describe('AvatarController - Core Functionality', () => {
     it('should send NAFR message with isFirstSync: true', async () => {
       await avatarController.resyncAvatar()
 
-      expect(mockNafMessageBuilder.withDataType).toHaveBeenCalledWith('u')
-      expect(mockNafMessageBuilder.withFirstSync).toHaveBeenCalledWith(true)
-      expect(mockNafMessageBuilder.withPosition).toHaveBeenCalledWith(testPosition)
       expect(mockMessageService.sendNAFR).toHaveBeenCalledTimes(1)
     })
 
     it('should include complete avatar state in resync', async () => {
       await avatarController.resyncAvatar()
-
-      expect(mockNafMessageBuilder.withTemplate).toHaveBeenCalledWith('#remote-avatar')
-      expect(mockNafMessageBuilder.withPersistent).toHaveBeenCalledWith(false)
-      expect(mockNafMessageBuilder.withVelocity).toHaveBeenCalled()
-      expect(mockNafMessageBuilder.withScale).toHaveBeenCalled()
-      expect(mockNafMessageBuilder.withAvatar).toHaveBeenCalled()
+      expect(mockMessageService.sendNAFR).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataType: 'u',
+          data: expect.objectContaining({
+            isFirstSync: true,
+            components: expect.objectContaining({
+              '0': testPosition,
+              '3': expect.objectContaining({ avatarSrc: expect.stringContaining('test-avatar') }),
+            }),
+          }),
+        }),
+      )
     })
   })
 

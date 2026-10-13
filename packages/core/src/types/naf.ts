@@ -4,6 +4,7 @@
  */
 
 import { NafComponentId } from '../builders/NafMessageBuilder.js'
+import type { NetworkedAvatarData, VrmAvatarStatusData } from './remote-avatar.js'
 
 // ============================================================================
 // Component Value Types
@@ -93,9 +94,9 @@ export interface NAFComponent<T = unknown> {
 export interface PositionComponent extends NAFComponent<Vec3> {}
 
 /**
- * Velocity component (ID: 1)
+ * Root rotation component (ID: 1)
  */
-export interface VelocityComponent extends NAFComponent<Vec3> {}
+export interface RootRotationComponent extends NAFComponent<Vec3> {}
 
 /**
  * Scale component (ID: 2)
@@ -108,53 +109,23 @@ export interface ScaleComponent extends NAFComponent<Vec3> {}
 export interface AvatarComponent extends NAFComponent<AvatarComponentData | string> {}
 
 /**
- * Head rotation component (ID: 4)
- * Can be Euler angles (3 values) or Quaternion (4 values)
+ * Head rotation component (ID: 6)
+ * Euler degrees (YXZ).
  */
-export interface HeadRotationComponent extends NAFComponent<Vec3 | Quat> {}
+export interface HeadRotationComponent extends NAFComponent<Vec3> {}
 
 /**
- * Hand rotation components (IDs: 5, 6)
+ * Hand rotation components (IDs: 8, 11), Euler degrees (YXZ)
  */
-export interface HandRotationComponent extends NAFComponent<Quat> {}
+export interface HandRotationComponent extends NAFComponent<Vec3> {}
 
 /**
- * Hand position components (IDs: 7, 8)
+ * Hand position components (IDs: 7, 10), rig-local metres
  */
 export interface HandPositionComponent extends NAFComponent<Vec3> {}
 
-/**
- * Hand raised component (ID: 9)
- */
-export interface HandRaisedComponent extends NAFComponent<boolean> {}
-
-/**
- * Pin position component (ID: 10)
- */
-export interface PinPositionComponent extends NAFComponent<Vec3> {}
-
-/**
- * Pin scale component (ID: 11)
- */
-export interface PinScaleComponent extends NAFComponent<Vec3> {}
-
-/**
- * Face snapshot enabled component (ID: 12)
- */
-export interface FaceSnapshotEnabledComponent extends NAFComponent<boolean> {}
-
-/**
- * Face snapshot component (ID: 13)
- * Note: Also used for VRM avatar status (animation state) for compatibility
- */
-export interface FaceSnapshotComponent extends NAFComponent<
-  FaceSnapshotData | { status: string; animationRunId: string }
-> {}
-
-/**
- * Alias for FaceSnapshot when used for VRM avatar status
- */
-export type VrmAvatarStatusComponent = FaceSnapshotComponent
+/** VRM animation state at index 13. */
+export interface VrmAvatarStatusComponent extends NAFComponent<VrmAvatarStatusData> {}
 
 /**
  * Body rotation component (ID: 14)
@@ -174,22 +145,19 @@ export interface NAFComponentMap {
     | Vec3
     | PositionComponent
     | { x: number; y: number; z: number; isVector3?: boolean }
-  [NafComponentId.Velocity]?: Vec3 | VelocityComponent
+  [NafComponentId.RootRotation]?: Vec3 | RootRotationComponent
   [NafComponentId.Scale]?: Vec3 | ScaleComponent | { x: number; y: number; z: number }
   [NafComponentId.Avatar]?: AvatarComponentData | string | AvatarComponent
-  [NafComponentId.HeadRotation]?: Vec3 | Quat | HeadRotationComponent
-  [NafComponentId.LeftHandRotation]?: Quat | HandRotationComponent
-  [NafComponentId.RightHandRotation]?: Quat | HandRotationComponent
+  [NafComponentId.HeadRotation]?: Vec3 | HeadRotationComponent
+  [NafComponentId.LeftHandRotation]?: Vec3 | HandRotationComponent
+  [NafComponentId.RightHandRotation]?: Vec3 | HandRotationComponent
   [NafComponentId.LeftHandPosition]?: Vec3 | HandPositionComponent
   [NafComponentId.RightHandPosition]?: Vec3 | HandPositionComponent
-  [NafComponentId.HandRaised]?: boolean | HandRaisedComponent
-  [NafComponentId.PinPosition]?: Vec3 | PinPositionComponent
-  [NafComponentId.PinScale]?: Vec3 | PinScaleComponent
-  [NafComponentId.FaceSnapshotEnabled]?: boolean | FaceSnapshotEnabledComponent
-  [NafComponentId.FaceSnapshot]?:
-    | FaceSnapshotData
-    | { status: string; animationRunId: string }
-    | FaceSnapshotComponent
+  [NafComponentId.NetworkedAvatar]?: NetworkedAvatarData | NAFComponent<NetworkedAvatarData>
+  [NafComponentId.HeadPosition]?: Vec3 | NAFComponent<Vec3>
+  [NafComponentId.LeftHandVisible]?: boolean | NAFComponent<boolean>
+  [NafComponentId.RightHandVisible]?: boolean | NAFComponent<boolean>
+  [NafComponentId.VrmAvatarStatus]?: VrmAvatarStatusData | VrmAvatarStatusComponent
   [NafComponentId.BodyRotation]?: Vec3 | BodyRotationComponent | { x: number; y: number; z: number }
 }
 

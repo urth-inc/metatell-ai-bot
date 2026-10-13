@@ -108,8 +108,8 @@ export function eulerToQuaternion(
 
   // Quaternion components
   return {
-    x: sx * cy * cz - cx * sy * sz,
-    y: cx * sy * cz + sx * cy * sz,
+    x: sx * cy * cz + cx * sy * sz,
+    y: cx * sy * cz - sx * cy * sz,
     z: cx * cy * sz - sx * sy * cz,
     w: cx * cy * cz + sx * sy * sz,
   }

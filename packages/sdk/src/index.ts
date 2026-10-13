@@ -6,6 +6,7 @@ export type {
   AnimationPlayOptions,
   AvatarComponentData,
   AvatarState,
+  AvatarPose,
   BotConfiguration,
   BotContext,
   BotProfile,
@@ -127,3 +128,10 @@ export type {
   User,
   Vec3,
 } from './types-facade.js'
+
+export type {
+  RemoteAvatarComponents,
+  RemoteAvatarWireComponents,
+  NetworkedAvatarData,
+  VrmAvatarStatusData,
+} from '@metatell/bot-core'

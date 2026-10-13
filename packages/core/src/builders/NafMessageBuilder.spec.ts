@@ -26,7 +26,6 @@ describe('NafMessageBuilder', () => {
       .build()
 
     expect(message.data.components?.[NafComponentId.Position]).toEqual({
-      isVector3: true,
       ...position,
     })
   })
@@ -75,22 +74,14 @@ describe('NafMessageBuilder', () => {
     expect(message.data.d?.[0].networkId).toBe('test-id')
   })
 
-  it('should include default components', () => {
+  it('does not inject components into an empty delta', () => {
     const message = new NafMessageBuilder()
-      .withNetworkId('test-id')
+      .withNetworkId('id')
       .withOwner('owner')
       .withCreator('creator')
+      .withDataType('um')
       .build()
-
-    const components = message.data.components
-    expect(components?.[NafComponentId.Position]).toEqual({
-      isVector3: true,
-      x: 0,
-      y: 0,
-      z: 0,
-    })
-    expect(components?.[NafComponentId.Scale]).toEqual({ x: 1, y: 1, z: 1 })
-    expect(components?.[NafComponentId.HandRaised]).toBe(false)
+    expect(message.data.d?.[0].components).toEqual({})
   })
 
   it('should throw error if required fields are missing', () => {
@@ -117,9 +108,8 @@ describe('NafMessageBuilder', () => {
     })
     expect(message.data.components?.[NafComponentId.HeadRotation]).toEqual({
       x: 0,
-      y: Math.SQRT1_2,
+      y: expect.closeTo(90, 10),
       z: 0,
-      w: Math.SQRT1_2,
     })
   })
 
@@ -130,7 +120,7 @@ describe('NafMessageBuilder', () => {
       .withCreator('creator')
       .withLeftHandPosition({ x: -1, y: 1, z: 0 })
       .withRightHandPosition({ x: 1, y: 1, z: 0 })
-      .withHandRaised(true)
+      .withRemoteAvatar({ leftHandVisible: true })
       .build()
 
     expect(message.data.components?.[NafComponentId.LeftHandPosition]).toEqual({
@@ -143,7 +133,7 @@ describe('NafMessageBuilder', () => {
       y: 1,
       z: 0,
     })
-    expect(message.data.components?.[NafComponentId.HandRaised]).toBe(true)
+    expect(message.data.components?.[NafComponentId.LeftHandVisible]).toBe(true)
   })
 
   it('should build a message with megaphone settings', () => {

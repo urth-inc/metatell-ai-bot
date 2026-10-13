@@ -90,25 +90,11 @@ interface NAFMessage {
 
 ### Component IDs
 
-NAF uses numeric IDs to identify component types:
+Use the exported `NafComponentId` identifiers or the semantic fields accepted by `NafMessageBuilder.withRemoteAvatar()`. Position, root rotation, model rotation, head transforms and each hand's transforms are separate SDK fields.
 
-- `0`: Position
-- `1`: Velocity
-- `2`: Scale
-- `3`: Avatar
-- `4`: Head Rotation
-- `5`: Left Hand Rotation
-- `6`: Right Hand Rotation
-- `7`: Left Hand Position
-- `8`: Right Hand Position
-- `9`: Hand Raised
-- `10`: Pin Position
-- `11`: Pin Scale
-- `12`: Face Snapshot Enabled
-- `13`: Face Snapshot / VRM Avatar Status (also used for animation state)
-- `14`: Body Rotation
+Wire rotations use Euler degrees in YXZ order. Positions use metres, with head and hand positions relative to the avatar rig. Full sync uses one serializer for SDK-managed state; deltas contain only explicitly changed fields. Empty builders inject no components.
 
-**Note**: Component ID 13 is used both for face snapshots and VRM avatar animation states for compatibility with vrm-avatar-status-manager.
+See [the contract migration guide](./remote-avatar-contract.md) for typed APIs, breaking changes, synthetic SDK tests and compatibility limits.
 
 ## Best Practices
 

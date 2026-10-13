@@ -747,7 +747,7 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       const yRad = (rotation.y * Math.PI) / 180
       const zRad = (rotation.z * Math.PI) / 180
 
-      // Convert Euler angles to a quaternion in ZYX order.
+      // Convert Euler angles to a quaternion in A-Frame YXZ order.
       const cx = Math.cos(xRad / 2)
       const sx = Math.sin(xRad / 2)
       const cy = Math.cos(yRad / 2)
@@ -756,8 +756,8 @@ export class MetatellClientImpl extends EventEmitter implements MetatellClient {
       const sz = Math.sin(zRad / 2)
 
       const quaternion = {
-        x: sx * cy * cz - cx * sy * sz,
-        y: cx * sy * cz + sx * cy * sz,
+        x: sx * cy * cz + cx * sy * sz,
+        y: cx * sy * cz - sx * cy * sz,
         z: cx * cy * sz - sx * sy * cz,
         w: cx * cy * cz + sx * sy * sz,
       }
