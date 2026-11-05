@@ -35,7 +35,7 @@ export {
   AuthenticationService,
   type IAuthenticationService,
 } from './interfaces/IAuthenticationService.js'
-export type { AvatarState } from './interfaces/IAvatarController.js'
+export type { AvatarState, AvatarPose } from './interfaces/IAvatarController.js'
 export { AvatarController, type IAvatarController } from './interfaces/IAvatarController.js'
 export type {
   BotConfiguration,
@@ -139,3 +139,10 @@ export type {
 } from './types/navigation.js'
 // Voice types
 export type { VoiceCapableClient } from './types/voice.js'
+
+export type {
+  RemoteAvatarComponents,
+  RemoteAvatarWireComponents,
+  NetworkedAvatarData,
+  VrmAvatarStatusData,
+} from './types/remote-avatar.js'

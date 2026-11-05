@@ -3,6 +3,7 @@ import { NafMessageBuilder } from '../builders/NafMessageBuilder.js'
 import { AnimationNotFoundError, AvatarNotSpawnedError } from '../errors/animation-errors.js'
 import type { IAnimationService } from '../interfaces/IAnimationService.js'
 import type {
+  AvatarPose,
   AvatarState,
   IAvatarController,
   Position,
@@ -13,6 +14,7 @@ import { type IEventBus, SystemEvents } from '../interfaces/IEventBus.js'
 import type { IMessageService } from '../interfaces/IMessageService.js'
 import { getLogger } from '../logging/index.js'
 import type { AnimationPlaybackResult, AnimationPlayOptions } from '../types/animation.js'
+import { quaternionToEulerDegrees, type RemoteAvatarComponents } from '../types/remote-avatar.js'
 
 // Constants for default values
 const DEFAULT_TEMPLATE = '#remote-avatar'
@@ -37,7 +39,12 @@ export class AvatarController implements IAvatarController {
     })
   }
 
-  async spawn(avatarId: string, position?: Position, avatarSrc?: string): Promise<void> {
+  async spawn(
+    avatarId: string,
+    position?: Position,
+    avatarSrc?: string,
+    pose?: Partial<AvatarPose>,
+  ): Promise<void> {
     if (!this.sessionId) {
       throw new Error('Cannot spawn avatar: Not connected to room')
     }
@@ -75,37 +82,20 @@ export class AvatarController implements IAvatarController {
     // Update internal state
     this.state = {
       networkId,
-      position: spawnPosition,
+      position: { ...spawnPosition },
       rotation: { x: 0, y: 0, z: 0, w: 1 },
+      scale: { x: 1, y: 1, z: 1 },
+      // A bot has no tracked controllers unless a caller supplies a pose.
+      leftHandVisible: false,
+      rightHandVisible: false,
+      ...pose,
       avatarId,
       avatarSrc: finalAvatarSrc,
       displayName: config.profile.displayName,
     }
 
-    // Send initial NAF message (unreliable) for immediate visibility
-    const nafMessage = new NafMessageBuilder()
-      .withDataType('u')
-      .withNetworkId(networkId)
-      .withOwner(this.sessionId)
-      .withCreator(this.sessionId)
-      .withFirstSync(true)
-      .withPosition(spawnPosition)
-      .withAvatar({
-        avatarSrc: this.state.avatarSrc || '',
-        avatarType:
-          this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
-            ? ORGANIZATION_AVATAR_TYPE
-            : DEFAULT_AVATAR_TYPE,
-        muted: false,
-        isSharingAvatarCamera: false,
-        ...(this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
-          ? { files: {} }
-          : {}),
-      })
-      .build()
-
-    // Send spawn message with NAFR (reliable) for critical spawn data
-    await this.messageService.sendNAFR(nafMessage)
+    this.currentAnimation = null
+    await this.messageService.sendNAFR(this.buildMessage(this.state, true))
 
     // アニメーションサービスに現在のアバターIDを設定
     if (this.animationService) {
@@ -158,18 +148,9 @@ export class AvatarController implements IAvatarController {
       throw new Error('Avatar not spawned')
     }
 
-    this.state.position = position
+    this.state.position = { ...position }
 
-    // Send position update via NAF (unreliable) for frequent updates
-    const nafMessage = new NafMessageBuilder()
-      .withDataType('um')
-      .withNetworkId(this.state.networkId)
-      .withOwner(this.sessionId)
-      .withCreator(this.sessionId)
-      .withPosition(position)
-      .build()
-
-    await this.messageService.sendNAF(nafMessage)
+    await this.messageService.sendNAF(this.buildMessage({ position }))
     this.eventBus.emit(SystemEvents.AVATAR_MOVED, this.state)
     // 移動ログは頻繁すぎるのでコメントアウト
     // this.logger.debug(`Avatar moved to position (${position.x}, ${position.y}, ${position.z})`)
@@ -180,39 +161,61 @@ export class AvatarController implements IAvatarController {
       throw new Error('Avatar not spawned')
     }
 
-    this.state.rotation = rotation
-
-    // クォータニオンをオイラー角（度数）に変換
-    const euler = this.quaternionToEuler(rotation)
-
-    const nafMessage = new NafMessageBuilder()
-      .withDataType('um')
-      .withNetworkId(this.state.networkId)
-      .withOwner(this.sessionId)
-      .withCreator(this.sessionId)
-      .withPosition(this.state.position) // 位置情報も含める
-      .withBodyRotation(euler) // ブラウザクライアント準拠（オイラー角、度数）
-      .build()
-
-    await this.messageService.sendNAF(nafMessage)
+    const message = this.buildMessage({ rotation })
+    this.state.rotation = { x: rotation.x, y: rotation.y, z: rotation.z, w: rotation.w }
+    await this.messageService.sendNAF(message)
     this.eventBus.emit(SystemEvents.AVATAR_UPDATED, this.state)
   }
 
-  private quaternionToEuler(rotation: Rotation): { x: number; y: number; z: number } {
-    // クォータニオンからオイラー角への変換（ZYX順、度数）
-    const { x, y, z, w } = rotation
-
-    // wがundefinedの場合は正規化されたクォータニオンから計算
-    const normalizedW = w ?? Math.sqrt(Math.max(0, 1 - x * x - y * y - z * z))
-
-    // Y軸回転のみの場合の簡略化された変換
-    const yaw = Math.atan2(2 * (normalizedW * y + x * z), 1 - 2 * (y * y + z * z))
-
-    return {
-      x: 0, // X軸回転（ピッチ）
-      y: yaw * (180 / Math.PI), // Y軸回転（ヨー）を度数に変換
-      z: 0, // Z軸回転（ロール）
+  /** Shared full/delta serializer. Only supplied fields are visited for a delta. */
+  private buildMessage(update: Partial<AvatarState>, firstSync = false) {
+    const state = this.state!
+    const fields: Partial<RemoteAvatarComponents> = {}
+    for (const key of Object.keys(update) as (keyof AvatarState)[]) {
+      if (update[key] === undefined) continue
+      switch (key) {
+        case 'rootRotation':
+        case 'headRotation':
+        case 'leftHandRotation':
+        case 'rightHandRotation':
+          fields[key] = quaternionToEulerDegrees(update[key]!)
+          break
+        case 'rotation':
+          fields.bodyRotation = quaternionToEulerDegrees(update.rotation!)
+          break
+        case 'position':
+        case 'scale':
+        case 'networkedAvatar':
+        case 'headPosition':
+        case 'leftHandPosition':
+        case 'rightHandPosition':
+        case 'leftHandVisible':
+        case 'rightHandVisible':
+        case 'animation':
+          Object.assign(fields, { [key]: update[key] })
+          break
+      }
     }
+    if (update.avatarSrc !== undefined || update.avatarId !== undefined) {
+      const avatarId = update.avatarId ?? state.avatarId
+      const organization = this.isOrganizationAvatar(avatarId)
+      fields.avatar = {
+        avatarSrc: update.avatarSrc ?? state.avatarSrc ?? '',
+        avatarType: organization ? ORGANIZATION_AVATAR_TYPE : DEFAULT_AVATAR_TYPE,
+        muted: false,
+        isSharingAvatarCamera: false,
+        ...(organization ? { files: {} } : {}),
+      }
+    }
+    return new NafMessageBuilder()
+      .withDataType(firstSync ? 'u' : 'um')
+      .withNetworkId(state.networkId)
+      .withOwner(this.sessionId!)
+      .withCreator(this.sessionId!)
+      .withTemplate(DEFAULT_TEMPLATE)
+      .withFirstSync(firstSync)
+      .withRemoteAvatar(fields)
+      .build()
   }
 
   async updateState(state: Partial<AvatarState>): Promise<void> {
@@ -220,40 +223,15 @@ export class AvatarController implements IAvatarController {
       throw new Error('Avatar not spawned')
     }
 
+    const message = this.buildMessage(state)
     this.state = { ...this.state, ...state }
-
-    // Use builder pattern for consistent NAF message construction
-    let builder = new NafMessageBuilder()
-      .withDataType('um')
-      .withNetworkId(this.state.networkId)
-      .withOwner(this.sessionId)
-      .withCreator(this.sessionId)
-
-    // 常に現在の位置情報を含める（更新されていない場合でも）
-    builder = builder.withPosition(state.position || this.state.position)
-
-    if (state.rotation) {
-      const euler = this.quaternionToEuler(state.rotation)
-      builder = builder.withBodyRotation(euler)
+    if (state.animation) {
+      this.currentAnimation = state.animation.status === 'idle' ? null : state.animation.status
+      this.state.currentAnimation = this.currentAnimation ?? undefined
     }
-
-    if (state.avatarSrc || state.avatarId) {
-      builder = builder.withAvatar({
-        avatarSrc: this.state.avatarSrc || '',
-        avatarType:
-          this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
-            ? ORGANIZATION_AVATAR_TYPE
-            : DEFAULT_AVATAR_TYPE,
-        muted: false,
-        isSharingAvatarCamera: false,
-        ...(this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
-          ? { files: {} }
-          : {}),
-      })
+    if (Object.keys(message.data.d![0].components).length > 0) {
+      await this.messageService.sendNAF(message)
     }
-
-    const nafMessage = builder.build()
-    await this.messageService.sendNAF(nafMessage)
 
     if (state.avatarId && this.animationService) {
       this.animationService.setCurrentAvatarId(state.avatarId)
@@ -268,7 +246,7 @@ export class AvatarController implements IAvatarController {
 
   async destroy(): Promise<void> {
     this.state = null
-    // Additional cleanup if needed
+    this.currentAnimation = null
   }
 
   async resyncAvatar(): Promise<void> {
@@ -276,47 +254,7 @@ export class AvatarController implements IAvatarController {
       throw new Error('Avatar not spawned')
     }
 
-    // Build NAF message using the builder pattern
-    const nafMessage = new NafMessageBuilder()
-      .withDataType('u')
-      .withNetworkId(this.state.networkId)
-      .withOwner(this.sessionId)
-      .withCreator(this.sessionId)
-      .withLastOwnerTime()
-      .withTemplate(DEFAULT_TEMPLATE)
-      .withPersistent(false)
-      .withFirstSync(true) // Important: Set first sync flag for new users
-      .withPosition(this.state.position)
-      .withVelocity({ x: 0, y: 0, z: 0 })
-      .withScale({ x: 1, y: 1, z: 1 })
-      .withAvatar({
-        avatarSrc: this.state.avatarSrc || '',
-        avatarType:
-          this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
-            ? ORGANIZATION_AVATAR_TYPE
-            : DEFAULT_AVATAR_TYPE,
-        muted: false,
-        isSharingAvatarCamera: false,
-        ...(this.state.avatarId && this.isOrganizationAvatar(this.state.avatarId)
-          ? { files: {} }
-          : {}),
-      })
-      .withHeadRotation({ x: 0, y: 0, z: 0, w: 1 })
-      .withLeftHandRotation({ x: 0, y: 0, z: 0, w: 1 })
-      .withRightHandRotation({ x: 0, y: 0, z: 0, w: 1 })
-      .withLeftHandPosition({ x: 0, y: 0, z: 0 })
-      .withRightHandPosition({ x: 0, y: 0, z: 0 })
-      .withHandRaised(false)
-      .withPinPosition({ x: 0, y: 0, z: 0 })
-      .withPinScale({ x: 1, y: 1, z: 1 })
-      .withFaceSnapshotEnabled(false)
-      .withFaceSnapshot(null)
-      .withBodyRotation({ x: 0, y: 0, z: 0 })
-      .withMegaphone(false)
-      .withTemporaryMegaphone(false)
-      .build()
-
-    await this.messageService.sendNAFR(nafMessage)
+    await this.messageService.sendNAFR(this.buildMessage(this.state, true))
 
     this.logger.debug(`✅ Avatar resynced for new user`)
   }
@@ -347,22 +285,8 @@ export class AvatarController implements IAvatarController {
     this.currentAnimation = animationId
     this.state.currentAnimation = animationId
 
-    // v-air_clientと同じ形式でNAFメッセージを構築
-    // vrm-avatar-status-managerコンポーネント（インデックス13）のみを送信
-    const nafMessage = new NafMessageBuilder()
-      .withDataType('um')
-      .withNetworkId(this.state.networkId)
-      .withOwner(this.sessionId)
-      .withCreator(this.sessionId)
-      .withPosition(this.state.position) // 位置情報も含める
-      .withCustomComponent('13', {
-        status: animationId,
-        animationRunId: playbackId,
-      })
-      .build()
-
-    // Send via NAF for frequent animation updates
-    await this.messageService.sendNAF(nafMessage)
+    this.state.animation = { status: animationId, animationRunId: playbackId }
+    await this.messageService.sendNAF(this.buildMessage({ animation: this.state.animation }))
 
     // Emit event
     this.eventBus.emit('animation:played', {
@@ -406,19 +330,8 @@ export class AvatarController implements IAvatarController {
 
     const playbackId = uuidv4()
 
-    // v-air_clientと同じ形式でNAFメッセージを構築
-    const nafMessage = new NafMessageBuilder()
-      .withDataType('um')
-      .withNetworkId(this.state.networkId)
-      .withOwner(this.sessionId)
-      .withCreator(this.sessionId)
-      .withCustomComponent('13', {
-        status: 'idle',
-        animationRunId: playbackId,
-      })
-      .build()
-
-    await this.messageService.sendNAF(nafMessage)
+    this.state.animation = { status: 'idle', animationRunId: playbackId }
+    await this.messageService.sendNAF(this.buildMessage({ animation: this.state.animation }))
 
     this.eventBus.emit('animation:stopped', {
       animationId: 'idle',

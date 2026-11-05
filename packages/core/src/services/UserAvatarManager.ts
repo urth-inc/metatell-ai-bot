@@ -247,17 +247,13 @@ export class UserAvatarManager implements IUserAvatarManager {
       }
       const { x, y, z } = eulerRotation
       rotation = this.eulerToQuaternion(x, y, z)
-    } else if (data.components[NafComponentId.Velocity]) {
-      // 従来のクォータニオン形式（後方互換性）
-      const velocityRotation = data.components[NafComponentId.Velocity] as {
+    } else if (data.components[NafComponentId.RootRotation]) {
+      const root = data.components[NafComponentId.RootRotation] as {
         x: number
         y: number
         z: number
       }
-      const { x, y, z } = velocityRotation
-      // クォータニオンの w を計算（正規化されていると仮定）
-      const w = Math.sqrt(Math.max(0, 1 - x * x - y * y - z * z))
-      rotation = { x, y, z, w }
+      rotation = this.eulerToQuaternion(root.x, root.y, root.z)
     }
 
     // アバターID を取得
@@ -421,8 +417,8 @@ export class UserAvatarManager implements IUserAvatarManager {
     const sz = Math.sin(zRad / 2)
 
     return {
-      x: sx * cy * cz - cx * sy * sz,
-      y: cx * sy * cz + sx * cy * sz,
+      x: sx * cy * cz + cx * sy * sz,
+      y: cx * sy * cz - sx * cy * sz,
       z: cx * cy * sz - sx * sy * cz,
       w: cx * cy * cz + sx * sy * sz,
     }

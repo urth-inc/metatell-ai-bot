@@ -546,3 +546,17 @@ describe('muteVoice', () => {
     expect(events).toEqual([true])
   })
 })
+
+it('rotateTo preserves nonzero pitch, yaw and roll in browser YXZ order', async () => {
+  const client = createMetatellClient({ serverUrl: 'wss://test.metatell.app', roomId: 'test-room' })
+  const internals = client as unknown as { avatarController: IAvatarController }
+  const rotate = vi.spyOn(internals.avatarController, 'rotate').mockResolvedValue(undefined)
+  await client.avatar.rotateTo({ x: 23, y: -37, z: 19 })
+  // Captured from THREE.Quaternion.setFromEuler(Euler(degrees, 'YXZ')).
+  expect(rotate).toHaveBeenCalledExactlyOnceWith({
+    x: expect.closeTo(0.1351533879060756, 12),
+    y: expect.closeTo(-0.33787516950570773, 12),
+    z: expect.closeTo(0.21576918872537204, 12),
+    w: expect.closeTo(0.9061002090088016, 12),
+  })
+})

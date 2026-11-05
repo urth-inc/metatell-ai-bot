@@ -1,5 +1,6 @@
 import { ServiceIdentifier } from '../ServiceIdentifier.js'
 import type { AnimationPlaybackResult, AnimationPlayOptions } from '../types/animation.js'
+import type { NetworkedAvatarData, VrmAvatarStatusData } from '../types/remote-avatar.js'
 
 export interface Position {
   x: number
@@ -17,15 +18,52 @@ export interface Rotation {
 export interface AvatarState {
   networkId: string
   position: Position
+  /** Model-local quaternion; rotate()/rotateTo() retain this meaning. */
   rotation: Rotation
+  /** Root quaternion in world space (the root has no parent). */
+  rootRotation?: Rotation
+  scale?: Position
+  networkedAvatar?: NetworkedAvatarData
+  /** Camera/controller positions are rig-local metres, rotations are local quaternions. */
+  headPosition?: Position
+  headRotation?: Rotation
+  leftHandPosition?: Position
+  leftHandRotation?: Rotation
+  leftHandVisible?: boolean
+  rightHandPosition?: Position
+  rightHandRotation?: Rotation
+  rightHandVisible?: boolean
+  animation?: VrmAvatarStatusData
   avatarId: string
   avatarSrc?: string
   displayName?: string
   currentAnimation?: string
 }
 
+/** Optional initial pose in the per-field coordinate spaces above; excludes identity/assets. */
+export type AvatarPose = Pick<
+  AvatarState,
+  | 'rotation'
+  | 'rootRotation'
+  | 'scale'
+  | 'networkedAvatar'
+  | 'headPosition'
+  | 'headRotation'
+  | 'leftHandPosition'
+  | 'leftHandRotation'
+  | 'leftHandVisible'
+  | 'rightHandPosition'
+  | 'rightHandRotation'
+  | 'rightHandVisible'
+>
+
 export interface IAvatarController {
-  spawn(avatarId: string, position?: Position, avatarSrc?: string): Promise<void>
+  spawn(
+    avatarId: string,
+    position?: Position,
+    avatarSrc?: string,
+    pose?: Partial<AvatarPose>,
+  ): Promise<void>
   move(position: Position): Promise<void>
   rotate(rotation: Rotation): Promise<void>
   updateState(state: Partial<AvatarState>): Promise<void>

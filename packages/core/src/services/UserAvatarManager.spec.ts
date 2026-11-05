@@ -429,7 +429,7 @@ describe('UserAvatarManager', () => {
       )
     })
 
-    it('should calculate quaternion w component', () => {
+    it('should decode root Euler degrees rather than a truncated quaternion', () => {
       const nafHandler = findMockCall(
         mockMessageService.on as ReturnType<typeof vi.fn>,
         (call) => call[0] === 'naf',
@@ -441,13 +441,13 @@ describe('UserAvatarManager', () => {
           networkId: 'user-789',
           components: {
             '0': { x: 0, y: 0, z: 0 },
-            '1': { x: 0, y: Math.SQRT1_2, z: 0 }, // Should calculate w ≈ 0.707
+            '1': { x: 23, y: -37, z: 19 }, // Browser root rotation in degrees
           },
         },
       })
 
       const user = userAvatarManager.getUser('user-789')
-      expect(user?.rotation?.w).toBeCloseTo(Math.SQRT1_2, 2)
+      expect(user?.rotation?.w).toBeCloseTo(0.9061002090088016, 9)
     })
 
     it('should handle missing user profile gracefully', () => {
