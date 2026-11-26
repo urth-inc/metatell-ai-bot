@@ -90,7 +90,8 @@ describe('NafMessageBuilder', () => {
       z: 0,
     })
     expect(components?.[NafComponentId.Scale]).toEqual({ x: 1, y: 1, z: 1 })
-    expect(components?.[NafComponentId.HandRaised]).toBe(false)
+    expect(components?.[NafComponentId.LeftControllerVisible]).toBe(false)
+    expect(components?.[NafComponentId.RightControllerVisible]).toBe(false)
   })
 
   it('should throw error if required fields are missing', () => {

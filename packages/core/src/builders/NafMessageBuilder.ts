@@ -12,9 +12,13 @@ export enum NafComponentId {
   LeftHandPosition = '7',
   RightHandPosition = '8',
   HandRaised = '9',
+  /** Left controller (hand) visibility in the browser client's `#remote-avatar` schema. */
+  LeftControllerVisible = '9',
   PinPosition = '10',
   PinScale = '11',
   FaceSnapshotEnabled = '12',
+  /** Right controller (hand) visibility in the browser client's `#remote-avatar` schema. */
+  RightControllerVisible = '12',
   FaceSnapshot = '13', // Also used for VRM avatar status (animation state) for compatibility
   VrmAvatarStatus = '13', // Alias for FaceSnapshot when used for animation state
   BodyRotation = '14',
@@ -90,7 +94,10 @@ export class NafMessageBuilder {
     // Set default components
     this.components[NafComponentId.Position] = { isVector3: true, x: 0, y: 0, z: 0 }
     this.components[NafComponentId.Scale] = { x: 1, y: 1, z: 1 }
-    this.components[NafComponentId.HandRaised] = false
+    // Bots have no controllers. Hide both hands as a desktop browser user does; otherwise the
+    // browser keeps the right hand visible and its pose flickers.
+    this.components[NafComponentId.LeftControllerVisible] = false
+    this.components[NafComponentId.RightControllerVisible] = false
   }
 
   /**

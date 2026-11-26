@@ -301,17 +301,12 @@ export class AvatarController implements IAvatarController {
           ? { files: {} }
           : {}),
       })
-      .withHeadRotation({ x: 0, y: 0, z: 0, w: 1 })
-      .withLeftHandRotation({ x: 0, y: 0, z: 0, w: 1 })
-      .withRightHandRotation({ x: 0, y: 0, z: 0, w: 1 })
-      .withLeftHandPosition({ x: 0, y: 0, z: 0 })
-      .withRightHandPosition({ x: 0, y: 0, z: 0 })
-      .withHandRaised(false)
-      .withPinPosition({ x: 0, y: 0, z: 0 })
-      .withPinScale({ x: 1, y: 1, z: 1 })
-      .withFaceSnapshotEnabled(false)
-      .withFaceSnapshot(null)
-      .withBodyRotation({ x: 0, y: 0, z: 0 })
+      // The browser reads components 4-13 as networked-avatar, head camera, controller and VRM
+      // status state, not what the head/hand/pin/face builder methods are named after. This
+      // message reaches everyone in the room, so placeholder values there would overwrite that
+      // state (e.g. a quaternion in '5' puts the head camera at the avatar's origin). Leave them
+      // out; the builder's defaults hide both hands. Keep the current facing.
+      .withBodyRotation(this.quaternionToEuler(this.state.rotation))
       .withMegaphone(false)
       .withTemporaryMegaphone(false)
       .build()
