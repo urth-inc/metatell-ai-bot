@@ -67,14 +67,6 @@ export interface AvatarComponentData {
   isSharingAvatarCamera?: boolean
 }
 
-/**
- * Face snapshot data
- */
-export interface FaceSnapshotData {
-  imageData: string // Base64 encoded image
-  timestamp: number
-}
-
 // ============================================================================
 // NAF Component Structures
 // ============================================================================
@@ -93,9 +85,9 @@ export interface NAFComponent<T = unknown> {
 export interface PositionComponent extends NAFComponent<Vec3> {}
 
 /**
- * Velocity component (ID: 1)
+ * Rig rotation component (ID: 1), Euler angles in degrees
  */
-export interface VelocityComponent extends NAFComponent<Vec3> {}
+export interface RotationComponent extends NAFComponent<Vec3> {}
 
 /**
  * Scale component (ID: 2)
@@ -108,56 +100,52 @@ export interface ScaleComponent extends NAFComponent<Vec3> {}
 export interface AvatarComponent extends NAFComponent<AvatarComponentData | string> {}
 
 /**
- * Head rotation component (ID: 4)
- * Can be Euler angles (3 values) or Quaternion (4 values)
+ * `networked-avatar` component data (ID: 4)
  */
-export interface HeadRotationComponent extends NAFComponent<Vec3 | Quat> {}
+export interface NetworkedAvatarData {
+  /** Index of the VR left hand pose */
+  left_hand_pose?: number
+  /** Index of the VR right hand pose */
+  right_hand_pose?: number
+  /** Whether the avatar's head follows the head rotation (first-person camera) */
+  head_camera_follow_enabled?: boolean
+}
 
 /**
- * Hand rotation components (IDs: 5, 6)
+ * `networked-avatar` component (ID: 4)
  */
-export interface HandRotationComponent extends NAFComponent<Quat> {}
+export interface NetworkedAvatarComponent extends NAFComponent<NetworkedAvatarData> {}
 
 /**
- * Hand position components (IDs: 7, 8)
+ * Head and hand position components (IDs: 5, 7, 10), relative to the rig
  */
-export interface HandPositionComponent extends NAFComponent<Vec3> {}
+export interface LocalPositionComponent extends NAFComponent<Vec3> {}
 
 /**
- * Hand raised component (ID: 9)
+ * Head and hand rotation components (IDs: 6, 8, 11), Euler angles in degrees relative to the rig
  */
-export interface HandRaisedComponent extends NAFComponent<boolean> {}
+export interface LocalRotationComponent extends NAFComponent<Vec3> {}
 
 /**
- * Pin position component (ID: 10)
+ * Hand visibility components (IDs: 9, 12)
  */
-export interface PinPositionComponent extends NAFComponent<Vec3> {}
+export interface HandVisibleComponent extends NAFComponent<boolean> {}
 
 /**
- * Pin scale component (ID: 11)
+ * `vrm-avatar-status-manager` component data (ID: 13)
  */
-export interface PinScaleComponent extends NAFComponent<Vec3> {}
+export interface VrmAvatarStatusData {
+  status: string
+  animationRunId: string
+}
 
 /**
- * Face snapshot enabled component (ID: 12)
+ * VRM avatar status component (ID: 13)
  */
-export interface FaceSnapshotEnabledComponent extends NAFComponent<boolean> {}
+export interface VrmAvatarStatusComponent extends NAFComponent<VrmAvatarStatusData> {}
 
 /**
- * Face snapshot component (ID: 13)
- * Note: Also used for VRM avatar status (animation state) for compatibility
- */
-export interface FaceSnapshotComponent extends NAFComponent<
-  FaceSnapshotData | { status: string; animationRunId: string }
-> {}
-
-/**
- * Alias for FaceSnapshot when used for VRM avatar status
- */
-export type VrmAvatarStatusComponent = FaceSnapshotComponent
-
-/**
- * Body rotation component (ID: 14)
+ * Body rotation component (ID: 14): the model rotation relative to the rig, Euler angles in degrees
  */
 export interface BodyRotationComponent extends NAFComponent<Vec3> {}
 
@@ -174,22 +162,19 @@ export interface NAFComponentMap {
     | Vec3
     | PositionComponent
     | { x: number; y: number; z: number; isVector3?: boolean }
-  [NafComponentId.Velocity]?: Vec3 | VelocityComponent
+  [NafComponentId.Rotation]?: Vec3 | RotationComponent
   [NafComponentId.Scale]?: Vec3 | ScaleComponent | { x: number; y: number; z: number }
   [NafComponentId.Avatar]?: AvatarComponentData | string | AvatarComponent
-  [NafComponentId.HeadRotation]?: Vec3 | Quat | HeadRotationComponent
-  [NafComponentId.LeftHandRotation]?: Quat | HandRotationComponent
-  [NafComponentId.RightHandRotation]?: Quat | HandRotationComponent
-  [NafComponentId.LeftHandPosition]?: Vec3 | HandPositionComponent
-  [NafComponentId.RightHandPosition]?: Vec3 | HandPositionComponent
-  [NafComponentId.HandRaised]?: boolean | HandRaisedComponent
-  [NafComponentId.PinPosition]?: Vec3 | PinPositionComponent
-  [NafComponentId.PinScale]?: Vec3 | PinScaleComponent
-  [NafComponentId.FaceSnapshotEnabled]?: boolean | FaceSnapshotEnabledComponent
-  [NafComponentId.FaceSnapshot]?:
-    | FaceSnapshotData
-    | { status: string; animationRunId: string }
-    | FaceSnapshotComponent
+  [NafComponentId.NetworkedAvatar]?: NetworkedAvatarData | NetworkedAvatarComponent
+  [NafComponentId.HeadPosition]?: Vec3 | LocalPositionComponent
+  [NafComponentId.HeadRotation]?: Vec3 | LocalRotationComponent
+  [NafComponentId.LeftHandPosition]?: Vec3 | LocalPositionComponent
+  [NafComponentId.LeftHandRotation]?: Vec3 | LocalRotationComponent
+  [NafComponentId.LeftHandVisible]?: boolean | HandVisibleComponent
+  [NafComponentId.RightHandPosition]?: Vec3 | LocalPositionComponent
+  [NafComponentId.RightHandRotation]?: Vec3 | LocalRotationComponent
+  [NafComponentId.RightHandVisible]?: boolean | HandVisibleComponent
+  [NafComponentId.VrmAvatarStatus]?: VrmAvatarStatusData | VrmAvatarStatusComponent
   [NafComponentId.BodyRotation]?: Vec3 | BodyRotationComponent | { x: number; y: number; z: number }
 }
 
@@ -345,66 +330,15 @@ export function extractScale(components: NAFComponentMap): Scale3D | undefined {
   return undefined
 }
 
-/**
- * Extract head rotation from NAF components (supports direct values, wrapped components, Euler and Quaternion)
- */
-export function extractHeadRotation(
-  components: NAFComponentMap,
-): EulerRotation | Quaternion | undefined {
-  const rotComponent = components[NafComponentId.HeadRotation]
-  if (!rotComponent) return undefined
-
-  // Handle direct value or wrapped component
-  const data = (rotComponent as { components?: unknown }).components ?? rotComponent
-
-  if (Array.isArray(data)) {
-    if (data.length === 4) {
-      const [x = 0, y = 0, z = 0, w = 1] = data
-      return { x, y, z, w }
-    } else {
-      const [x = 0, y = 0, z = 0] = data
-      return { x, y, z }
-    }
-  } else if (typeof data === 'object' && data !== null) {
-    if ('w' in data) {
-      const quat = data as { x: number; y: number; z: number; w: number }
-      return { x: quat.x, y: quat.y, z: quat.z, w: quat.w }
-    } else if ('x' in data && 'y' in data && 'z' in data) {
-      const euler = data as { x: number; y: number; z: number }
-      return { x: euler.x, y: euler.y, z: euler.z }
-    }
-  }
-  return undefined
-}
-
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
 /**
- * Extract position from NAF components (supports direct values, wrapped components, arrays and objects)
+ * Extract the rig position (supports direct values, wrapped components, arrays and objects)
  */
 export function extractPosition(components: NAFComponentMap): Position3D | undefined {
-  const posComponent = components[NafComponentId.Position]
-  if (!posComponent) return undefined
-
-  // Handle direct value (array or object) or wrapped component
-  const data = (posComponent as { components?: unknown }).components ?? posComponent
-
-  if (Array.isArray(data)) {
-    const [x = 0, y = 0, z = 0] = data
-    return { x, y, z }
-  } else if (
-    typeof data === 'object' &&
-    data !== null &&
-    'x' in data &&
-    'y' in data &&
-    'z' in data
-  ) {
-    const obj = data as { x: number; y: number; z: number }
-    return { x: obj.x, y: obj.y, z: obj.z }
-  }
-  return undefined
+  return extractVec3(components[NafComponentId.Position])
 }
 
 /**
@@ -427,27 +361,32 @@ export function extractAvatarData(components: NAFComponentMap): AvatarComponentD
 }
 
 /**
- * Extract body rotation from NAF components (supports direct values, wrapped components, arrays and objects)
+ * Extract the direction the body faces: the model rotation relative to the rig (Euler angles in degrees)
  */
 export function extractBodyRotation(components: NAFComponentMap): EulerRotation | undefined {
-  const rotComponent = components[NafComponentId.BodyRotation]
-  if (!rotComponent) return undefined
+  return extractVec3(components[NafComponentId.BodyRotation])
+}
 
-  // Handle direct value or wrapped component
-  const data = (rotComponent as { components?: unknown }).components ?? rotComponent
+/**
+ * Extract the rig rotation (Euler angles in degrees)
+ */
+export function extractRotation(components: NAFComponentMap): EulerRotation | undefined {
+  return extractVec3(components[NafComponentId.Rotation])
+}
 
+/**
+ * Read a vector from a direct value (array or object) or a wrapped component
+ */
+function extractVec3(component: unknown): { x: number; y: number; z: number } | undefined {
+  if (!component) return undefined
+  const data = (component as { components?: unknown }).components ?? component
   if (Array.isArray(data)) {
     const [x = 0, y = 0, z = 0] = data
     return { x, y, z }
-  } else if (
-    typeof data === 'object' &&
-    data !== null &&
-    'x' in data &&
-    'y' in data &&
-    'z' in data
-  ) {
-    const obj = data as { x: number; y: number; z: number }
-    return { x: obj.x, y: obj.y, z: obj.z }
+  }
+  if (typeof data === 'object' && data !== null && 'x' in data && 'y' in data && 'z' in data) {
+    const { x, y, z } = data as { x: number; y: number; z: number }
+    return { x, y, z }
   }
   return undefined
 }

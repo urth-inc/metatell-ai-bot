@@ -216,6 +216,13 @@ describe('AvatarController - Animation Features', () => {
       )
     })
 
+    it('should not send a position, so the avatar stays where it is', async () => {
+      await controller.stopAnimation()
+
+      const message = vi.mocked(mockMessageService.sendNAF).mock.calls[0]?.[0]
+      expect(message?.data.d?.[0]?.components).not.toHaveProperty('0')
+    })
+
     it('should clear the current animation state', async () => {
       await controller.playAnimation('walking')
 

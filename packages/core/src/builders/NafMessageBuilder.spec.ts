@@ -75,23 +75,39 @@ describe('NafMessageBuilder', () => {
     expect(message.data.d?.[0].networkId).toBe('test-id')
   })
 
-  it('should include default components', () => {
+  it('should hide both hands by default and leave position out', () => {
     const message = new NafMessageBuilder()
       .withNetworkId('test-id')
       .withOwner('owner')
       .withCreator('creator')
       .build()
 
-    const components = message.data.components
-    expect(components?.[NafComponentId.Position]).toEqual({
-      isVector3: true,
-      x: 0,
-      y: 0,
-      z: 0,
+    expect(message.data.components).toEqual({
+      [NafComponentId.Scale]: { x: 1, y: 1, z: 1 },
+      [NafComponentId.LeftHandVisible]: false,
+      [NafComponentId.RightHandVisible]: false,
     })
-    expect(components?.[NafComponentId.Scale]).toEqual({ x: 1, y: 1, z: 1 })
-    expect(components?.[NafComponentId.LeftControllerVisible]).toBe(false)
-    expect(components?.[NafComponentId.RightControllerVisible]).toBe(false)
+  })
+
+  it('should follow the browser #remote-avatar schema order', () => {
+    // NAF sends components by their index in the receiving browser's schema.
+    expect(Object.entries(NafComponentId)).toEqual([
+      ['Position', '0'],
+      ['Rotation', '1'],
+      ['Scale', '2'],
+      ['Avatar', '3'],
+      ['NetworkedAvatar', '4'],
+      ['HeadPosition', '5'],
+      ['HeadRotation', '6'],
+      ['LeftHandPosition', '7'],
+      ['LeftHandRotation', '8'],
+      ['LeftHandVisible', '9'],
+      ['RightHandPosition', '10'],
+      ['RightHandRotation', '11'],
+      ['RightHandVisible', '12'],
+      ['VrmAvatarStatus', '13'],
+      ['BodyRotation', '14'],
+    ])
   })
 
   it('should throw error if required fields are missing', () => {
@@ -100,51 +116,48 @@ describe('NafMessageBuilder', () => {
     }).toThrow('networkId, owner, and creator are required')
   })
 
-  it('should build a message with all rotation components', () => {
+  it('should build a message with rig, body and head state', () => {
     const message = new NafMessageBuilder()
       .withNetworkId('test-id')
       .withOwner('owner')
       .withCreator('creator')
-      .withBodyRotation({ x: 90, y: 180, z: 0 })
-      .withHeadRotation({ x: 0, y: Math.SQRT1_2, z: 0, w: Math.SQRT1_2 })
-      .withLeftHandRotation({ x: 0.5, y: 0.5, z: 0.5, w: 0.5 })
-      .withRightHandRotation({ x: 0, y: 1, z: 0, w: 0 })
+      .withRotation({ x: 0, y: 45, z: 0 })
+      .withBodyRotation({ x: 0, y: 180, z: 0 })
+      .withHeadPosition({ x: 0, y: 1.6, z: 0 })
+      .withHeadRotation({ x: -10, y: 30, z: 0 })
+      .withVrmAvatarStatus({ status: 'idle', animationRunId: 'run-1' })
       .build()
 
-    expect(message.data.components?.[NafComponentId.BodyRotation]).toEqual({
-      x: 90,
-      y: 180,
-      z: 0,
-    })
-    expect(message.data.components?.[NafComponentId.HeadRotation]).toEqual({
-      x: 0,
-      y: Math.SQRT1_2,
-      z: 0,
-      w: Math.SQRT1_2,
+    expect(message.data.components).toMatchObject({
+      '1': { x: 0, y: 45, z: 0 },
+      '5': { x: 0, y: 1.6, z: 0 },
+      '6': { x: -10, y: 30, z: 0 },
+      '13': { status: 'idle', animationRunId: 'run-1' },
+      '14': { x: 0, y: 180, z: 0 },
     })
   })
 
-  it('should build a message with hand positions', () => {
+  it('should set only the given hand fields', () => {
     const message = new NafMessageBuilder()
       .withNetworkId('test-id')
       .withOwner('owner')
       .withCreator('creator')
-      .withLeftHandPosition({ x: -1, y: 1, z: 0 })
-      .withRightHandPosition({ x: 1, y: 1, z: 0 })
-      .withHandRaised(true)
+      .withLeftHand({
+        position: { x: -0.3, y: 1, z: 0.2 },
+        rotation: { x: 0, y: 0, z: 90 },
+        visible: true,
+      })
+      .withRightHand({ position: { x: 0.3, y: 1, z: 0.2 } })
       .build()
 
-    expect(message.data.components?.[NafComponentId.LeftHandPosition]).toEqual({
-      x: -1,
-      y: 1,
-      z: 0,
+    expect(message.data.components).toMatchObject({
+      '7': { x: -0.3, y: 1, z: 0.2 },
+      '8': { x: 0, y: 0, z: 90 },
+      '9': true,
+      '10': { x: 0.3, y: 1, z: 0.2 },
+      '12': false,
     })
-    expect(message.data.components?.[NafComponentId.RightHandPosition]).toEqual({
-      x: 1,
-      y: 1,
-      z: 0,
-    })
-    expect(message.data.components?.[NafComponentId.HandRaised]).toBe(true)
+    expect(message.data.components).not.toHaveProperty('11')
   })
 
   it('should build a message with megaphone settings', () => {

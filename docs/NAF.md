@@ -90,25 +90,25 @@ interface NAFMessage {
 
 ### Component IDs
 
-NAF uses numeric IDs to identify component types:
+NAF sends each component under its index in the receiving client's networked schema, so the IDs follow the browser's `#remote-avatar` schema (`NafComponentId`). Rotations are Euler angles in degrees.
 
-- `0`: Position
-- `1`: Velocity
-- `2`: Scale
-- `3`: Avatar
-- `4`: Head Rotation
-- `5`: Left Hand Rotation
-- `6`: Right Hand Rotation
-- `7`: Left Hand Position
-- `8`: Right Hand Position
-- `9`: Hand Raised
-- `10`: Pin Position
-- `11`: Pin Scale
-- `12`: Face Snapshot Enabled
-- `13`: Face Snapshot / VRM Avatar Status (also used for animation state)
-- `14`: Body Rotation
+- `0`: Position (avatar rig, meters)
+- `1`: Rotation (avatar rig)
+- `2`: Scale (avatar rig)
+- `3`: Avatar (`player-info`)
+- `4`: Networked avatar (VR hand poses, head camera follow flag)
+- `5`: Head position (relative to the rig)
+- `6`: Head rotation (relative to the rig)
+- `7`: Left hand position (relative to the rig)
+- `8`: Left hand rotation (relative to the rig)
+- `9`: Left hand visible
+- `10`: Right hand position (relative to the rig)
+- `11`: Right hand rotation (relative to the rig)
+- `12`: Right hand visible
+- `13`: VRM avatar status (animation state)
+- `14`: Body rotation (the model's facing, relative to the rig)
 
-**Note**: Component ID 13 is used both for face snapshots and VRM avatar animation states for compatibility with vrm-avatar-status-manager.
+A browser user without a VR controller sends `9` and `12` as `false`. `NafMessageBuilder` does the same by default, so a bot's hands stay hidden. An update carries only the components it sets; leave out anything you do not want to overwrite.
 
 ## Best Practices
 

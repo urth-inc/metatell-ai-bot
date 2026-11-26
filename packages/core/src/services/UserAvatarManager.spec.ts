@@ -99,7 +99,7 @@ describe('UserAvatarManager', () => {
           template: '#remote-avatar',
           components: {
             '0': { x: 5, y: 0, z: -3, isVector3: true },
-            '1': { x: 0, y: Math.SQRT1_2, z: 0 },
+            '1': { x: 0, y: 90, z: 0 },
             '3': { avatarSrc: 'https://example.com/avatar?avatar_id=test-avatar' },
           },
         },
@@ -429,25 +429,27 @@ describe('UserAvatarManager', () => {
       )
     })
 
-    it('should calculate quaternion w component', () => {
+    it('should combine the rig rotation and the body rotation, each kept until it changes', () => {
       const nafHandler = findMockCall(
         mockMessageService.on as ReturnType<typeof vi.fn>,
         (call) => call[0] === 'naf',
       )?.[1] as (data: unknown) => void
+      const send = (components: Record<string, unknown>) =>
+        nafHandler({ dataType: 'um', data: { d: [{ networkId: 'user-789', components }] } })
+      const yaw = () => {
+        const q = userAvatarManager.getUser('user-789')?.rotation
+        return q ? (2 * Math.atan2(q.y, q.w) * 180) / Math.PI : undefined
+      }
 
-      nafHandler({
-        dataType: 'u',
-        data: {
-          networkId: 'user-789',
-          components: {
-            '0': { x: 0, y: 0, z: 0 },
-            '1': { x: 0, y: Math.SQRT1_2, z: 0 }, // Should calculate w ≈ 0.707
-          },
-        },
-      })
+      send({ '0': { x: 0, y: 0, z: 0 }, '1': { x: 0, y: 90, z: 0 } })
+      expect(yaw()).toBeCloseTo(90)
 
-      const user = userAvatarManager.getUser('user-789')
-      expect(user?.rotation?.w).toBeCloseTo(Math.SQRT1_2, 2)
+      // Euler degrees, as the browser's A-Frame rotation component sends them
+      send({ '14': { x: 0, y: 45, z: 0 } })
+      expect(yaw()).toBeCloseTo(135)
+
+      send({ '1': { x: 0, y: -30, z: 0 } })
+      expect(yaw()).toBeCloseTo(15)
     })
 
     it('should handle missing user profile gracefully', () => {
@@ -716,7 +718,7 @@ describe('UserAvatarManager', () => {
           d: [
             {
               networkId: 'update-user',
-              components: { '1': { x: 0, y: 1, z: 0 } },
+              components: { '1': { x: 0, y: 90, z: 0 } },
             },
           ],
         },

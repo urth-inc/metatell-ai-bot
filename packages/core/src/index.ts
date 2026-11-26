@@ -1,7 +1,13 @@
 // Core Service Factory (内部実装のメインエントリーポイント)
 
 // NAF Message Builder (ユーティリティ)
-export type { NafAvatarConfig, NafDataType, NafMessage } from './builders/NafMessageBuilder.js'
+export type {
+  NafAvatarConfig,
+  NafDataType,
+  NafHandState,
+  NafMessage,
+  NafVrmAvatarStatus,
+} from './builders/NafMessageBuilder.js'
 export { NafComponentId, NafMessageBuilder } from './builders/NafMessageBuilder.js'
 export { CoreServiceFactory } from './CoreServiceFactory.js'
 // Client implementation
@@ -117,6 +123,7 @@ export {
   extractAvatarData,
   extractBodyRotation,
   extractPosition,
+  extractRotation,
   isNAFCreateMessage,
   isNAFMultiUpdateMessage,
   isNAFRemoveMessage,

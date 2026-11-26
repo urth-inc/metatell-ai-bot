@@ -1,26 +1,39 @@
 /**
- * NAF Component IDs - Mapping of component types to their numeric IDs
+ * NAF component IDs of the browser client's `#remote-avatar` networked schema.
+ *
+ * NAF sends each component under its index in that schema, so these values must follow the
+ * browser's order. Rotations are Euler angles in degrees (the A-Frame `rotation` component).
  */
 export enum NafComponentId {
+  /** Avatar rig position in meters */
   Position = '0',
-  Velocity = '1',
+  /** Avatar rig rotation */
+  Rotation = '1',
+  /** Avatar rig scale */
   Scale = '2',
+  /** `player-info`: avatar model and profile flags */
   Avatar = '3',
-  HeadRotation = '4',
-  LeftHandRotation = '5',
-  RightHandRotation = '6',
+  /** `networked-avatar`: VR hand poses and the head camera follow flag */
+  NetworkedAvatar = '4',
+  /** Head (`.camera`) position relative to the rig */
+  HeadPosition = '5',
+  /** Head (`.camera`) rotation relative to the rig */
+  HeadRotation = '6',
+  /** Left hand (`.left-controller`) position relative to the rig */
   LeftHandPosition = '7',
-  RightHandPosition = '8',
-  HandRaised = '9',
-  /** Left controller (hand) visibility in the browser client's `#remote-avatar` schema. */
-  LeftControllerVisible = '9',
-  PinPosition = '10',
-  PinScale = '11',
-  FaceSnapshotEnabled = '12',
-  /** Right controller (hand) visibility in the browser client's `#remote-avatar` schema. */
-  RightControllerVisible = '12',
-  FaceSnapshot = '13', // Also used for VRM avatar status (animation state) for compatibility
-  VrmAvatarStatus = '13', // Alias for FaceSnapshot when used for animation state
+  /** Left hand (`.left-controller`) rotation relative to the rig */
+  LeftHandRotation = '8',
+  /** Whether the left hand is shown. Browser users without a VR controller send `false`. */
+  LeftHandVisible = '9',
+  /** Right hand (`.right-controller`) position relative to the rig */
+  RightHandPosition = '10',
+  /** Right hand (`.right-controller`) rotation relative to the rig */
+  RightHandRotation = '11',
+  /** Whether the right hand is shown. Browser users without a VR controller send `false`. */
+  RightHandVisible = '12',
+  /** `vrm-avatar-status-manager`: the animation state */
+  VrmAvatarStatus = '13',
+  /** Avatar model (`.model`) rotation relative to the rig: the direction the body faces */
   BodyRotation = '14',
 }
 
@@ -33,6 +46,27 @@ export interface NafAvatarConfig {
   muted?: boolean
   isSharingAvatarCamera?: boolean
   files?: Record<string, unknown> // v-air_client互換用
+}
+
+/**
+ * Hand state in the browser's `#remote-avatar` schema
+ */
+export interface NafHandState {
+  /** Position relative to the rig in meters */
+  position?: { x: number; y: number; z: number }
+  /** Rotation relative to the rig (Euler angles in degrees) */
+  rotation?: { x: number; y: number; z: number }
+  visible?: boolean
+}
+
+/**
+ * Value of the `vrm-avatar-status-manager` component
+ */
+export interface NafVrmAvatarStatus {
+  /** Animation ID, or `idle` */
+  status: string
+  /** Changes on every play so that the same animation can be played again */
+  animationRunId: string
 }
 
 /**
@@ -91,13 +125,13 @@ export class NafMessageBuilder {
   private isMultiData: boolean = false
 
   constructor() {
-    // Set default components
-    this.components[NafComponentId.Position] = { isVector3: true, x: 0, y: 0, z: 0 }
+    // Set default components. Position is not defaulted: an update without it must not move
+    // the avatar to the origin.
     this.components[NafComponentId.Scale] = { x: 1, y: 1, z: 1 }
-    // Bots have no controllers. Hide both hands as a desktop browser user does; otherwise the
-    // browser keeps the right hand visible and its pose flickers.
-    this.components[NafComponentId.LeftControllerVisible] = false
-    this.components[NafComponentId.RightControllerVisible] = false
+    // Bots have no VR controllers. Hide both hands as a desktop browser user does; a hand left
+    // visible has no pose to follow and flickers.
+    this.components[NafComponentId.LeftHandVisible] = false
+    this.components[NafComponentId.RightHandVisible] = false
   }
 
   /**
@@ -174,10 +208,10 @@ export class NafMessageBuilder {
   }
 
   /**
-   * Set velocity component
+   * Set the avatar rig rotation (Euler angles in degrees)
    */
-  withVelocity(velocity: { x: number; y: number; z: number }): this {
-    this.components[NafComponentId.Velocity] = velocity
+  withRotation(rotation: { x: number; y: number; z: number }): this {
+    this.components[NafComponentId.Rotation] = rotation
     return this
   }
 
@@ -204,7 +238,7 @@ export class NafMessageBuilder {
   }
 
   /**
-   * Set body rotation (euler angles)
+   * Set the direction the body faces: the model rotation relative to the rig (Euler angles in degrees)
    */
   withBodyRotation(rotation: { x: number; y: number; z: number }): this {
     this.components[NafComponentId.BodyRotation] = rotation
@@ -212,82 +246,62 @@ export class NafMessageBuilder {
   }
 
   /**
-   * Set head rotation (quaternion)
+   * Set the head position relative to the rig
    */
-  withHeadRotation(rotation: { x: number; y: number; z: number; w: number }): this {
+  withHeadPosition(position: { x: number; y: number; z: number }): this {
+    this.components[NafComponentId.HeadPosition] = position
+    return this
+  }
+
+  /**
+   * Set the head rotation relative to the rig (Euler angles in degrees)
+   */
+  withHeadRotation(rotation: { x: number; y: number; z: number }): this {
     this.components[NafComponentId.HeadRotation] = rotation
     return this
   }
 
   /**
-   * Set left hand rotation (quaternion)
+   * Set the left hand pose relative to the rig (rotation in degrees). Omitted fields are not sent.
    */
-  withLeftHandRotation(rotation: { x: number; y: number; z: number; w: number }): this {
-    this.components[NafComponentId.LeftHandRotation] = rotation
+  withLeftHand(hand: NafHandState): this {
+    return this.withHand(
+      hand,
+      NafComponentId.LeftHandPosition,
+      NafComponentId.LeftHandRotation,
+      NafComponentId.LeftHandVisible,
+    )
+  }
+
+  /**
+   * Set the right hand pose relative to the rig (rotation in degrees). Omitted fields are not sent.
+   */
+  withRightHand(hand: NafHandState): this {
+    return this.withHand(
+      hand,
+      NafComponentId.RightHandPosition,
+      NafComponentId.RightHandRotation,
+      NafComponentId.RightHandVisible,
+    )
+  }
+
+  private withHand(
+    hand: NafHandState,
+    positionId: NafComponentId,
+    rotationId: NafComponentId,
+    visibleId: NafComponentId,
+  ): this {
+    if (hand.position) this.components[positionId] = hand.position
+    if (hand.rotation) this.components[rotationId] = hand.rotation
+    if (hand.visible !== undefined) this.components[visibleId] = hand.visible
     return this
   }
 
   /**
-   * Set right hand rotation (quaternion)
+   * Set the VRM avatar animation state
    */
-  withRightHandRotation(rotation: { x: number; y: number; z: number; w: number }): this {
-    this.components[NafComponentId.RightHandRotation] = rotation
-    return this
-  }
-
-  /**
-   * Set left hand position
-   */
-  withLeftHandPosition(position: { x: number; y: number; z: number }): this {
-    this.components[NafComponentId.LeftHandPosition] = position
-    return this
-  }
-
-  /**
-   * Set right hand position
-   */
-  withRightHandPosition(position: { x: number; y: number; z: number }): this {
-    this.components[NafComponentId.RightHandPosition] = position
-    return this
-  }
-
-  /**
-   * Set hand raised state
-   */
-  withHandRaised(raised: boolean): this {
-    this.components[NafComponentId.HandRaised] = raised
-    return this
-  }
-
-  /**
-   * Set pin position
-   */
-  withPinPosition(position: { x: number; y: number; z: number }): this {
-    this.components[NafComponentId.PinPosition] = position
-    return this
-  }
-
-  /**
-   * Set pin scale
-   */
-  withPinScale(scale: { x: number; y: number; z: number }): this {
-    this.components[NafComponentId.PinScale] = scale
-    return this
-  }
-
-  /**
-   * Set face snapshot enabled
-   */
-  withFaceSnapshotEnabled(enabled: boolean): this {
-    this.components[NafComponentId.FaceSnapshotEnabled] = enabled
-    return this
-  }
-
-  /**
-   * Set face snapshot data
-   */
-  withFaceSnapshot(data: unknown): this {
-    this.components[NafComponentId.FaceSnapshot] = data
+  withVrmAvatarStatus(status: NafVrmAvatarStatus): this {
+    this.components[NafComponentId.VrmAvatarStatus] = status
     return this
   }
 

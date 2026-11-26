@@ -276,7 +276,9 @@ export class AvatarController implements IAvatarController {
       throw new Error('Avatar not spawned')
     }
 
-    // Build NAF message using the builder pattern
+    // Send only what this SDK keeps: no head, hand or animation state. This message reaches
+    // everyone in the room, so anything else would overwrite what the browsers already show.
+    // The builder's defaults hide both hands.
     const nafMessage = new NafMessageBuilder()
       .withDataType('u')
       .withNetworkId(this.state.networkId)
@@ -287,7 +289,6 @@ export class AvatarController implements IAvatarController {
       .withPersistent(false)
       .withFirstSync(true) // Important: Set first sync flag for new users
       .withPosition(this.state.position)
-      .withVelocity({ x: 0, y: 0, z: 0 })
       .withScale({ x: 1, y: 1, z: 1 })
       .withAvatar({
         avatarSrc: this.state.avatarSrc || '',
@@ -301,11 +302,6 @@ export class AvatarController implements IAvatarController {
           ? { files: {} }
           : {}),
       })
-      // The browser reads components 4-13 as networked-avatar, head camera, controller and VRM
-      // status state, not what the head/hand/pin/face builder methods are named after. This
-      // message reaches everyone in the room, so placeholder values there would overwrite that
-      // state (e.g. a quaternion in '5' puts the head camera at the avatar's origin). Leave them
-      // out; the builder's defaults hide both hands. Keep the current facing.
       .withBodyRotation(this.quaternionToEuler(this.state.rotation))
       .withMegaphone(false)
       .withTemporaryMegaphone(false)
@@ -343,17 +339,13 @@ export class AvatarController implements IAvatarController {
     this.state.currentAnimation = animationId
 
     // v-air_clientと同じ形式でNAFメッセージを構築
-    // vrm-avatar-status-managerコンポーネント（インデックス13）のみを送信
     const nafMessage = new NafMessageBuilder()
       .withDataType('um')
       .withNetworkId(this.state.networkId)
       .withOwner(this.sessionId)
       .withCreator(this.sessionId)
       .withPosition(this.state.position) // 位置情報も含める
-      .withCustomComponent('13', {
-        status: animationId,
-        animationRunId: playbackId,
-      })
+      .withVrmAvatarStatus({ status: animationId, animationRunId: playbackId })
       .build()
 
     // Send via NAF for frequent animation updates
@@ -407,10 +399,7 @@ export class AvatarController implements IAvatarController {
       .withNetworkId(this.state.networkId)
       .withOwner(this.sessionId)
       .withCreator(this.sessionId)
-      .withCustomComponent('13', {
-        status: 'idle',
-        animationRunId: playbackId,
-      })
+      .withVrmAvatarStatus({ status: 'idle', animationRunId: playbackId })
       .build()
 
     await this.messageService.sendNAF(nafMessage)

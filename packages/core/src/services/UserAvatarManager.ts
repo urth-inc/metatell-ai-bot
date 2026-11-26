@@ -9,6 +9,13 @@ import type {
 } from '../interfaces/IUserAvatarManager.js'
 import { getLogger } from '../logging/index.js'
 import type { NAFComponent } from '../types/index.js'
+import {
+  type EulerRotation,
+  extractBodyRotation,
+  extractRotation,
+  type NAFComponentMap,
+  type Quaternion,
+} from '../types/naf.js'
 import { CompositeUserIdResolver } from './resolvers/CompositeUserIdResolver.js'
 import { CreatorMatchResolver } from './resolvers/CreatorMatchResolver.js'
 import { ExactMatchResolver } from './resolvers/ExactMatchResolver.js'
@@ -21,8 +28,20 @@ interface NAFMessage {
   data: NAFComponent | { d: NAFComponent[] }
 }
 
+const NO_ROTATION: EulerRotation = { x: 0, y: 0, z: 0 }
+
+function multiplyQuaternions(a: Quaternion, b: Quaternion): Quaternion {
+  return {
+    x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+    y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+    z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+    w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+  }
+}
+
 export class UserAvatarManager implements IUserAvatarManager {
   private users = new Map<string, UserAvatar>()
+  private readonly rotationParts = new Map<string, { rig?: EulerRotation; body?: EulerRotation }>()
   private eventHandlers = new Map<UserAvatarEvent, Set<(user: UserAvatar) => void>>()
   private logger = getLogger('UserAvatarManager')
 
@@ -236,28 +255,23 @@ export class UserAvatarManager implements IUserAvatarManager {
       )
     }
 
-    // 回転情報を取得（オイラー角またはクォータニオン）
+    // 回転: ブラウザはリグの回転（'1'）と、リグに対するモデルの回転（'14'）をオイラー角（度数）で、
+    // それぞれ変わったときだけ送る。向きは両者の積なので、最後に届いた値をユーザーごとに覚えておく
+    const components = data.components as NAFComponentMap
+    const rig = extractRotation(components)
+    const body = extractBodyRotation(components)
     let rotation = existingUser?.rotation
-    if (data.components[NafComponentId.BodyRotation]) {
-      // オイラー角（度数）からクォータニオンに変換
-      const eulerRotation = data.components[NafComponentId.BodyRotation] as {
-        x: number
-        y: number
-        z: number
+    if (rig || body) {
+      const parts = {
+        ...this.rotationParts.get(networkId),
+        ...(rig && { rig }),
+        ...(body && { body }),
       }
-      const { x, y, z } = eulerRotation
-      rotation = this.eulerToQuaternion(x, y, z)
-    } else if (data.components[NafComponentId.Velocity]) {
-      // 従来のクォータニオン形式（後方互換性）
-      const velocityRotation = data.components[NafComponentId.Velocity] as {
-        x: number
-        y: number
-        z: number
-      }
-      const { x, y, z } = velocityRotation
-      // クォータニオンの w を計算（正規化されていると仮定）
-      const w = Math.sqrt(Math.max(0, 1 - x * x - y * y - z * z))
-      rotation = { x, y, z, w }
+      this.rotationParts.set(networkId, parts)
+      rotation = multiplyQuaternions(
+        this.eulerToQuaternion(parts.rig ?? NO_ROTATION),
+        this.eulerToQuaternion(parts.body ?? NO_ROTATION),
+      )
     }
 
     // アバターID を取得
@@ -403,11 +417,7 @@ export class UserAvatarManager implements IUserAvatarManager {
     return oldPos.x !== newPos.x || oldPos.y !== newPos.y || oldPos.z !== newPos.z
   }
 
-  private eulerToQuaternion(
-    x: number,
-    y: number,
-    z: number,
-  ): { x: number; y: number; z: number; w: number } {
+  private eulerToQuaternion({ x, y, z }: EulerRotation): Quaternion {
     // オイラー角（度数）からクォータニオンに変換
     const xRad = (x * Math.PI) / 180
     const yRad = (y * Math.PI) / 180
@@ -462,6 +472,7 @@ export class UserAvatarManager implements IUserAvatarManager {
 
   private handleUserLeave(user: { id: string }): void {
     const userAvatar = this.users.get(user.id)
+    this.rotationParts.delete(user.id)
     if (userAvatar) {
       this.users.delete(user.id)
       this.emit('userLeft', userAvatar)

@@ -479,7 +479,7 @@ describe('AvatarController', () => {
       )
     })
 
-    it('should hide both hands and leave head camera, controller and VRM state untouched', async () => {
+    it('should hide both hands and leave head, hand and animation state out', async () => {
       await avatarController.rotate({ x: 0, y: Math.SQRT1_2, z: 0, w: Math.SQRT1_2 })
       vi.clearAllMocks()
 
@@ -488,7 +488,7 @@ describe('AvatarController', () => {
       const components = vi.mocked(mockMessageService.sendNAFR).mock.calls[0]?.[0].data.components
       expect(components).toMatchObject({ '9': false, '12': false })
       expect(components?.['14']).toEqual({ x: 0, y: expect.closeTo(90), z: 0 })
-      for (const id of ['4', '5', '6', '7', '8', '10', '11', '13']) {
+      for (const id of ['1', '4', '5', '6', '7', '8', '10', '11', '13']) {
         expect(components).not.toHaveProperty(id)
       }
     })
