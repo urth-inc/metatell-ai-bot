@@ -1,5 +1,12 @@
 # @metatell/bot-realtime
 
+## 2.0.6
+
+### Patch Changes
+
+- Updated dependencies [4e02302]
+  - @metatell/bot-core@3.0.0
+
 ## 2.0.5
 
 ### Patch Changes
