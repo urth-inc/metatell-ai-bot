@@ -88,18 +88,8 @@ describe('AvatarController - Core Functionality', () => {
       withTemplate: vi.fn().mockReturnThis(),
       withPersistent: vi.fn().mockReturnThis(),
       withLastOwnerTime: vi.fn().mockReturnThis(),
-      withVelocity: vi.fn().mockReturnThis(),
       withScale: vi.fn().mockReturnThis(),
-      withHeadRotation: vi.fn().mockReturnThis(),
-      withLeftHandRotation: vi.fn().mockReturnThis(),
-      withRightHandRotation: vi.fn().mockReturnThis(),
-      withLeftHandPosition: vi.fn().mockReturnThis(),
-      withRightHandPosition: vi.fn().mockReturnThis(),
-      withHandRaised: vi.fn().mockReturnThis(),
-      withPinPosition: vi.fn().mockReturnThis(),
-      withPinScale: vi.fn().mockReturnThis(),
-      withFaceSnapshotEnabled: vi.fn().mockReturnThis(),
-      withFaceSnapshot: vi.fn().mockReturnThis(),
+      withVrmAvatarStatus: vi.fn().mockReturnThis(),
       withMegaphone: vi.fn().mockReturnThis(),
       withTemporaryMegaphone: vi.fn().mockReturnThis(),
       build: vi.fn().mockReturnValue({ type: 'naf-message', data: 'test-data' }),
@@ -398,7 +388,7 @@ describe('AvatarController - Core Functionality', () => {
 
       expect(mockNafMessageBuilder.withTemplate).toHaveBeenCalledWith('#remote-avatar')
       expect(mockNafMessageBuilder.withPersistent).toHaveBeenCalledWith(false)
-      expect(mockNafMessageBuilder.withVelocity).toHaveBeenCalled()
+      expect(mockNafMessageBuilder.withBodyRotation).toHaveBeenCalledWith({ x: 0, y: 0, z: 0 })
       expect(mockNafMessageBuilder.withScale).toHaveBeenCalled()
       expect(mockNafMessageBuilder.withAvatar).toHaveBeenCalled()
     })
